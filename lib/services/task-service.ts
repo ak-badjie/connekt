@@ -302,5 +302,51 @@ export const TaskService = {
             ).length,
             totalTasks: userTasks.length
         };
+    },
+
+    /**
+     * Get all tasks for an agency (across all agency projects)
+     */
+    async getAgencyTasks(agencyId: string): Promise<Task[]> {
+        // Get all agency projects
+        const projectsSnapshot = await getDocs(
+            query(collection(db, 'projects'))
+        );
+
+        const agencyProjectIds: string[] = [];
+
+        // Filter projects that belong to agency workspaces
+        for (const projectDoc of projectsSnapshot.docs) {
+            const project = projectDoc.data();
+            // Check if workspace belongs to agency
+            const workspaceDoc = await getDoc(doc(db, 'workspaces', project.workspaceId));
+            if (workspaceDoc.exists() && workspaceDoc.data().ownerId === agencyId) {
+                agencyProjectIds.push(projectDoc.id);
+            }
+        }
+
+        // Get all tasks for these projects
+        const allTasks: Task[] = [];
+        for (const projectId of agencyProjectIds) {
+            const tasks = await this.getProjectTasks(projectId);
+            allTasks.push(...tasks);
+        }
+
+        return allTasks;
+    },
+
+    /**
+     * Get agency task statistics
+     */
+    async getAgencyTaskStats(agencyId: string) {
+        const tasks = await this.getAgencyTasks(agencyId);
+
+        return {
+            total: tasks.length,
+            active: tasks.filter(t => t.status === 'in-progress').length,
+            pending: tasks.filter(t => t.status === 'todo').length,
+            pendingValidation: tasks.filter(t => t.status === 'pending-validation').length,
+            done: tasks.filter(t => t.status === 'done').length
+        };
     }
 };

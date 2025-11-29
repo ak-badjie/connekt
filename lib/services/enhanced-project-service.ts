@@ -250,5 +250,46 @@ export const EnhancedProjectService = {
         if (!project) return false;
 
         return project.supervisors.includes(userId);
+    },
+
+    /**
+     * Get all projects for an agency (across all agency workspaces)
+     */
+    async getAgencyProjects(agencyId: string): Promise<Project[]> {
+        // First get all workspaces owned by the agency
+        const workspacesSnapshot = await getDocs(
+            query(
+                collection(db, 'workspaces'),
+                where('ownerId', '==', agencyId)
+            )
+        );
+
+        const workspaceIds = workspacesSnapshot.docs.map(doc => doc.id);
+
+        if (workspaceIds.length === 0) return [];
+
+        // Get all projects in these workspaces
+        const allProjects: Project[] = [];
+        for (const workspaceId of workspaceIds) {
+            const projects = await this.getWorkspaceProjects(workspaceId);
+            allProjects.push(...projects);
+        }
+
+        return allProjects;
+    },
+
+    /**
+     * Get agency project statistics
+     */
+    async getAgencyProjectStats(agencyId: string) {
+        const projects = await this.getAgencyProjects(agencyId);
+
+        return {
+            total: projects.length,
+            active: projects.filter(p => p.status === 'active').length,
+            completed: projects.filter(p => p.status === 'completed').length,
+            planning: projects.filter(p => p.status === 'planning').length,
+            onHold: projects.filter(p => p.status === 'on-hold').length
+        };
     }
 };

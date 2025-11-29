@@ -13,19 +13,33 @@ interface StatDetail {
     tags?: string[];
     date?: string;
     amount?: number;
+    priority?: 'low' | 'medium' | 'high' | 'urgent';
     [key: string]: any;
 }
 
 interface StatsModalProps {
     isOpen: boolean;
     onClose: () => void;
-    title: string;
-    items: StatDetail[];
-    type: 'projects' | 'tasks' | 'pots-pending' | 'pots-review';
+    title?: string;
+    items?: StatDetail[];
+    data?: any[];
+    type: 'projects' | 'tasks' | 'pots-pending' | 'pots-review' | 'pots';
+    onItemClick?: (id: string) => void;
 }
 
-export default function StatsModal({ isOpen, onClose, title, items, type }: StatsModalProps) {
+export default function StatsModal({ isOpen, onClose, title, items, data, type, onItemClick }: StatsModalProps) {
     const router = useRouter();
+
+    // Support both 'items' and 'data' props
+    const modalItems = items || data || [];
+
+    // Generate title if not provided
+    const modalTitle = title || (
+        type === 'projects' ? 'Projects' :
+            type === 'tasks' ? 'Active Tasks' :
+                type === 'pots-pending' || type === 'pots' ? 'POTs Pending Review' :
+                    'POTs to Review'
+    );
 
     useEffect(() => {
         if (isOpen) {
@@ -41,12 +55,17 @@ export default function StatsModal({ isOpen, onClose, title, items, type }: Stat
     if (!isOpen) return null;
 
     const handleItemClick = (item: StatDetail) => {
-        if (type === 'projects') {
-            router.push(`/dashboard/projects/${item.id}`);
-        } else if (type === 'tasks' || type === 'pots-pending' || type === 'pots-review') {
-            router.push(`/dashboard/tasks/${item.id}`);
+        if (onItemClick) {
+            onItemClick(item.id);
+        } else {
+            // Fallback to default routing
+            if (type === 'projects') {
+                router.push(`/dashboard/projects/${item.id}`);
+            } else {
+                router.push(`/dashboard/tasks/${item.id}`);
+            }
+            onClose();
         }
-        onClose();
     };
 
     const renderItem = (item: StatDetail) => {
@@ -68,9 +87,9 @@ export default function StatsModal({ isOpen, onClose, title, items, type }: Stat
                                 </p>
                             </div>
                             <span className={`px-3 py-1 rounded-full text-xs font-bold ${item.status === 'active' ? 'bg-green-100 text-green-600 dark:bg-green-900/30' :
-                                    item.status === 'planning' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' :
-                                        item.status === 'completed' ? 'bg-gray-100 text-gray-600 dark:bg-gray-800' :
-                                            'bg-amber-100 text-amber-600 dark:bg-amber-900/30'
+                                item.status === 'planning' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' :
+                                    item.status === 'completed' ? 'bg-gray-100 text-gray-600 dark:bg-gray-800' :
+                                        'bg-amber-100 text-amber-600 dark:bg-amber-900/30'
                                 }`}>
                                 {item.status}
                             </span>
@@ -120,9 +139,9 @@ export default function StatsModal({ isOpen, onClose, title, items, type }: Stat
                                 {item.title}
                             </h4>
                             <span className={`px-2 py-1 rounded-full text-xs font-bold ml-2 ${item.priority === 'urgent' ? 'bg-red-100 text-red-600' :
-                                    item.priority === 'high' ? 'bg-orange-100 text-orange-600' :
-                                        item.priority === 'medium' ? 'bg-yellow-100 text-yellow-600' :
-                                            'bg-green-100 text-green-600'
+                                item.priority === 'high' ? 'bg-orange-100 text-orange-600' :
+                                    item.priority === 'medium' ? 'bg-yellow-100 text-yellow-600' :
+                                        'bg-green-100 text-green-600'
                                 }`}>
                                 {item.priority}
                             </span>
@@ -188,8 +207,8 @@ export default function StatsModal({ isOpen, onClose, title, items, type }: Stat
                 {/* Header */}
                 <div className="sticky top-0 z-10 bg-white dark:bg-zinc-800 border-b border-gray-200 dark:border-zinc-700 px-6 py-4 flex items-center justify-between">
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{title}</h2>
-                        <p className="text-sm text-gray-500 mt-0.5">{items.length} items</p>
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{modalTitle}</h2>
+                        <p className="text-sm text-gray-500 mt-0.5">{modalItems?.length || 0} items</p>
                     </div>
                     <button
                         onClick={onClose}
@@ -201,7 +220,7 @@ export default function StatsModal({ isOpen, onClose, title, items, type }: Stat
 
                 {/* Content */}
                 <div className="p-6 overflow-y-auto max-h-[calc(85vh-80px)] custom-scrollbar">
-                    {items.length === 0 ? (
+                    {modalItems.length === 0 ? (
                         <div className="text-center py-16">
                             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-200 dark:bg-zinc-800 flex items-center justify-center">
                                 <span className="text-3xl">📭</span>
@@ -210,7 +229,7 @@ export default function StatsModal({ isOpen, onClose, title, items, type }: Stat
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {items.map(item => renderItem(item))}
+                            {modalItems.map(item => renderItem(item))}
                         </div>
                     )}
                 </div>

@@ -184,5 +184,23 @@ export const WorkspaceService = {
 
         const member = workspace.members.find(m => m.userId === userId);
         return member?.role || null;
+    },
+
+    /**
+     * Get all workspaces owned by an agency
+     */
+    async getAgencyWorkspaces(agencyId: string): Promise<Workspace[]> {
+        const q = query(
+            collection(db, 'workspaces'),
+            where('ownerId', '==', agencyId),
+            where('isActive', '==', true),
+            orderBy('createdAt', 'desc')
+        );
+
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        } as Workspace));
     }
 };
