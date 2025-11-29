@@ -64,7 +64,7 @@ export default function CreateAgencyWorkspacePage() {
                 ownerEmail: `info@${agency.domain}`
             });
 
-            router.push(`/agency/${agencyUsername}/workspaces/${workspaceId}`);
+            router.push(`/agency/${agencyUsername}/dashboard/workspaces/${workspaceId}`);
         } catch (error) {
             console.error('Error creating workspace:', error);
             alert('Failed to create workspace. Please try again.');

@@ -68,7 +68,7 @@ export default function AgencyProjectsStartupPage() {
                     </p>
                 </div>
                 <button
-                    onClick={() => router.push(`/agency/${agencyUsername}/projects/create`)}
+                    onClick={() => router.push(`/agency/${agencyUsername}/dashboard/projects/create`)}
                     className="px-6 py-3 bg-gradient-to-r from-[#008080] to-teal-600 hover:from-teal-600 hover:to-[#008080] text-white rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-teal-500/30 hover:shadow-teal-500/50 hover:scale-105"
                 >
                     <Plus size={20} />
@@ -93,7 +93,7 @@ export default function AgencyProjectsStartupPage() {
                             Create your first project to start managing tasks
                         </p>
                         <button
-                            onClick={() => router.push(`/agency/${agencyUsername}/projects/create`)}
+                            onClick={() => router.push(`/agency/${agencyUsername}/dashboard/projects/create`)}
                             className="px-6 py-3 bg-[#008080] hover:bg-teal-600 text-white rounded-xl font-bold transition-all inline-flex items-center gap-2"
                         >
                             <Plus size={18} />
@@ -105,7 +105,7 @@ export default function AgencyProjectsStartupPage() {
                         {projects.map((project) => (
                             <div
                                 key={project.id}
-                                onClick={() => router.push(`/agency/${agencyUsername}/projects/${project.id}`)}
+                                onClick={() => router.push(`/agency/${agencyUsername}/dashboard/projects/${project.id}`)}
                                 className="group bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl rounded-2xl border border-gray-200 dark:border-zinc-800 p-6 cursor-pointer transition-all hover:shadow-xl hover:scale-[1.02] hover:border-[#008080] dark:hover:border-[#008080]"
                             >
                                 <div className="flex items-start justify-between mb-4">
