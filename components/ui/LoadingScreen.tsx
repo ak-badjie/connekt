@@ -50,7 +50,7 @@ export default function LoadingScreen({ variant = 'default' }: LoadingScreenProp
                         {variant === 'mail' ? (
                             <div className="relative">
                                 {/* CONNEKTMAIL LOGO */}
-                                <ConnektMailLogo size={100} color="#f97316" />
+                                <ConnektMailLogo size="large" color="teal" />
                             </div>
                         ) : (
                             <svg

@@ -1,6 +1,6 @@
 'use client';
 
-import { Search, Filter, Clock, User as UserIcon, Paperclip } from 'lucide-react';
+import { Search, Filter, Clock, User as UserIcon } from 'lucide-react';
 import { useState } from 'react';
 import type { MailMessage } from '@/lib/services/mail-service';
 
@@ -49,7 +49,7 @@ export function MailListColumn({
                         value={searchQuery}
                         onChange={(e) => onSearchChange?.(e.target.value)}
                         placeholder="Search mails..."
-                        className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-zinc-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f97316]/20"
+                        className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-zinc-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#008080]/20"
                     />
                 </div>
 
@@ -58,7 +58,7 @@ export function MailListColumn({
                     <button
                         onClick={() => setSortBy('date')}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${sortBy === 'date'
-                                ? 'bg-[#f97316] text-white'
+                                ? 'bg-[#008080] text-white'
                                 : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400'
                             }`}
                     >
@@ -68,7 +68,7 @@ export function MailListColumn({
                     <button
                         onClick={() => setSortBy('sender')}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${sortBy === 'sender'
-                                ? 'bg-[#f97316] text-white'
+                                ? 'bg-[#008080] text-white'
                                 : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400'
                             }`}
                     >
@@ -86,7 +86,7 @@ export function MailListColumn({
             <div className="flex-1 overflow-y-auto custom-scrollbar">
                 {loading ? (
                     <div className="flex justify-center items-center h-32">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#f97316]"></div>
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#008080]"></div>
                     </div>
                 ) : mails.length === 0 ? (
                     <div className="text-center py-10 text-gray-400 text-sm">
@@ -99,14 +99,14 @@ export function MailListColumn({
                                 key={mail.id}
                                 onClick={() => onMailSelect(mail)}
                                 className={`w-full p-4 rounded-xl cursor-pointer transition-all text-left ${selectedMail?.id === mail.id
-                                        ? 'bg-[#f97316]/5 border border-[#f97316] shadow-sm'
+                                        ? 'bg-[#008080]/5 border border-[#008080] shadow-sm'
                                         : 'border border-transparent hover:bg-gray-50 dark:hover:bg-zinc-800'
                                     }`}
                             >
                                 {/* Sender & Time */}
                                 <div className="flex justify-between items-start mb-1">
                                     <div className="flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#f97316] to-orange-600 flex items-center justify-center text-white font-bold text-xs">
+                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#008080] to-teal-600 flex items-center justify-center text-white font-bold text-xs">
                                             {mail.senderName[0]?.toUpperCase()}
                                         </div>
                                         <h4 className={`text-sm ${!mail.isRead
@@ -137,8 +137,8 @@ export function MailListColumn({
                                 {/* Unread Indicator */}
                                 {!mail.isRead && (
                                     <div className="mt-2 flex items-center gap-1">
-                                        <div className="w-2 h-2 rounded-full bg-[#f97316]"></div>
-                                        <span className="text-[10px] text-[#f97316] font-medium">Unread</span>
+                                        <div className="w-2 h-2 rounded-full bg-[#008080]"></div>
+                                        <span className="text-[10px] text-[#008080] font-medium">Unread</span>
                                     </div>
                                 )}
                             </button>

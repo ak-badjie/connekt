@@ -145,12 +145,12 @@ export default function MailPage() {
                             transition={{ duration: 0.5 }}
                             className="text-center"
                         >
-                            <ConnektMailLogo size={120} color="#f97316" />
+                            <ConnektMailLogo size="large" color="teal" />
                             <motion.h1
                                 initial={{ y: 20, opacity: 0 }}
                                 animate={{ y: 0, opacity: 1 }}
                                 transition={{ delay: 0.3 }}
-                                className="text-4xl font-bold text-[#f97316] mt-8 mb-4"
+                                className="text-4xl font-bold text-[#008080] mt-8 mb-4"
                             >
                                 ConnektMail
                             </motion.h1>
@@ -173,7 +173,7 @@ export default function MailPage() {
                             exit={{ opacity: 0, scale: 0.9 }}
                             className="max-w-4xl mx-auto p-8 text-center"
                         >
-                            <ConnektMailLogo size={100} color="#f97316" />
+                            <ConnektMailLogo size="large" color="teal" />
                             <h1 className="text-5xl font-bold text-gray-900 dark:text-white mt-8 mb-6">
                                 Welcome to ConnektMail
                             </h1>
@@ -249,7 +249,7 @@ export default function MailPage() {
                             className="max-w-2xl mx-auto p-8 text-center"
                         >
                             <div className="mb-8">
-                                <div className="w-20 h-20 bg-gradient-to-br from-[#f97316] to-orange-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <div className="w-20 h-20 bg-gradient-to-br from-[#008080] to-teal-600 rounded-full flex items-center justify-center mx-auto mb-6">
                                     <span className="text-4xl text-white">✉️</span>
                                 </div>
                                 <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
@@ -258,8 +258,8 @@ export default function MailPage() {
                                 <p className="text-gray-600 dark:text-gray-400 mb-8">
                                     Your ConnektMail address is:
                                 </p>
-                                <div className="px-8 py-4 bg-orange-50 dark:bg-orange-900/20 rounded-2xl border-2 border-[#f97316] inline-block">
-                                    <p className="text-2xl font-bold text-[#f97316]">
+                                <div className="px-8 py-4 bg-teal-50 dark:bg-teal-900/20 rounded-2xl border-2 border-[#008080] inline-block">
+                                    <p className="text-2xl font-bold text-[#008080]">
                                         {mailAddresses[0]?.address || 'Loading...'}
                                     </p>
                                 </div>

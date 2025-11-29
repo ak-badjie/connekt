@@ -43,7 +43,7 @@ export default function OnboardingPage() {
             const userRef = doc(db, 'users', user.uid);
             await setDoc(userRef, {
                 username: username.toLowerCase(),
-                connectMail: connectMail, // Store full ConnectMail address
+                connectMail: connectMail, // Store full Connekt mail address
                 role,
                 bio,
                 skills,

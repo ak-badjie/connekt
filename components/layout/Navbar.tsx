@@ -69,9 +69,9 @@ export function Navbar() {
                 {/* Left Side: Search (Private) or Logo (Public) */}
                 <div className="flex items-center gap-8 flex-1">
                     {!isPrivatePage && (
-                        <Link href="/" className="flex items-center gap-2 text-[#008080]">
-                            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#008080] to-teal-600 flex items-center justify-center text-white font-bold">C</div>
-                            <span className="text-xl font-bold font-headline text-gray-900 dark:text-white">Connekt</span>
+                        <Link href="/" className="flex items-center gap-3">
+                            <BriefcaseLogo3D size="medium" color="teal" />
+                            <span className="text-xl font-bold font-headline text-[#008080] tracking-widest">CONNEKT</span>
                         </Link>
                     )}
 
@@ -192,7 +192,7 @@ export function Navbar() {
                                             Dashboard
                                         </Link>
                                         <Link
-                                            href={`/u/${userProfile?.username}`}
+                                            href={`/@${userProfile?.username}`}
                                             className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
                                             onClick={() => setIsDropdownOpen(false)}
                                         >
