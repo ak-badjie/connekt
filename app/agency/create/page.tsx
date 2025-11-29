@@ -92,7 +92,7 @@ export default function CreateAgencyPage() {
 
             if (agency) {
                 // Redirect to agency dashboard
-                router.push(`/agency/${agency.username}/dashboard`);
+                router.push(`/agency/@${agency.username}/dashboard`);
             } else {
                 alert('Failed to create agency. Please try again.');
             }

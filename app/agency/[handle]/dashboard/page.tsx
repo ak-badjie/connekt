@@ -97,9 +97,9 @@ export default function AgencyDashboardPage() {
 
     const handleModalItemClick = (id: string) => {
         if (modalType === 'projects') {
-            router.push(`/agency/${agencyUsername}/dashboard/projects/${id}`);
+            router.push(`/agency/@${agencyUsername}/dashboard/projects/${id}`);
         } else if (modalType === 'tasks' || modalType === 'pots-pending') {
-            router.push(`/agency/${agencyUsername}/dashboard/tasks/${id}`);
+            router.push(`/agency/@${agencyUsername}/dashboard/tasks/${id}`);
         }
         setModalOpen(false);
     };
@@ -114,13 +114,13 @@ export default function AgencyDashboardPage() {
                 </div>
                 <div className="flex gap-3">
                     <button
-                        onClick={() => router.push(`/agency/${agencyUsername}/dashboard/projects/create`)}
+                        onClick={() => router.push(`/agency/@${agencyUsername}/dashboard/projects/create`)}
                         className="px-5 py-2.5 bg-[#008080] hover:bg-teal-600 text-white rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-teal-500/20"
                     >
                         <Plus size={16} /> Add Project
                     </button>
                     <button
-                        onClick={() => router.push(`/agency/${agencyUsername}/team`)}
+                        onClick={() => router.push(`/agency/@${agencyUsername}/team`)}
                         className="px-5 py-2.5 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold text-sm hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors flex items-center gap-2"
                     >
                         <Users size={16} /> Manage Team
@@ -217,7 +217,7 @@ export default function AgencyDashboardPage() {
                             ))}
                         </div>
                         <button
-                            onClick={() => router.push(`/agency/${agencyUsername}/team`)}
+                            onClick={() => router.push(`/agency/@${agencyUsername}/team`)}
                             className="w-full mt-4 py-2 border border-gray-200 dark:border-zinc-700 rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
                         >
                             Manage Team

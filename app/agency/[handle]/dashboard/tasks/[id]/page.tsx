@@ -160,7 +160,7 @@ export default function AgencyTaskDetailPage() {
             <div className="max-w-4xl mx-auto text-center py-16">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Task Not Found</h2>
                 <button
-                    onClick={() => router.push(`/agency/${agencyUsername}/dashboard/tasks`)}
+                    onClick={() => router.push(`/agency/@${agencyUsername}/dashboard/tasks`)}
                     className="px-6 py-3 bg-[#008080] hover:bg-teal-600 text-white rounded-xl font-bold transition-all"
                 >
                     Back to Tasks
@@ -178,7 +178,7 @@ export default function AgencyTaskDetailPage() {
             <div className="flex items-start justify-between">
                 <div className="flex items-center gap-4">
                     <button
-                        onClick={() => router.push(`/agency/${agencyUsername}/dashboard/tasks`)}
+                        onClick={() => router.push(`/agency/@${agencyUsername}/dashboard/tasks`)}
                         className="w-12 h-12 rounded-xl bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
                     >
                         <ArrowLeft size={20} />

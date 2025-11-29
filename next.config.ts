@@ -33,6 +33,10 @@ const nextConfig: NextConfig = {
         source: '/agency/@:handle',
         destination: '/agency/:handle',
       },
+      {
+        source: '/agency/@:handle/dashboard/:path*',
+        destination: '/agency/:handle/dashboard/:path*',
+      },
     ];
   },
 };

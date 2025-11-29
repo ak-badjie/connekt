@@ -50,8 +50,6 @@ export function AgencyProfile({ agency: initialAgency, isOwner }: AgencyProfileP
                         className="object-cover"
                         priority
                     />
-                    {/* Corporate Gradient Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-900/40 via-purple-900/40 to-teal-900/40" />
                 </div>
 
                 {/* Decorative Elements */}
@@ -193,8 +191,8 @@ export function AgencyProfile({ agency: initialAgency, isOwner }: AgencyProfileP
                                                 whileHover={{ scale: 1.05 }}
                                                 whileTap={{ scale: 0.95 }}
                                                 className={`px-8 py-3 rounded-xl font-medium hover:shadow-lg transition-all flex items-center gap-2 ${isFollowing
-                                                        ? 'bg-white/20 text-white border border-white/30'
-                                                        : 'bg-gradient-to-r from-blue-500 to-teal-500 text-white'
+                                                    ? 'bg-white/20 text-white border border-white/30'
+                                                    : 'bg-gradient-to-r from-blue-500 to-teal-500 text-white'
                                                     }`}
                                             >
                                                 {isFollowing ? 'Following' : 'Follow'}

@@ -71,8 +71,6 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
                         className="object-cover"
                         priority
                     />
-                    {/* Gradient Overlay for better text visibility */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-pink-400/30 via-purple-400/30 to-blue-400/30" />
                 </div>
 
                 {/* Decorative Blur Circles */}
