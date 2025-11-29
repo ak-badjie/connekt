@@ -37,7 +37,7 @@ export default function AgencyTasksStartupPage() {
     }, [user, agencyUsername]);
 
     const handleTaskClick = (taskId: string) => {
-        router.push(`/agency/${agencyUsername}/dashboard/tasks/${taskId}`);
+        router.push(`/agency/@${agencyUsername}/dashboard/tasks/${taskId}`);
     };
 
     const getPriorityColor = (priority: string) => {
@@ -96,7 +96,7 @@ export default function AgencyTasksStartupPage() {
                     </p>
                 </div>
                 <button
-                    onClick={() => router.push(`/agency/${agencyUsername}/dashboard/tasks/create`)}
+                    onClick={() => router.push(`/agency/@${agencyUsername}/dashboard/tasks/create`)}
                     className="px-6 py-3 bg-gradient-to-r from-[#008080] to-teal-600 hover:from-teal-600 hover:to-[#008080] text-white rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-teal-500/30 hover:shadow-teal-500/50 hover:scale-105"
                 >
                     <Plus size={20} />

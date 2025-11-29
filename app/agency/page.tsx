@@ -187,7 +187,7 @@ function AgencyCard({ agency, isOwner, index }: AgencyCardProps) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 * index }}
             whileHover={{ scale: 1.02, y: -4 }}
-            onClick={() => router.push(`/agency/${agency.username}/dashboard`)}
+            onClick={() => router.push(`/agency/@${agency.username}/dashboard`)}
             className="bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl rounded-2xl border border-gray-200/50 dark:border-zinc-800/50 p-6 shadow-lg hover:shadow-xl transition-all cursor-pointer group"
         >
             {/* Agency Logo */}

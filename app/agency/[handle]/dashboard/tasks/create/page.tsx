@@ -95,7 +95,7 @@ function CreateTaskForm() {
                 }
             });
 
-            router.push(`/agency/${agencyUsername}/dashboard/tasks/${taskId}`);
+            router.push(`/agency/@${agencyUsername}/dashboard/tasks/${taskId}`);
         } catch (error) {
             console.error('Error creating task:', error);
             alert('Failed to create task. Please try again.');
