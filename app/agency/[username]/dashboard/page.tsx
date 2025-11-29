@@ -5,8 +5,12 @@ import { useAuth } from '@/context/AuthContext';
 import { useParams } from 'next/navigation';
 import { AgencyService, Agency } from '@/lib/services/agency-service';
 import { StorageQuotaService, AgencyStorageQuota } from '@/lib/services/storage-quota-service';
+import { EnhancedProjectService } from '@/lib/services/enhanced-project-service';
+import { TaskService } from '@/lib/services/task-service';
+import { Project, Task } from '@/lib/types/workspace.types';
 import StatsCard from '@/components/dashboard/StatsCard';
-import { Plus, Users, Briefcase, HardDrive, CheckSquare } from 'lucide-react';
+import StatsModal from '@/components/dashboard/StatsModal';
+import { Plus, Users, Briefcase, HardDrive, CheckSquare, FileCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function AgencyDashboardPage() {
@@ -19,13 +23,22 @@ export default function AgencyDashboardPage() {
     const [storageQuota, setStorageQuota] = useState<AgencyStorageQuota | null>(null);
     const [loading, setLoading] = useState(true);
 
-    // Mock stats - In production, fetch from Firestore
+    // Stats data
     const [stats, setStats] = useState({
         totalProjects: 0,
-        teamMembers: 0,
         activeTasks: 0,
+        potsPending: 0,
+        teamMembers: 0,
         storageUsed: 0
     });
+
+    // Modal state
+    const [modalOpen, setModalOpen] = useState(false);
+    const [modalType, setModalType] = useState<'projects' | 'tasks' | 'pots-pending' | null>(null);
+    const [modalData, setModalData] = useState<{
+        projects?: Project[];
+        tasks?: Task[];
+    }>({});
 
     useEffect(() => {
         const loadAgencyData = async () => {
@@ -41,13 +54,25 @@ export default function AgencyDashboardPage() {
                     const quota = await StorageQuotaService.getAgencyStorageQuota(agencyData.id!);
                     setStorageQuota(quota);
 
-                    // Set stats
+                    // Fetch real statistics
+                    const [projects, tasks] = await Promise.all([
+                        EnhancedProjectService.getAgencyProjects(agencyData.id!),
+                        TaskService.getAgencyTasks(agencyData.id!)
+                    ]);
+
+                    const activeTasks = tasks.filter(t => t.status === 'in-progress');
+                    const potsPending = tasks.filter(t => t.status === 'pending-validation');
+
                     setStats({
-                        totalProjects: 0, // TODO: Fetch from Firestore
+                        totalProjects: projects.length,
+                        activeTasks: activeTasks.length,
+                        potsPending: potsPending.length,
                         teamMembers: agencyData.members.length,
-                        activeTasks: 0, // TODO: Fetch from Firestore
                         storageUsed: quota ? StorageQuotaService.bytesToGB(quota.usedSpace) : 0
                     });
+
+                    // Store data for modal
+                    setModalData({ projects, tasks });
                 }
             } catch (error) {
                 console.error('Error loading agency data:', error);
@@ -58,6 +83,20 @@ export default function AgencyDashboardPage() {
 
         loadAgencyData();
     }, [user, agencyUsername]);
+
+    const handleStatClick = (type: 'projects' | 'tasks' | 'pots-pending') => {
+        setModalType(type);
+        setModalOpen(true);
+    };
+
+    const handleModalItemClick = (id: string) => {
+        if (modalType === 'projects') {
+            router.push(`/agency/${agencyUsername}/projects/${id}`);
+        } else if (modalType === 'tasks' || modalType === 'pots-pending') {
+            router.push(`/agency/${agencyUsername}/tasks/${id}`);
+        }
+        setModalOpen(false);
+    };
 
     return (
         <div className="max-w-[1600px] mx-auto space-y-6">
@@ -88,23 +127,26 @@ export default function AgencyDashboardPage() {
                 <StatsCard
                     title="Total Projects"
                     value={stats.totalProjects}
-                    trend="Active projects"
+                    trend="All agency projects"
                     trendValue=""
                     color="green"
-                />
-                <StatsCard
-                    title="Team Members"
-                    value={stats.teamMembers}
-                    trend="Active members"
-                    trendValue=""
-                    color="white"
+                    onClick={() => handleStatClick('projects')}
                 />
                 <StatsCard
                     title="Active Tasks"
                     value={stats.activeTasks}
-                    trend="In progress"
+                    trend="Currently in progress"
                     trendValue=""
                     color="white"
+                    onClick={() => handleStatClick('tasks')}
+                />
+                <StatsCard
+                    title="POTs Pending Review"
+                    value={stats.potsPending}
+                    trend="Awaiting validation"
+                    trendValue=""
+                    color="white"
+                    onClick={() => handleStatClick('pots-pending')}
                 />
                 <div
                     onClick={() => router.push(`/agency/${agencyUsername}/dashboard/storage`)}
@@ -182,7 +224,22 @@ export default function AgencyDashboardPage() {
                         Manage Team
                     </button>
                 </div>
+
             </div>
+
+            {/* Stats Modal */}
+            <StatsModal
+                isOpen={modalOpen}
+                onClose={() => setModalOpen(false)}
+                type={modalType === 'projects' ? 'projects' : modalType === 'pots-pending' ? 'pots' : 'tasks'}
+                data={
+                    modalType === 'projects' ? modalData.projects || [] :
+                        modalType === 'tasks' ? (modalData.tasks || []).filter(t => t.status === 'in-progress') :
+                            modalType === 'pots-pending' ? (modalData.tasks || []).filter(t => t.status === 'pending-validation') :
+                                []
+                }
+                onItemClick={handleModalItemClick}
+            />
         </div>
     );
 }
