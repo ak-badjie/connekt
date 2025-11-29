@@ -127,7 +127,7 @@ const TopNavBar = () => {
                                     {userProfile?.displayName || 'User'}
                                 </h4>
                                 <p className="text-xs text-gray-400 dark:text-gray-500">
-                                    {user?.email || 'user@example.com'}
+                                    {userProfile?.username ? `${userProfile.username}@connekt.com` : user?.email || 'user@connekt.com'}
                                 </p>
                             </div>
 
