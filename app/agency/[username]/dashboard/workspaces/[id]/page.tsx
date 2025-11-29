@@ -64,7 +64,7 @@ export default function AgencyWorkspaceDetailPage() {
                     This workspace doesn't exist or you don't have access to it.
                 </p>
                 <button
-                    onClick={() => router.push(`/agency/${agencyUsername}/workspaces`)}
+                    onClick={() => router.push(`/agency/${agencyUsername}/dashboard/workspaces`)}
                     className="px-6 py-3 bg-[#008080] hover:bg-teal-600 text-white rounded-xl font-bold transition-all"
                 >
                     Back to Workspaces
@@ -82,7 +82,7 @@ export default function AgencyWorkspaceDetailPage() {
             <div className="flex items-start justify-between">
                 <div className="flex items-center gap-4">
                     <button
-                        onClick={() => router.push(`/agency/${agencyUsername}/workspaces`)}
+                        onClick={() => router.push(`/agency/${agencyUsername}/dashboard/workspaces`)}
                         className="w-12 h-12 rounded-xl bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
                     >
                         <ArrowLeft size={20} />
@@ -103,7 +103,7 @@ export default function AgencyWorkspaceDetailPage() {
                         </button>
                     )}
                     <button
-                        onClick={() => router.push(`/agency/${agencyUsername}/projects/create?workspace=${workspaceId}`)}
+                        onClick={() => router.push(`/agency/${agencyUsername}/dashboard/projects/create?workspace=${workspaceId}`)}
                         className="px-5 py-2.5 bg-[#008080] hover:bg-teal-600 text-white rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-teal-500/20"
                     >
                         <Plus size={16} />
@@ -184,7 +184,7 @@ export default function AgencyWorkspaceDetailPage() {
                             Create your first project in this workspace
                         </p>
                         <button
-                            onClick={() => router.push(`/agency/${agencyUsername}/projects/create?workspace=${workspaceId}`)}
+                            onClick={() => router.push(`/agency/${agencyUsername}/dashboard/projects/create?workspace=${workspaceId}`)}
                             className="px-6 py-3 bg-[#008080] hover:bg-teal-600 text-white rounded-xl font-bold transition-all inline-flex items-center gap-2"
                         >
                             <Plus size={18} />
@@ -196,7 +196,7 @@ export default function AgencyWorkspaceDetailPage() {
                         {projects.map(project => (
                             <div
                                 key={project.id}
-                                onClick={() => router.push(`/agency/${agencyUsername}/projects/${project.id}`)}
+                                onClick={() => router.push(`/agency/${agencyUsername}/dashboard/projects/${project.id}`)}
                                 className="group bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl rounded-2xl border border-gray-200 dark:border-zinc-800 p-6 cursor-pointer transition-all hover:shadow-xl hover:scale-[1.02] hover:border-[#008080] dark:hover:border-[#008080]"
                             >
                                 <div className="flex items-start justify-between mb-3">

@@ -72,7 +72,7 @@ export default function AgencyProjectDetailPage() {
                     This project doesn't exist or you don't have access to it.
                 </p>
                 <button
-                    onClick={() => router.push(`/agency/${agencyUsername}/projects`)}
+                    onClick={() => router.push(`/agency/${agencyUsername}/dashboard/projects`)}
                     className="px-6 py-3 bg-[#008080] hover:bg-teal-600 text-white rounded-xl font-bold transition-all"
                 >
                     Back to Projects
@@ -96,7 +96,7 @@ export default function AgencyProjectDetailPage() {
             <div className="flex items-start justify-between">
                 <div className="flex items-center gap-4">
                     <button
-                        onClick={() => router.push(`/agency/${agencyUsername}/projects`)}
+                        onClick={() => router.push(`/agency/${agencyUsername}/dashboard/projects`)}
                         className="w-12 h-12 rounded-xl bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
                     >
                         <ArrowLeft size={20} />
@@ -117,7 +117,7 @@ export default function AgencyProjectDetailPage() {
                                 Add Member
                             </button>
                             <button
-                                onClick={() => router.push(`/agency/${agencyUsername}/tasks/create?project=${projectId}`)}
+                                onClick={() => router.push(`/agency/${agencyUsername}/dashboard/tasks/create?project=${projectId}`)}
                                 className="px-5 py-2.5 bg-[#008080] hover:bg-teal-600 text-white rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-teal-500/20"
                             >
                                 <Plus size={16} />
@@ -199,7 +199,7 @@ export default function AgencyProjectDetailPage() {
                                     {columnTasks.map(task => (
                                         <div
                                             key={task.id}
-                                            onClick={() => router.push(`/agency/${agencyUsername}/tasks/${task.id}`)}
+                                            onClick={() => router.push(`/agency/${agencyUsername}/dashboard/tasks/${task.id}`)}
                                             className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-gray-100 dark:border-zinc-700 shadow-sm hover:shadow-md transition-all cursor-pointer group"
                                         >
                                             <div className="flex justify-between items-start mb-2">

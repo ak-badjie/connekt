@@ -70,7 +70,7 @@ export default function AgencyWorkspacesPage() {
                     <p className="text-gray-500 dark:text-gray-400">Manage your agency workspaces and projects</p>
                 </div>
                 <button
-                    onClick={() => router.push(`/agency/${agencyUsername}/workspaces/create`)}
+                    onClick={() => router.push(`/agency/${agencyUsername}/dashboard/workspaces/create`)}
                     className="px-6 py-3 bg-gradient-to-r from-[#008080] to-teal-600 hover:from-teal-600 hover:to-[#008080] text-white rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-teal-500/30"
                 >
                     <Plus size={20} />
@@ -91,7 +91,7 @@ export default function AgencyWorkspacesPage() {
                         Create your first workspace to organize projects and collaborate with your team
                     </p>
                     <button
-                        onClick={() => router.push(`/agency/${agencyUsername}/workspaces/create`)}
+                        onClick={() => router.push(`/agency/${agencyUsername}/dashboard/workspaces/create`)}
                         className="px-6 py-3 bg-[#008080] hover:bg-teal-600 text-white rounded-xl font-bold inline-flex items-center gap-2 transition-all"
                     >
                         <Plus size={20} />
@@ -103,7 +103,7 @@ export default function AgencyWorkspacesPage() {
                     {workspaces.map((workspace) => (
                         <div
                             key={workspace.id}
-                            onClick={() => router.push(`/agency/${agencyUsername}/workspaces/${workspace.id}`)}
+                            onClick={() => router.push(`/agency/${agencyUsername}/dashboard/workspaces/${workspace.id}`)}
                             className="group relative bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl rounded-2xl border border-gray-200 dark:border-zinc-800 p-6 hover:shadow-xl hover:scale-[1.02] transition-all cursor-pointer"
                         >
                             <div className="flex items-start justify-between mb-4">

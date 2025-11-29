@@ -53,10 +53,10 @@ export function Sidebar({ agency = null }: SidebarProps) {
 
     const menuItems = agency ? [
         { icon: LayoutGrid, label: 'Dashboard', href: `/agency/${agency.username}/dashboard` },
-        { icon: FolderKanban, label: 'Workspaces', href: `/agency/${agency.username}/workspaces` },
-        { icon: Briefcase, label: 'Projects', href: `/agency/${agency.username}/projects` },
-        { icon: CheckSquare, label: 'Tasks', href: `/agency/${agency.username}/tasks` },
-        { icon: Users, label: 'Team', href: `/agency/${agency.username}/team` },
+        { icon: FolderKanban, label: 'Workspaces', href: `/agency/${agency.username}/dashboard/workspaces` },
+        { icon: Briefcase, label: 'Projects', href: `/agency/${agency.username}/dashboard/projects` },
+        { icon: CheckSquare, label: 'Tasks', href: `/agency/${agency.username}/dashboard/tasks` },
+        { icon: Users, label: 'Team', href: `/agency/${agency.username}/dashboard/team` },
     ] : [
         { icon: LayoutGrid, label: 'Dashboard', href: '/dashboard' },
         { icon: FolderKanban, label: 'Workspaces', href: '/dashboard/workspaces' },

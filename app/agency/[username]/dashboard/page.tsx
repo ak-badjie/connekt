@@ -91,9 +91,9 @@ export default function AgencyDashboardPage() {
 
     const handleModalItemClick = (id: string) => {
         if (modalType === 'projects') {
-            router.push(`/agency/${agencyUsername}/projects/${id}`);
+            router.push(`/agency/${agencyUsername}/dashboard/projects/${id}`);
         } else if (modalType === 'tasks' || modalType === 'pots-pending') {
-            router.push(`/agency/${agencyUsername}/tasks/${id}`);
+            router.push(`/agency/${agencyUsername}/dashboard/tasks/${id}`);
         }
         setModalOpen(false);
     };
@@ -108,7 +108,7 @@ export default function AgencyDashboardPage() {
                 </div>
                 <div className="flex gap-3">
                     <button
-                        onClick={() => router.push(`/agency/${agencyUsername}/projects/create`)}
+                        onClick={() => router.push(`/agency/${agencyUsername}/dashboard/projects/create`)}
                         className="px-5 py-2.5 bg-[#008080] hover:bg-teal-600 text-white rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-teal-500/20"
                     >
                         <Plus size={16} /> Add Project
@@ -175,7 +175,7 @@ export default function AgencyDashboardPage() {
                         <Briefcase size={48} className="mx-auto mb-4 opacity-50" />
                         <p>No projects yet. Create your first project to get started!</p>
                         <button
-                            onClick={() => router.push(`/agency/${agencyUsername}/projects/create`)}
+                            onClick={() => router.push(`/agency/${agencyUsername}/dashboard/projects/create`)}
                             className="mt-4 px-6 py-2.5 bg-[#008080] hover:bg-teal-600 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-teal-500/20"
                         >
                             Create Project

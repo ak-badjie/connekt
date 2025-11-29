@@ -86,7 +86,7 @@ function CreateProjectForm() {
                 status: formData.status
             });
 
-            router.push(`/agency/${agencyUsername}/projects/${projectId}`);
+            router.push(`/agency/${agencyUsername}/dashboard/projects/${projectId}`);
         } catch (error) {
             console.error('Error creating project:', error);
             alert('Failed to create project. Please try again.');
