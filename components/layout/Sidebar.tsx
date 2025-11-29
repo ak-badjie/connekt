@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
 import { Agency } from '@/lib/services/agency-service';
+import { BriefcaseLogo3D } from '@/components/auth/BriefcaseLogo3D';
 import { useState, useEffect } from 'react';
 import { StorageQuotaService, StorageQuota } from '@/lib/services/storage-quota-service';
 
@@ -71,7 +72,13 @@ export function Sidebar({ agency = null }: SidebarProps) {
     const storagePercentage = (storageUsedGB / storageTotalGB) * 100;
 
     return (
-        <aside className="fixed left-0 top-0 h-screen w-64 bg-white/50 dark:bg-zinc-900/50 backdrop-blur-xl border-r border-white/20 dark:border-white/5 flex flex-col p-6 z-[110] hidden lg:flex transition-all duration-300 overflow-y-auto">
+        <aside className="fixed left-4 top-4 bottom-4 w-64 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-white/20 dark:border-white/5 flex flex-col p-6 z-[110] hidden lg:flex transition-all duration-300 overflow-y-auto rounded-3xl shadow-2xl shadow-black/5">
+            {/* Logo Section */}
+            <div className="flex items-center gap-3 mb-8 px-2">
+                <BriefcaseLogo3D size="medium" color="teal" />
+                <span className="text-xl font-bold font-headline text-[#008080] tracking-widest">CONNEKT</span>
+            </div>
+
             <div className="space-y-1 mb-8">
                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 px-3">Menu</h3>
                 {menuItems.map((item) => {
@@ -99,7 +106,7 @@ export function Sidebar({ agency = null }: SidebarProps) {
                 {/* ConnektStorage Card - First Item */}
                 <Link
                     href={agency ? `/agency/${agency.username}/dashboard/storage` : '/dashboard/storage'}
-                    className="mx-3 mb-3 p-4 rounded-2xl bg-white/80 dark:bg-zinc-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-zinc-700/50 hover:border-[#008080]/30 transition-all cursor-pointer block"
+                    className="mx-3 mb-3 p-4 rounded-2xl bg-white/50 dark:bg-zinc-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-zinc-700/50 hover:border-[#008080]/30 transition-all cursor-pointer block"
                 >
                     <div className="space-y-2">
                         <div className="flex items-center gap-2">
@@ -146,15 +153,15 @@ export function Sidebar({ agency = null }: SidebarProps) {
             </div>
 
             {/* Promo Card */}
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-gray-900 to-black relative overflow-hidden text-white shadow-xl">
-                <div className="absolute top-0 right-0 w-20 h-20 bg-[#008080] rounded-full blur-[40px] opacity-30" />
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-[#008080] to-teal-900 relative overflow-hidden text-white shadow-xl mt-4">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white rounded-full blur-[50px] opacity-20 translate-x-10 -translate-y-10" />
                 <div className="relative z-10">
-                    <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center mb-3">
-                        <Download size={14} />
+                    <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center mb-3 backdrop-blur-md border border-white/10">
+                        <Download size={18} className="text-white" />
                     </div>
-                    <h4 className="font-bold text-sm mb-1">Upgrade to Pro</h4>
-                    <p className="text-[10px] text-gray-400 mb-3">Get AI agents & unlimited jobs.</p>
-                    <button className="w-full py-2 bg-[#008080] hover:bg-teal-600 rounded-lg text-xs font-bold transition-colors">
+                    <h4 className="font-bold text-base mb-1">Get Connect Pro</h4>
+                    <p className="text-xs text-teal-100 mb-4 opacity-90">Unlock AI agents, unlimited jobs, and premium features.</p>
+                    <button className="w-full py-2.5 bg-white text-[#008080] hover:bg-teal-50 rounded-xl text-xs font-bold transition-colors shadow-lg">
                         Upgrade Now
                     </button>
                 </div>

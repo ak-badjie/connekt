@@ -4,12 +4,13 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { EnhancedProjectService } from '@/lib/services/enhanced-project-service';
 import { TaskService } from '@/lib/services/task-service';
+import { StorageQuotaService, StorageQuota as StorageQuotaType } from '@/lib/services/storage-quota-service';
 import StatsCard from '@/components/dashboard/StatsCard';
 import StatsModal from '@/components/dashboard/StatsModal';
 import ProjectAnalytics from '@/components/dashboard/ProjectAnalytics';
 import Reminders from '@/components/dashboard/Reminders';
 import TeamCollaboration from '@/components/dashboard/TeamCollaboration';
-import ProjectProgress from '@/components/dashboard/ProjectProgress';
+import StorageQuota from '@/components/dashboard/StorageQuota';
 import ProjectList from '@/components/dashboard/ProjectList';
 import TimeTracker from '@/components/dashboard/TimeTracker';
 import { Plus } from 'lucide-react';
@@ -29,6 +30,7 @@ export default function DashboardPage() {
     const [pendingTasks, setPendingTasks] = useState<Task[]>([]);
     const [potsAwaitingApproval, setPotsAwaitingApproval] = useState<Task[]>([]);
     const [potsToReview, setPotsToReview] = useState<ProofOfTask[]>([]);
+    const [storageQuota, setStorageQuota] = useState<StorageQuotaType | null>(null);
 
     useEffect(() => {
         if (user && userProfile) {
@@ -63,6 +65,11 @@ export default function DashboardPage() {
                     // Get POTs to review
                     const potsForReview = await TaskService.getPotsToReview(user.uid, supervisedProjects);
                     setPotsToReview(potsForReview);
+
+                    // Fetch Storage Quota
+                    const personalMail = `${userProfile.username}@connekt.com`;
+                    const quota = await StorageQuotaService.getStorageQuota(personalMail);
+                    setStorageQuota(quota);
 
                 } catch (error) {
                     console.error('Error fetching dashboard data:', error);
@@ -213,7 +220,11 @@ export default function DashboardPage() {
                     {/* Row 3: Team & Progress */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-[280px]">
                         <TeamCollaboration />
-                        <ProjectProgress />
+                        <StorageQuota
+                            usedSpace={storageQuota?.usedSpace || 0}
+                            totalQuota={storageQuota?.totalQuota || 1073741824} // Default 1GB
+                            filesCount={storageQuota?.filesCount || 0}
+                        />
                     </div>
                 </div>
 

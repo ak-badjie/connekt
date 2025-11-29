@@ -10,6 +10,7 @@ import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { BriefcaseLogo3D } from '@/components/auth/BriefcaseLogo3D';
 import { AgencyService, Agency } from '@/lib/services/agency-service';
+import { useRef } from 'react';
 
 export function Navbar() {
     const { user, userProfile } = useAuth();
@@ -17,6 +18,20 @@ export function Navbar() {
     const pathname = usePathname();
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [agency, setAgency] = useState<Agency | null>(null);
+    const searchInputRef = useRef<HTMLInputElement>(null);
+
+    // Handle Ctrl+F / Cmd+F
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+                e.preventDefault();
+                searchInputRef.current?.focus();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
     // Check if on agency route
     const isAgencyRoute = pathname.startsWith('/agency/');
@@ -41,20 +56,18 @@ export function Navbar() {
     // Determine if we are on a "Private" page (Dashboard, etc) where Sidebar exists
     const isPrivatePage = ['/dashboard', '/projects', '/agency', '/mail', '/contracts'].some(path => pathname.startsWith(path));
 
-    // Calculate dynamic padding: If private page, push navbar right to sit next to sidebar
-    const layoutClass = isPrivatePage
-        ? "px-6" // Private: Just padding, positioning handled by nav wrapper
-        : "px-6 max-w-7xl mx-auto"; // Public: Centered
+    // Calculate dynamic padding
+    const layoutClass = "";
 
     return (
-        <nav className={`fixed top-0 z-[100] transition-all duration-300 py-2 ${isPrivatePage
-            ? 'left-0 lg:left-64 w-full lg:w-[calc(100%-16rem)] bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800'
-            : 'left-0 w-full bg-white dark:bg-black border-b border-gray-200 dark:border-zinc-800'
+        <nav className={`fixed top-4 z-[100] transition-all duration-300 ${isPrivatePage
+            ? 'left-4 lg:left-72 right-4 lg:right-6'
+            : 'left-6 right-6 max-w-7xl mx-auto'
             }`}>
-            <div className={`${layoutClass} flex items-center justify-between relative z-[101]`}>
+            <div className={`${layoutClass} flex items-center justify-between relative z-[101] bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-white/20 dark:border-white/5 rounded-2xl shadow-xl px-6 py-3`}>
 
                 {/* Left Side: Search (Private) or Logo (Public) */}
-                <div className="flex items-center gap-8">
+                <div className="flex items-center gap-8 flex-1">
                     {!isPrivatePage && (
                         <Link href="/" className="flex items-center gap-2 text-[#008080]">
                             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#008080] to-teal-600 flex items-center justify-center text-white font-bold">C</div>
@@ -65,51 +78,49 @@ export function Navbar() {
                     {/* Private Dashboard Logo + Agency Info */}
                     {isPrivatePage && (
                         <div className="flex items-center gap-3 mr-2">
-                            {/* Connekt Branding */}
-                            <div className="flex items-center gap-2">
-                                <BriefcaseLogo3D size="medium" color="teal" />
-                                <span className="text-2xl font-bold font-headline text-[#008080] tracking-widest hidden xl:block">CONNEKT</span>
-                            </div>
-
                             {/* Agency Branding (if on agency route) */}
                             {isAgencyRoute && agency && (
-                                <>
-                                    <span className="text-gray-400 text-2xl font-light hidden xl:block">×</span>
-                                    <div className="flex items-center gap-2 hidden xl:flex">
-                                        {agency.logoUrl ? (
-                                            <img
-                                                src={agency.logoUrl}
-                                                alt={agency.name}
-                                                className="w-8 h-8 rounded-lg object-cover"
-                                            />
-                                        ) : (
-                                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#008080] to-teal-600 flex items-center justify-center text-white font-bold text-sm">
-                                                {agency.name[0].toUpperCase()}
-                                            </div>
-                                        )}
-                                        <div className="flex flex-col">
-                                            <span className="text-sm font-bold text-gray-900 dark:text-white leading-none">
-                                                {agency.name}
-                                            </span>
-                                            <span className="text-xs text-gray-500 dark:text-gray-400 leading-none mt-0.5">
-                                                @{agency.username}
-                                            </span>
+                                <div className="flex items-center gap-3">
+                                    {agency.logoUrl ? (
+                                        <img
+                                            src={agency.logoUrl}
+                                            alt={agency.name}
+                                            className="w-8 h-8 rounded-lg object-cover"
+                                        />
+                                    ) : (
+                                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#008080] to-teal-600 flex items-center justify-center text-white font-bold text-sm">
+                                            {agency.name[0].toUpperCase()}
                                         </div>
+                                    )}
+                                    <div className="flex flex-col">
+                                        <span className="text-sm font-bold text-gray-900 dark:text-white leading-none">
+                                            {agency.name}
+                                        </span>
+                                        <span className="text-xs text-gray-500 dark:text-gray-400 leading-none mt-0.5">
+                                            @{agency.username}
+                                        </span>
                                     </div>
-                                </>
+                                </div>
                             )}
                         </div>
                     )}
 
                     {/* Search Bar - Only on Private, or Explore */}
                     {(isPrivatePage || pathname === '/explore') && (
-                        <div className="relative group flex-1 max-w-2xl">
+                        <div className="relative group flex-1 max-w-md mx-auto">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#008080] transition-colors" size={18} />
                             <input
+                                ref={searchInputRef}
                                 type="text"
-                                placeholder="Search tasks, jobs..."
-                                className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-zinc-800 border border-gray-100 dark:border-zinc-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#008080]/20 transition-all shadow-sm"
+                                placeholder="Search task"
+                                className="w-full pl-10 pr-16 py-2 bg-white/50 dark:bg-zinc-800/50 border border-gray-100 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#008080]/20 transition-all"
                             />
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 pointer-events-none">
+                                <kbd className="px-2 py-0.5 text-[10px] font-bold text-gray-500 bg-gray-100 dark:bg-zinc-700 rounded border border-gray-200 dark:border-zinc-600">
+                                    {typeof window !== 'undefined' && window.navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}
+                                </kbd>
+                                <kbd className="px-2 py-0.5 text-[10px] font-bold text-gray-500 bg-gray-100 dark:bg-zinc-700 rounded border border-gray-200 dark:border-zinc-600">F</kbd>
+                            </div>
                         </div>
                     )}
 
@@ -125,13 +136,7 @@ export function Navbar() {
 
                 {/* Right Side: Actions */}
                 <div className="flex items-center gap-4 relative z-[101]">
-                    {/* Theme Toggle */}
-                    <button
-                        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                        className="w-10 h-10 rounded-full bg-white dark:bg-zinc-800 flex items-center justify-center text-gray-500 hover:text-[#008080] transition-colors shadow-sm border border-gray-100 dark:border-zinc-700 relative z-[101]"
-                    >
-                        {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-                    </button>
+                    {/* Theme Toggle Removed as per request */}
 
                     {user ? (
                         <>

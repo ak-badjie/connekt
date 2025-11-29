@@ -1,11 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Send, Paperclip, Image as ImageIcon, Video, FileText, Link as LinkIcon, Loader2, Minimize2 } from 'lucide-react';
-import { RichTextEditor } from './RichTextEditor';
+import { X, Send, Paperclip, Image as ImageIcon, Video, FileText, Link as LinkIcon, Loader2 } from 'lucide-react';
+import { AdvancedRichTextEditor } from './AdvancedRichTextEditor';
 import { Signature } from '@/lib/services/mail-service';
 import { Attachment, StorageService } from '@/lib/services/storage-service';
-import { storage } from '@/lib/firebase';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface ComposeModalProps {
@@ -58,32 +57,26 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
 
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
-
-            // Validate file type
             const fileType = StorageService.validateFileType(file);
             if (!fileType) {
                 alert(`File type not supported: ${file.name}`);
                 continue;
             }
 
-            // Validate file size
             if (!StorageService.validateFileSize(file, 25)) {
                 alert(`File too large (max 25MB): ${file.name}`);
                 continue;
             }
 
             try {
-                // Generate temporary mail ID for storage path
                 const tempMailId = `draft_${Date.now()}`;
-                const userId = 'temp_user'; // This should come from auth context
-
+                const userId = 'temp_user';
                 const url = await StorageService.uploadFile(
                     file,
                     userId,
                     tempMailId,
                     (progress) => setUploadProgress(progress)
                 );
-
                 const attachment = StorageService.createAttachment(file, url);
                 newAttachments.push(attachment);
             } catch (error) {
@@ -99,7 +92,6 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
 
     const handleAddLink = () => {
         if (!linkUrl) return;
-
         const linkAttachment = StorageService.createLinkAttachment(linkUrl);
         setAttachments([...attachments, linkAttachment]);
         setLinkUrl('');
@@ -116,16 +108,14 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
             return;
         }
 
-        // Validate email format
         if (!recipient.includes('@') || !recipient.includes('.com')) {
-            alert('Please enter a valid ConnektMail address (e.g., username@connekt.com)');
+            alert('Please enter a valid ConnektMail address (e.g., username@connektmail.com)');
             return;
         }
 
         setSending(true);
         try {
             await onSend(recipient, subject, body, attachments, category || undefined, selectedSignature || undefined);
-            // Reset form
             setRecipient('');
             setSubject('');
             setBody('');
@@ -175,43 +165,39 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                     {/* Header */}
                     <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200/50 dark:border-zinc-800/50 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl">
                         <h2 className="text-xl font-bold text-gray-900 dark:text-white">New Message</h2>
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={onClose}
-                                className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
-                            >
-                                <X size={20} className="text-gray-500" />
-                            </button>
-                        </div>
+                        <button
+                            onClick={onClose}
+                            className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                        >
+                            <X size={20} className="text-gray-500" />
+                        </button>
                     </div>
 
                     {/* Form Fields */}
                     <div className="px-6 py-4 space-y-3 border-b border-gray-200/50 dark:border-zinc-800/50">
-                        {/* Recipient */}
                         <div>
                             <input
                                 type="text"
                                 value={recipient}
                                 onChange={(e) => setRecipient(e.target.value)}
-                                placeholder="To: username@connekt.com or username@agencyhandle.com"
-                                className="w-full px-4 py-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#008080]/30 transition-all"
+                                placeholder="To: username@connektmail.com or username@agencyhandle.com"
+                                className="w-full px-4 py-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#f97316]/30 transition-all"
                             />
                             <p className="text-xs text-gray-500 mt-1 px-1">Enter full ConnektMail address</p>
                         </div>
 
-                        {/* Subject & Category Row */}
                         <div className="flex gap-3">
                             <input
                                 type="text"
                                 value={subject}
                                 onChange={(e) => setSubject(e.target.value)}
                                 placeholder="Subject"
-                                className="flex-1 px-4 py-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#008080]/30 transition-all font-medium"
+                                className="flex-1 px-4 py-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#f97316]/30 transition-all font-medium"
                             />
                             <select
                                 value={category}
                                 onChange={(e) => setCategory(e.target.value)}
-                                className="px-4 py-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#008080]/30 transition-all text-sm"
+                                className="px-4 py-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#f97316]/30 transition-all text-sm"
                             >
                                 <option value="">Category (optional)</option>
                                 {categories.map(cat => (
@@ -222,13 +208,17 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                     </div>
 
                     {/* Editor */}
-                    <div className="flex-1 overflow-hidden">
-                        <RichTextEditor value={body} onChange={setBody} />
+                    <div className="flex-1 overflow-hidden p-4">
+                        <AdvancedRichTextEditor
+                            value={body}
+                            onChange={setBody}
+                            minHeight="400px"
+                        />
                     </div>
 
                     {/* Attachments */}
                     {attachments.length > 0 && (
-                        <div className="px-6 py-3 border-t border-gray-200/50 dark:border-zinc-800/50 max-h-32 overflow-y-auto custom-scrollbar">
+                        <div className="px-6 py-3 border-t border-gray-200/50 dark:border-zinc-800/50 max-h-32 overflow-y-auto">
                             <div className="flex flex-wrap gap-2">
                                 {attachments.map((attachment) => (
                                     <div
@@ -264,11 +254,11 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                                 value={linkUrl}
                                 onChange={(e) => setLinkUrl(e.target.value)}
                                 placeholder="https://example.com"
-                                className="flex-1 px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#008080]/30"
+                                className="flex-1 px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f97316]/30"
                             />
                             <button
                                 onClick={handleAddLink}
-                                className="px-4 py-2 bg-[#008080] text-white rounded-xl text-sm font-medium hover:bg-teal-600 transition-colors"
+                                className="px-4 py-2 bg-[#f97316] text-white rounded-xl text-sm font-medium hover:bg-orange-600 transition-colors"
                             >
                                 Add
                             </button>
@@ -283,7 +273,6 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
 
                     {/* Footer */}
                     <div className="px-6 py-4 border-t border-gray-200/50 dark:border-zinc-800/50 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl flex items-center justify-between">
-                        {/* Left: Attachment Tools */}
                         <div className="flex items-center gap-2">
                             <input
                                 type="file"
@@ -308,12 +297,11 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                                 <LinkIcon size={18} className="text-gray-600 dark:text-gray-400" />
                             </button>
 
-                            {/* Signature Selector */}
                             {signatures.length > 0 && (
                                 <select
                                     value={selectedSignature}
                                     onChange={(e) => setSelectedSignature(e.target.value)}
-                                    className="px-3 py-1.5 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#008080]/30"
+                                    className="px-3 py-1.5 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#f97316]/30"
                                 >
                                     <option value="">No signature</option>
                                     {signatures.map(sig => (
@@ -330,7 +318,6 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                             )}
                         </div>
 
-                        {/* Right: Actions */}
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={handleSaveDraft}
@@ -342,7 +329,7 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                             <button
                                 onClick={handleSend}
                                 disabled={sending || !recipient || !subject}
-                                className="px-8 py-2.5 bg-gradient-to-r from-[#008080] to-teal-600 text-white rounded-xl font-bold shadow-lg shadow-teal-500/30 hover:shadow-teal-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                className="px-8 py-2.5 bg-gradient-to-r from-[#f97316] to-orange-600 text-white rounded-xl font-bold shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                             >
                                 {sending ? (
                                     <>

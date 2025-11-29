@@ -10,7 +10,13 @@ import { TaskService } from '@/lib/services/task-service';
 import { Project, Task } from '@/lib/types/workspace.types';
 import StatsCard from '@/components/dashboard/StatsCard';
 import StatsModal from '@/components/dashboard/StatsModal';
+import ProjectAnalytics from '@/components/dashboard/ProjectAnalytics';
+import Reminders from '@/components/dashboard/Reminders';
+import StorageQuota from '@/components/dashboard/StorageQuota';
 import { Plus, Users, Briefcase, HardDrive, CheckSquare, FileCheck } from 'lucide-react';
+import ClientApprovalQueue from '@/components/dashboard/ClientApprovalQueue';
+import ActiveCampaigns from '@/components/dashboard/ActiveCampaigns';
+import TeamWorkload from '@/components/dashboard/TeamWorkload';
 import { useRouter } from 'next/navigation';
 
 export default function AgencyDashboardPage() {
@@ -131,6 +137,7 @@ export default function AgencyDashboardPage() {
                     trendValue=""
                     color="green"
                     onClick={() => handleStatClick('projects')}
+                    icon={Briefcase}
                 />
                 <StatsCard
                     title="Active Tasks"
@@ -139,6 +146,9 @@ export default function AgencyDashboardPage() {
                     trendValue=""
                     color="white"
                     onClick={() => handleStatClick('tasks')}
+                    icon={CheckSquare}
+                    showMiniChart={true}
+                    chartData={[2, 4, 3, 6, 5, 7, 4]}
                 />
                 <StatsCard
                     title="POTs Pending Review"
@@ -147,17 +157,15 @@ export default function AgencyDashboardPage() {
                     trendValue=""
                     color="white"
                     onClick={() => handleStatClick('pots-pending')}
+                    icon={FileCheck}
+                    showMiniChart={true}
+                    chartData={[1, 3, 2, 5, 4, 3, 2]}
                 />
-                <div
-                    onClick={() => router.push(`/agency/${agencyUsername}/dashboard/storage`)}
-                    className="cursor-pointer"
-                >
-                    <StatsCard
-                        title="Storage Used"
-                        value={`${stats.storageUsed.toFixed(1)}GB`}
-                        trend="View details →"
-                        trendValue=""
-                        color="white"
+                <div className="h-full">
+                    <StorageQuota
+                        usedSpace={storageQuota?.usedSpace || 0}
+                        totalQuota={storageQuota?.totalQuota || 1073741824}
+                        filesCount={storageQuota?.filesCount || 0}
                     />
                 </div>
             </div>
@@ -165,64 +173,61 @@ export default function AgencyDashboardPage() {
             {/* Agency Overview */}
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
 
-                {/* Team Activity */}
-                <div className="xl:col-span-2 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl rounded-2xl border border-gray-200/50 dark:border-zinc-800/50 p-6 shadow-lg">
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                        <Briefcase size={24} className="text-[#008080]" />
-                        Recent Projects
-                    </h2>
-                    <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                        <Briefcase size={48} className="mx-auto mb-4 opacity-50" />
-                        <p>No projects yet. Create your first project to get started!</p>
-                        <button
-                            onClick={() => router.push(`/agency/${agencyUsername}/dashboard/projects/create`)}
-                            className="mt-4 px-6 py-2.5 bg-[#008080] hover:bg-teal-600 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-teal-500/20"
-                        >
-                            Create Project
-                        </button>
+                {/* Left Column (2/3 width) */}
+                <div className="xl:col-span-2 space-y-6">
+                    {/* Row 2: Analytics & Reminders */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-[320px]">
+                        <ProjectAnalytics />
+                        <Reminders />
+                    </div>
+
+                    {/* Row 3: Workflow Components Under Analytics & Reminders */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-[320px]">
+                        <ClientApprovalQueue />
+                        <ActiveCampaigns />
                     </div>
                 </div>
 
-                {/* Team Members */}
-                <div className="bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl rounded-2xl border border-gray-200/50 dark:border-zinc-800/50 p-6 shadow-lg">
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                        <Users size={24} className="text-[#008080]" />
-                        Team Members
-                    </h2>
-                    <div className="space-y-3">
-                        {agency?.members.map((member, index) => (
-                            <div
-                                key={index}
-                                className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-zinc-800 rounded-xl"
-                            >
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#008080] to-teal-600 flex items-center justify-center text-white font-bold">
-                                    {member.agencyEmail[0].toUpperCase()}
+                {/* Right Column (1/3 width) - Team Members & Team Workload */}
+                <div className="space-y-6">
+                    {/* Team Members */}
+                    <div className="bg-white/50 dark:bg-zinc-900/50 backdrop-blur-lg rounded-2xl border border-white/20 dark:border-white/5 p-6 shadow-lg h-[320px] overflow-y-auto custom-scrollbar">
+                        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                            <Users size={20} className="text-[#008080]" />
+                            Team Members
+                        </h2>
+                        <div className="space-y-3">
+                            {agency?.members.map((member, index) => (
+                                <div
+                                    key={index}
+                                    className="flex items-center gap-3 p-3 bg-white/40 dark:bg-zinc-800/40 border border-white/10 rounded-xl"
+                                >
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#008080] to-teal-600 flex items-center justify-center text-white font-bold text-xs">
+                                        {member.agencyEmail[0].toUpperCase()}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                            {member.agencyEmail.split('@')[0]}
+                                        </p>
+                                        <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
+                                            {member.role}
+                                        </p>
+                                    </div>
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                                        {member.agencyEmail.split('@')[0]}
-                                    </p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                                        {member.agencyEmail}
-                                    </p>
-                                </div>
-                                <span className={`px-2 py-1 rounded-full text-xs font-bold ${member.role === 'owner'
-                                    ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                                    : member.role === 'admin'
-                                        ? 'bg-[#008080]/10 text-[#008080]'
-                                        : 'bg-gray-200 dark:bg-zinc-700 text-gray-600 dark:text-gray-400'
-                                    }`}>
-                                    {member.role}
-                                </span>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
+                        <button
+                            onClick={() => router.push(`/agency/${agencyUsername}/team`)}
+                            className="w-full mt-4 py-2 border border-gray-200 dark:border-zinc-700 rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
+                        >
+                            Manage Team
+                        </button>
                     </div>
-                    <button
-                        onClick={() => router.push(`/agency/${agencyUsername}/team`)}
-                        className="w-full mt-4 py-2.5 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
-                    >
-                        Manage Team
-                    </button>
+
+                    {/* Team Workload - Under Team Members */}
+                    <div className="h-[320px]">
+                        <TeamWorkload />
+                    </div>
                 </div>
 
             </div>
