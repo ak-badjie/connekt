@@ -87,7 +87,7 @@ export default function CreateAgencyPage() {
                 username: agencyUsername,
                 logoUrl,
                 ownerId: user.uid,
-                ownerAgencyEmail: `${personalHandle}@${agencyUsername}.connekt.com`
+                ownerAgencyEmail: `${personalHandle}@${agencyUsername}.com`
             });
 
             if (agency) {
@@ -326,7 +326,7 @@ function Step3({ agencyUsername, setAgencyUsername, isUsernameAvailable, usernam
                         className="w-full bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl p-4 pr-40 outline-none transition-all focus:border-[#008080] dark:focus:border-[#008080] text-gray-900 dark:text-white"
                     />
                     <div className="absolute right-12 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 text-sm pointer-events-none">
-                        .connekt.com
+                        .com
                     </div>
                     <div className="absolute right-4 top-1/2 -translate-y-1/2">
                         {checkingUsername ? (
@@ -388,7 +388,7 @@ function Step4({ personalHandle, setPersonalHandle, agencyUsername, onBack, onCr
                         className="w-full bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl p-4 pr-48 outline-none transition-all focus:border-[#008080] dark:focus:border-[#008080] text-gray-900 dark:text-white"
                     />
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 text-sm pointer-events-none">
-                        @{agencyUsername}.connekt.com
+                        @{agencyUsername}.com
                     </div>
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -405,7 +405,7 @@ function Step4({ personalHandle, setPersonalHandle, agencyUsername, onBack, onCr
                         </p>
                         <p className="text-xs text-gray-600 dark:text-gray-400">
                             Your email will be: <span className="font-mono font-bold text-[#008080]">
-                                {personalHandle || 'yourname'}@{agencyUsername}.connekt.com
+                                {personalHandle || 'yourname'}@{agencyUsername}.com
                             </span>
                         </p>
                     </div>

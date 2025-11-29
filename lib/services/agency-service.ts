@@ -19,7 +19,7 @@ export interface Agency {
     id?: string;
     name: string;
     username: string; // Agency handle/domain (e.g., "garden")
-    domain: string; // Full domain (e.g., "garden.connekt.com")
+    domain: string; // Full domain (e.g., "garden.com")
     logoUrl?: string;
     ownerId: string; // User ID of agency owner
     members: AgencyMember[];
@@ -29,7 +29,7 @@ export interface Agency {
 
 export interface AgencyMember {
     userId: string;
-    agencyEmail: string; // e.g., "abdul@garden.connekt.com"
+    agencyEmail: string; // e.g., "abdul@garden.com"
     role: 'owner' | 'admin' | 'member';
     addedAt?: Timestamp | any;
 }
@@ -86,14 +86,14 @@ export const AgencyService = {
                 userId: agencyData.ownerId,
                 agencyEmail: agencyData.ownerAgencyEmail,
                 role: 'owner',
-                addedAt: serverTimestamp()
+                addedAt: Timestamp.now()
             };
 
             const agency: Agency = {
                 id: agencyId,
                 name: agencyData.name,
                 username: normalizedUsername,
-                domain: `${normalizedUsername}.connekt.com`,
+                domain: `${normalizedUsername}.com`,
                 logoUrl: agencyData.logoUrl || '',
                 ownerId: agencyData.ownerId,
                 members: [ownerMember],
@@ -108,6 +108,13 @@ export const AgencyService = {
             await setDoc(doc(db, 'agency_usernames', normalizedUsername), {
                 agencyId: agencyId,
                 claimedAt: serverTimestamp()
+            });
+
+            // Update owner's user document with agency email
+            const userRef = doc(db, 'users', agencyData.ownerId);
+            await updateDoc(userRef, {
+                agencyEmails: arrayUnion(agencyData.ownerAgencyEmail),
+                updatedAt: serverTimestamp()
             });
 
             return agency;
@@ -235,11 +242,18 @@ export const AgencyService = {
                 userId: member.userId,
                 agencyEmail: member.agencyEmail,
                 role: member.role,
-                addedAt: serverTimestamp()
+                addedAt: Timestamp.now()
             };
 
             await updateDoc(agencyRef, {
                 members: arrayUnion(newMember),
+                updatedAt: serverTimestamp()
+            });
+
+            // Update user's document with agency email
+            const userRef = doc(db, 'users', member.userId);
+            await updateDoc(userRef, {
+                agencyEmails: arrayUnion(member.agencyEmail),
                 updatedAt: serverTimestamp()
             });
 
@@ -274,6 +288,13 @@ export const AgencyService = {
             const agencyRef = doc(db, 'agencies', agencyId);
             await updateDoc(agencyRef, {
                 members: arrayRemove(memberToRemove),
+                updatedAt: serverTimestamp()
+            });
+
+            // Remove agency email from user's document
+            const userRef = doc(db, 'users', userId);
+            await updateDoc(userRef, {
+                agencyEmails: arrayRemove(memberToRemove.agencyEmail),
                 updatedAt: serverTimestamp()
             });
 
