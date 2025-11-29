@@ -16,7 +16,7 @@ export default function AgencyTaskDetailPage() {
     const params = useParams();
     const router = useRouter();
     const { user, userProfile } = useAuth();
-    const agencyUsername = params.username as string;
+    const agencyUsername = params.handle as string;
     const taskId = params.id as string;
 
     const [loading, setLoading] = useState(true);

@@ -12,7 +12,7 @@ export default function AgencyTasksStartupPage() {
     const { user } = useAuth();
     const router = useRouter();
     const params = useParams();
-    const agencyUsername = params.username as string;
+    const agencyUsername = params.handle as string;
     const [loading, setLoading] = useState(true);
     const [allTasks, setAllTasks] = useState<Task[]>([]);
     const [filter, setFilter] = useState<'all' | 'todo' | 'in-progress' | 'pending-validation' | 'done'>('all');

@@ -14,7 +14,7 @@ function CreateProjectForm() {
     const router = useRouter();
     const params = useParams();
     const searchParams = useSearchParams();
-    const agencyUsername = params.username as string;
+    const agencyUsername = params.handle as string;
     const preselectedWorkspaceId = searchParams.get('workspace');
 
     const [loading, setLoading] = useState(false);
