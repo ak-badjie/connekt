@@ -59,11 +59,11 @@ export const MailService = {
 
         // Personal address
         addresses.push({
-            address: `${username}@connektmail.com`,
+            address: `${username}@connekt.com`,
             type: 'personal',
             displayName: displayName,
             username: username,
-            domain: 'connektmail.com'
+            domain: 'connekt.com'
         });
 
         // Get agency addresses
@@ -126,7 +126,7 @@ export const MailService = {
         const recipientName = recipientProfileSnap.data()?.displayName || recipientUsername;
 
         // Determine recipient mail type
-        const isAgencyMail = recipientDomain && recipientDomain !== 'connektmail.com';
+        const isAgencyMail = recipientDomain && recipientDomain !== 'connekt.com';
 
         // Create inbox copy for recipient
         const inboxMail: Partial<ExtendedMailMessage> = {
@@ -172,16 +172,16 @@ export const MailService = {
      */
     async sendMail(senderId: string, senderUsername: string, senderName: string, recipientUsername: string, subject: string, body: string) {
         const fromAddress: MailAddress = {
-            address: `${senderUsername}@connektmail.com`,
+            address: `${senderUsername}@connekt.com`,
             type: 'personal',
             displayName: senderName,
             username: senderUsername,
-            domain: 'connektmail.com'
+            domain: 'connekt.com'
         };
 
         await this.sendMailFromAddress(
             fromAddress,
-            `${recipientUsername}@connektmail.com`,
+            `${recipientUsername}@connekt.com`,
             subject,
             body
         );

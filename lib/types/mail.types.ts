@@ -4,7 +4,7 @@ import { Timestamp } from 'firebase/firestore';
  * Mail Address Types
  */
 export interface MailAddress {
-    address: string; // Full email address (e.g., "abdul@connektmail.com" or "abdul@garden.com")
+    address: string; // Full email address (e.g., "abdul@connekt.com" or "abdul@garden.com")
     type: 'personal' | 'agency';
     displayName: string; // User's display name
     username: string; // Username part before @

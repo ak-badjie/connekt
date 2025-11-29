@@ -9,7 +9,31 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'firebasestorage.googleapis.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
+  },
+  async rewrites() {
+    return [
+      {
+        source: '/@:username',
+        destination: '/user/:username',
+      },
+      {
+        source: '/agency/@:handle',
+        destination: '/agency/:handle',
+      },
+    ];
   },
 };
 

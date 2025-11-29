@@ -49,7 +49,7 @@ export function MailPrimarySidebar({
             <div className="p-4 sticky top-0 z-10 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl">
                 <button
                     onClick={onCompose}
-                    className="w-full py-3.5 px-6 bg-gradient-to-r from-[#f97316] to-orange-600 hover:from-orange-600 hover:to-[#f97316] text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 transition-all hover:scale-105"
+                    className="w-full py-3.5 px-6 bg-gradient-to-r from-[#008080] to-teal-600 hover:from-teal-600 hover:to-[#008080] text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-teal-500/30 hover:shadow-teal-500/50 transition-all hover:scale-105"
                 >
                     <Plus size={20} strokeWidth={2.5} />
                     Compose
@@ -72,12 +72,12 @@ export function MailPrimarySidebar({
                                 key={folder.id}
                                 onClick={() => onFolderChange(folder.id)}
                                 className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-medium transition-all ${isActive
-                                    ? 'bg-gradient-to-r from-[#f97316]/10 to-orange-500/10 text-[#f97316] border border-[#f97316]/20 shadow-sm'
+                                    ? 'bg-gradient-to-r from-[#008080]/10 to-teal-500/10 text-[#008080] border border-[#008080]/20 shadow-sm'
                                     : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100/80 dark:hover:bg-zinc-800/80'
                                     }`}
                             >
                                 <div className="flex items-center gap-3">
-                                    <Icon size={18} className={isActive ? 'text-[#f97316]' : ''} />
+                                    <Icon size={18} className={isActive ? 'text-[#008080]' : ''} />
                                     <span className="text-sm">{folder.label}</span>
                                 </div>
                                 {folder.badge && folder.badge > 0 && (
@@ -120,11 +120,11 @@ export function MailPrimarySidebar({
                                             key={category}
                                             onClick={() => onCategoryChange?.(category)}
                                             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${isActive
-                                                ? 'bg-orange-500/10 text-orange-600 dark:text-orange-500 border border-orange-500/20'
+                                                ? 'bg-teal-500/10 text-teal-600 dark:text-teal-500 border border-teal-500/20'
                                                 : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100/80 dark:hover:bg-zinc-800/80'
                                                 }`}
                                         >
-                                            <Folder size={16} className={isActive ? 'text-orange-500' : 'text-gray-400'} />
+                                            <Folder size={16} className={isActive ? 'text-teal-500' : 'text-gray-400'} />
                                             <span>{category}</span>
                                         </button>
                                     );
@@ -142,7 +142,7 @@ export function MailPrimarySidebar({
             >
                 <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                        <HardDrive size={16} className="text-[#f97316]" />
+                        <HardDrive size={16} className="text-[#008080]" />
                         <span className="text-xs font-bold text-gray-700 dark:text-gray-300">ConnektStorage</span>
                     </div>
                     <div className="flex items-center justify-between text-xs">
@@ -157,7 +157,7 @@ export function MailPrimarySidebar({
                                 ? 'bg-gradient-to-r from-red-500 to-red-600'
                                 : storagePercentage > 75
                                     ? 'bg-gradient-to-r from-orange-500 to-orange-600'
-                                    : 'bg-gradient-to-r from-[#f97316] to-orange-500'
+                                    : 'bg-gradient-to-r from-[#008080] to-teal-500'
                                 }`}
                             style={{ width: `${Math.min(storagePercentage, 100)}%` }}
                         ></div>

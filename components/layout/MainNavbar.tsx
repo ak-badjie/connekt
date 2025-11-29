@@ -37,9 +37,9 @@ export default function MainNavbar() {
             <div className="max-w-7xl mx-auto px-6">
                 <div className="flex items-center justify-between h-16">
                     {/* Logo */}
-                    <Link href="/" className="flex items-center gap-3 lg:hidden">
+                    <Link href="/" className="flex items-center gap-3">
                         <BriefcaseLogo3D size="medium" color="teal" />
-                        <span className="text-2xl font-bold font-headline text-[#008080] tracking-widest hidden md:block">CONNEKT</span>
+                        <span className="text-xl font-bold font-headline text-[#008080] tracking-widest">CONNEKT</span>
                     </Link>
 
                     {/* Center - Navigation Links */}

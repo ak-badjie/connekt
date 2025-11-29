@@ -109,7 +109,7 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
         }
 
         if (!recipient.includes('@') || !recipient.includes('.com')) {
-            alert('Please enter a valid ConnektMail address (e.g., username@connektmail.com)');
+            alert('Please enter a valid Connekt address (e.g., username@connekt.com)');
             return;
         }
 
@@ -154,7 +154,7 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
 
     return (
         <AnimatePresence>
-            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
                 <motion.div
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
@@ -180,10 +180,10 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                                 type="text"
                                 value={recipient}
                                 onChange={(e) => setRecipient(e.target.value)}
-                                placeholder="To: username@connektmail.com or username@agencyhandle.com"
-                                className="w-full px-4 py-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#f97316]/30 transition-all"
+                                placeholder="To: username@connekt.com or username@agencyhandle.com"
+                                className="w-full px-4 py-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#008080]/30 transition-all"
                             />
-                            <p className="text-xs text-gray-500 mt-1 px-1">Enter full ConnektMail address</p>
+                            <p className="text-xs text-gray-500 mt-1 px-1">Enter full Connekt mail address</p>
                         </div>
 
                         <div className="flex gap-3">
@@ -192,12 +192,12 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                                 value={subject}
                                 onChange={(e) => setSubject(e.target.value)}
                                 placeholder="Subject"
-                                className="flex-1 px-4 py-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#f97316]/30 transition-all font-medium"
+                                className="flex-1 px-4 py-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#008080]/30 transition-all font-medium"
                             />
                             <select
                                 value={category}
                                 onChange={(e) => setCategory(e.target.value)}
-                                className="px-4 py-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#f97316]/30 transition-all text-sm"
+                                className="px-4 py-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#008080]/30 transition-all text-sm"
                             >
                                 <option value="">Category (optional)</option>
                                 {categories.map(cat => (
@@ -254,11 +254,11 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                                 value={linkUrl}
                                 onChange={(e) => setLinkUrl(e.target.value)}
                                 placeholder="https://example.com"
-                                className="flex-1 px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f97316]/30"
+                                className="flex-1 px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#008080]/30"
                             />
                             <button
                                 onClick={handleAddLink}
-                                className="px-4 py-2 bg-[#f97316] text-white rounded-xl text-sm font-medium hover:bg-orange-600 transition-colors"
+                                className="px-4 py-2 bg-[#008080] text-white rounded-xl text-sm font-medium hover:bg-teal-600 transition-colors"
                             >
                                 Add
                             </button>
@@ -301,7 +301,7 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                                 <select
                                     value={selectedSignature}
                                     onChange={(e) => setSelectedSignature(e.target.value)}
-                                    className="px-3 py-1.5 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#f97316]/30"
+                                    className="px-3 py-1.5 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#008080]/30"
                                 >
                                     <option value="">No signature</option>
                                     {signatures.map(sig => (
@@ -329,7 +329,7 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                             <button
                                 onClick={handleSend}
                                 disabled={sending || !recipient || !subject}
-                                className="px-8 py-2.5 bg-gradient-to-r from-[#f97316] to-orange-600 text-white rounded-xl font-bold shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                className="px-8 py-2.5 bg-gradient-to-r from-[#008080] to-teal-600 text-white rounded-xl font-bold shadow-lg shadow-teal-500/30 hover:shadow-teal-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                             >
                                 {sending ? (
                                     <>
