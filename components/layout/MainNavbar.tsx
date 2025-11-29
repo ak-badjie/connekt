@@ -17,8 +17,12 @@ export default function MainNavbar() {
     const [dropdownOpen, setDropdownOpen] = useState(false);
 
     // Don't show on dashboard, auth, or mail routes
-    const hideRoutes = ['/dashboard', '/auth', '/admin/auth', '/mail', '/projects', '/onboarding', '/intro'];
-    if (hideRoutes.some(route => pathname?.startsWith(route))) {
+    const hidePrefixes = ['/auth', '/admin/auth', '/onboarding', '/intro'];
+    const shouldHide = hidePrefixes.some(route => pathname?.startsWith(route)) ||
+        pathname?.includes('dashboard') ||
+        pathname?.includes('mail');
+
+    if (shouldHide) {
         return null;
     }
 
@@ -33,7 +37,7 @@ export default function MainNavbar() {
             <div className="max-w-7xl mx-auto px-6">
                 <div className="flex items-center justify-between h-16">
                     {/* Logo */}
-                    <Link href="/" className="flex items-center gap-3">
+                    <Link href="/" className="flex items-center gap-3 lg:hidden">
                         <BriefcaseLogo3D size="medium" color="teal" />
                         <span className="text-2xl font-bold font-headline text-[#008080] tracking-widest hidden md:block">CONNEKT</span>
                     </Link>

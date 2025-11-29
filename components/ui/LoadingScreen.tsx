@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { Mail } from 'lucide-react'; // Keeping for fallback if needed
 import AnimatedConnektLogo from './AnimatedConnektLogo'; // Import animated logo
+import ConnektMailLogo from '../mail/ConnektMailLogo'; // ConnektMail logo
 
 interface LoadingScreenProps {
     variant?: 'default' | 'mail';
@@ -48,8 +49,8 @@ export default function LoadingScreen({ variant = 'default' }: LoadingScreenProp
                     >
                         {variant === 'mail' ? (
                             <div className="relative">
-                                {/* NEW ANIMATED LOGO HERE */}
-                                <AnimatedConnektLogo size={80} color="#f97316" />
+                                {/* CONNEKTMAIL LOGO */}
+                                <ConnektMailLogo size={100} color="#f97316" />
                             </div>
                         ) : (
                             <svg
