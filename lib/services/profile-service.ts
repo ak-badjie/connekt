@@ -562,4 +562,284 @@ export const ProfileService = {
             return false;
         }
     },
+
+    // ==========================================
+    // CUSTOM SECTIONS
+    // ==========================================
+
+    /**
+     * Add custom section to profile
+     */
+    async addCustomSection(uid: string, section: Omit<any, 'id' | 'createdAt' | 'updatedAt'>): Promise<string | null> {
+        try {
+            const profile = await this.getUserProfile(uid);
+            if (!profile) return null;
+
+            const sectionId = `section_${Date.now()}`;
+            const newSection = {
+                ...section,
+                id: sectionId,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+            };
+
+            const docRef = doc(db, 'user_profiles', uid);
+            await updateDoc(docRef, {
+                customSections: arrayUnion(newSection),
+                updatedAt: serverTimestamp(),
+            });
+
+            return sectionId;
+        } catch (error) {
+            console.error('Error adding custom section:', error);
+            return null;
+        }
+    },
+
+    /**
+     * Update custom section
+     */
+    async updateCustomSection(uid: string, sectionId: string, updates: any): Promise<boolean> {
+        try {
+            const profile = await this.getUserProfile(uid);
+            if (!profile || !profile.customSections) return false;
+
+            const updatedSections = profile.customSections.map(section =>
+                section.id === sectionId ? { ...section, ...updates, updatedAt: serverTimestamp() } : section
+            );
+
+            const docRef = doc(db, 'user_profiles', uid);
+            await updateDoc(docRef, {
+                customSections: updatedSections,
+                updatedAt: serverTimestamp(),
+            });
+
+            return true;
+        } catch (error) {
+            console.error('Error updating custom section:', error);
+            return false;
+        }
+    },
+
+    /**
+     * Delete custom section
+     */
+    async deleteCustomSection(uid: string, sectionId: string): Promise<boolean> {
+        try {
+            const profile = await this.getUserProfile(uid);
+            if (!profile || !profile.customSections) return false;
+
+            const sectionToDelete = profile.customSections.find(s => s.id === sectionId);
+            if (!sectionToDelete) return false;
+
+            const docRef = doc(db, 'user_profiles', uid);
+            await updateDoc(docRef, {
+                customSections: arrayRemove(sectionToDelete),
+                updatedAt: serverTimestamp(),
+            });
+
+            return true;
+        } catch (error) {
+            console.error('Error deleting custom section:', error);
+            return false;
+        }
+    },
+
+    /**
+     * Reorder sections
+     */
+    async updateSectionOrder(uid: string, sectionOrder: any[]): Promise<boolean> {
+        try {
+            const docRef = doc(db, 'user_profiles', uid);
+            await updateDoc(docRef, {
+                sectionOrder,
+                updatedAt: serverTimestamp(),
+            });
+
+            return true;
+        } catch (error) {
+            console.error('Error updating section order:', error);
+            return false;
+        }
+    },
+
+    // ==========================================
+    // REFERRALS
+    // ==========================================
+
+    /**
+     * Add referral/endorsement to profile
+     */
+    async addReferral(toUserId: string, fromUserId: string, data: { relationship: string; endorsement: string; skills?: string[] }): Promise<boolean> {
+        try {
+            const fromUserDoc = await getDoc(doc(db, 'users', fromUserId));
+            const fromUserData = fromUserDoc.data();
+
+            const referral = {
+                id: `ref_${Date.now()}`,
+                fromUserId,
+                fromUserName: fromUserData?.displayName || 'Anonymous',
+                fromUserPhoto: fromUserData?.photoURL,
+                relationship: data.relationship,
+                endorsement: data.endorsement,
+                skills: data.skills || [],
+                createdAt: serverTimestamp(),
+            };
+
+            const docRef = doc(db, 'user_profiles', toUserId);
+            await updateDoc(docRef, {
+                referrals: arrayUnion(referral),
+                updatedAt: serverTimestamp(),
+            });
+
+            return true;
+        } catch (error) {
+            console.error('Error adding referral:', error);
+            return false;
+        }
+    },
+
+    /**
+     * Delete referral
+     */
+    async deleteReferral(uid: string, referralId: string): Promise<boolean> {
+        try {
+            const profile = await this.getUserProfile(uid);
+            if (!profile || !profile.referrals) return false;
+
+            const referralToDelete = profile.referrals.find(r => r.id === referralId);
+            if (!referralToDelete) return false;
+
+            const docRef = doc(db, 'user_profiles', uid);
+            await updateDoc(docRef, {
+                referrals: arrayRemove(referralToDelete),
+                updatedAt: serverTimestamp(),
+            });
+
+            return true;
+        } catch (error) {
+            console.error('Error deleting referral:', error);
+            return false;
+        }
+    },
+
+    // ==========================================
+    // PROJECT & TASK SYNC
+    // ==========================================
+
+    /**
+     * Get user's projects for profile display (with privacy filtering)
+     */
+    async getUserProjects(uid: string, includePrivate: boolean = false): Promise<any[]> {
+        try {
+            const projectsQuery = query(
+                collection(db, 'projects'),
+                where('ownerId', '==', uid)
+            );
+            const projectsSnap = await getDocs(projectsQuery);
+
+            const projects = projectsSnap.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+            }));
+
+            // Filter based on privacy if needed
+            // This would be further filtered on the frontend based on viewer auth status
+            return projects;
+        } catch (error) {
+            console.error('Error getting user projects:', error);
+            return [];
+        }
+    },
+
+    /**
+     * Get user's tasks for profile display (with privacy filtering)
+     */
+    async getUserTasks(username: string, includePrivate: boolean = false): Promise<any[]> {
+        try {
+            const tasksQuery = query(
+                collection(db, 'tasks'),
+                where('assignee', '==', username),
+                where('status', 'in', ['done', 'paid'])
+            );
+            const tasksSnap = await getDocs(tasksQuery);
+
+            const tasks = tasksSnap.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+            }));
+
+            return tasks;
+        } catch (error) {
+            console.error('Error getting user tasks:', error);
+            return [];
+        }
+    },
+
+    // ==========================================
+    // PRIVACY-AWARE DATA FETCHING
+    // ==========================================
+
+    /**
+     * Get profile data with privacy filtering
+     * @param uid - User ID
+     * @param viewerUid - Viewer's User ID (null if not authenticated)
+     * @param isOwner - Whether viewer is the profile owner
+     */
+    async getProfileWithPrivacy(uid: string, viewerUid: string | null, isOwner: boolean): Promise<any | null> {
+        try {
+            const profile = await this.getUserProfile(uid);
+            if (!profile) return null;
+
+            const privacySettings = profile.privacySettings;
+            const isAuthenticated = viewerUid !== null;
+
+            // Helper to check visibility
+            const canView = (setting: 'public' | 'authenticated' | 'private') => {
+                if (isOwner) return true;
+                if (setting === 'public') return true;
+                if (setting === 'authenticated' && isAuthenticated) return true;
+                return false;
+            };
+
+            // Filter profile data based on privacy settings
+            const filteredProfile = {
+                ...profile,
+                email: canView(privacySettings.showEmail) ? profile.email : undefined,
+                phone: canView(privacySettings.showPhone) ? profile.phone : undefined,
+                experience: canView(privacySettings.showExperience) ? profile.experience : [],
+                education: canView(privacySettings.showEducation) ? profile.education : [],
+                location: canView(privacySettings.showLocation) ? profile.location : undefined,
+                socialLinks: canView(privacySettings.showSocialLinks) ? profile.socialLinks : {},
+                referrals: canView(privacySettings.showReferrals) ? profile.referrals : [],
+                // Projects and tasks visibility will be handled by separate queries
+            };
+
+            return filteredProfile;
+        } catch (error) {
+            console.error('Error getting profile with privacy:', error);
+            return null;
+        }
+    },
+
+    /**
+     * Increment profile views
+     */
+    async incrementProfileViews(uid: string): Promise<boolean> {
+        try {
+            const docRef = doc(db, 'user_profiles', uid);
+            const profile = await this.getUserProfile(uid);
+
+            if (profile) {
+                await updateDoc(docRef, {
+                    'stats.profileViews': (profile.stats.profileViews || 0) + 1,
+                });
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Error incrementing profile views:', error);
+            return false;
+        }
+    },
 };

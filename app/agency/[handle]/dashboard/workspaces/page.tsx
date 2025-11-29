@@ -13,7 +13,7 @@ export default function AgencyWorkspacesPage() {
     const params = useParams();
     const router = useRouter();
     const { user } = useAuth();
-    const agencyUsername = params.username as string;
+    const agencyUsername = params.handle as string;
 
     const [loading, setLoading] = useState(true);
     const [agency, setAgency] = useState<Agency | null>(null);

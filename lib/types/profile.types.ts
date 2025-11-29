@@ -1,4 +1,5 @@
 import { Timestamp } from 'firebase/firestore';
+import { CustomSection, Referral, ProjectReference, TaskReference, SectionOrderItem } from './custom-sections.types';
 
 // Privacy Settings
 export interface PrivacySettings {
@@ -7,9 +8,11 @@ export interface PrivacySettings {
     showExperience: 'public' | 'authenticated' | 'private';
     showEducation: 'public' | 'authenticated' | 'private';
     showProjects: 'public' | 'authenticated' | 'private';
+    showTasks: 'public' | 'authenticated' | 'private';
     showRatings: 'public' | 'authenticated' | 'private';
     showLocation: 'public' | 'authenticated' | 'private';
     showSocialLinks: 'public' | 'authenticated' | 'private';
+    showReferrals: 'public' | 'authenticated' | 'private';
 }
 
 // Experience
@@ -73,6 +76,7 @@ export interface Rating {
     rating: number; // 1-5
     review?: string;
     projectId?: string;
+    projectName?: string;
     createdAt: Timestamp | any;
 }
 
@@ -84,6 +88,8 @@ export interface SocialLinks {
     github?: string;
     instagram?: string;
     portfolio?: string;
+    behance?: string;
+    dribbble?: string;
 }
 
 // Profile Statistics
@@ -95,6 +101,9 @@ export interface ProfileStats {
     totalRatings: number;
     responseRate: number; // percentage
     hireCount: number;
+    followers?: number;
+    following?: number;
+    profileViews?: number;
 }
 
 // Extended User Profile
@@ -122,6 +131,11 @@ export interface ExtendedUserProfile {
     certifications: Certification[];
     portfolio: ProfileMedia[];
     videoIntro?: string; // URL to intro video
+
+    // New: Custom sections and references
+    customSections?: CustomSection[];
+    referrals?: Referral[];
+    sectionOrder?: SectionOrderItem[];
 
     // Social
     socialLinks: SocialLinks;
@@ -164,6 +178,10 @@ export interface ExtendedAgencyProfile {
     portfolio: ProfileMedia[];
     videoReel?: string;
 
+    // New: Custom sections
+    customSections?: CustomSection[];
+    sectionOrder?: SectionOrderItem[];
+
     // Social
     socialLinks: SocialLinks;
 
@@ -192,6 +210,10 @@ export interface RecruiterProfile {
     placementsCount: number;
     averageResponseTime: number; // in hours
 
+    // New: Custom sections
+    customSections?: CustomSection[];
+    sectionOrder?: SectionOrderItem[];
+
     // Stats
     stats: ProfileStats;
 
@@ -213,9 +235,11 @@ export const defaultPrivacySettings: PrivacySettings = {
     showExperience: 'public',
     showEducation: 'public',
     showProjects: 'public',
+    showTasks: 'public',
     showRatings: 'public',
     showLocation: 'public',
     showSocialLinks: 'public',
+    showReferrals: 'public',
 };
 
 // Default Profile Stats
@@ -227,4 +251,7 @@ export const defaultProfileStats: ProfileStats = {
     totalRatings: 0,
     responseRate: 0,
     hireCount: 0,
+    followers: 0,
+    following: 0,
+    profileViews: 0,
 };

@@ -11,7 +11,7 @@ import { AgencyService, Agency } from '@/lib/services/agency-service';
 export default function AgencyDashboardLayout({ children }: { children: React.ReactNode }) {
     const { user, loading: authLoading } = useAuth();
     const params = useParams();
-    const agencyUsername = params.username as string;
+    const agencyUsername = params.handle as string;
     const [agency, setAgency] = useState<Agency | null>(null);
     const [loading, setLoading] = useState(true);
     const [hasAccess, setHasAccess] = useState(false);

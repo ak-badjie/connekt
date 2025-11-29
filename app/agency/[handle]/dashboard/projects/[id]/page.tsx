@@ -12,7 +12,7 @@ export default function AgencyProjectDetailPage() {
     const params = useParams();
     const router = useRouter();
     const { user } = useAuth();
-    const agencyUsername = params.username as string;
+    const agencyUsername = params.handle as string;
     const projectId = params.id as string;
 
     const [loading, setLoading] = useState(true);

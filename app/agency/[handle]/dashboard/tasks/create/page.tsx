@@ -14,7 +14,7 @@ function CreateTaskForm() {
     const router = useRouter();
     const params = useParams();
     const searchParams = useSearchParams();
-    const agencyUsername = params.username as string;
+    const agencyUsername = params.handle as string;
     const preselectedProjectId = searchParams.get('project');
 
     const [loading, setLoading] = useState(false);

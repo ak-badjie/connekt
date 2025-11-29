@@ -23,7 +23,7 @@ export default function AgencyDashboardPage() {
     const { user } = useAuth();
     const router = useRouter();
     const params = useParams();
-    const agencyUsername = params.username as string;
+    const agencyUsername = params.handle as string;
 
     const [agency, setAgency] = useState<Agency | null>(null);
     const [storageQuota, setStorageQuota] = useState<AgencyStorageQuota | null>(null);

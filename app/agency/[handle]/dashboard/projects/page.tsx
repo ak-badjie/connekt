@@ -12,7 +12,7 @@ export default function AgencyProjectsStartupPage() {
     const { user } = useAuth();
     const router = useRouter();
     const params = useParams();
-    const agencyUsername = params.username as string;
+    const agencyUsername = params.handle as string;
     const [loading, setLoading] = useState(true);
     const [projects, setProjects] = useState<Project[]>([]);
 

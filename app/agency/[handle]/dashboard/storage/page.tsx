@@ -10,7 +10,7 @@ import { motion } from 'framer-motion';
 
 export default function AgencyStoragePage() {
     const params = useParams();
-    const agencyUsername = params.username as string;
+    const agencyUsername = params.handle as string;
     const { user } = useAuth();
     const [agencyStorageQuota, setAgencyStorageQuota] = useState<AgencyStorageQuota | null>(null);
     const [agencyName, setAgencyName] = useState('');

@@ -11,7 +11,7 @@ export default function CreateAgencyWorkspacePage() {
     const { user } = useAuth();
     const router = useRouter();
     const params = useParams();
-    const agencyUsername = params.username as string;
+    const agencyUsername = params.handle as string;
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
