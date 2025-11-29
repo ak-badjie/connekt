@@ -5,16 +5,38 @@ import { useAuth } from '@/context/AuthContext';
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { BriefcaseLogo3D } from '@/components/auth/BriefcaseLogo3D';
+import { AgencyService, Agency } from '@/lib/services/agency-service';
 
 export function Navbar() {
     const { user, userProfile } = useAuth();
     const { theme, setTheme } = useTheme();
     const pathname = usePathname();
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [agency, setAgency] = useState<Agency | null>(null);
+
+    // Check if on agency route
+    const isAgencyRoute = pathname.startsWith('/agency/');
+    const agencyUsername = isAgencyRoute ? pathname.split('/')[2] : null;
+
+    useEffect(() => {
+        if (isAgencyRoute && agencyUsername) {
+            const fetchAgency = async () => {
+                try {
+                    const agencyData = await AgencyService.getAgencyByUsername(agencyUsername);
+                    setAgency(agencyData);
+                } catch (error) {
+                    console.error('Error fetching agency:', error);
+                }
+            };
+            fetchAgency();
+        } else {
+            setAgency(null);
+        }
+    }, [isAgencyRoute, agencyUsername]);
 
     // Determine if we are on a "Private" page (Dashboard, etc) where Sidebar exists
     const isPrivatePage = ['/dashboard', '/projects', '/agency', '/mail', '/contracts'].some(path => pathname.startsWith(path));
@@ -40,11 +62,42 @@ export function Navbar() {
                         </Link>
                     )}
 
-                    {/* Private Dashboard Logo */}
+                    {/* Private Dashboard Logo + Agency Info */}
                     {isPrivatePage && (
                         <div className="flex items-center gap-3 mr-2">
-                            <BriefcaseLogo3D size="medium" color="teal" />
-                            <span className="text-2xl font-bold font-headline text-[#008080] tracking-widest hidden xl:block">CONNEKT</span>
+                            {/* Connekt Branding */}
+                            <div className="flex items-center gap-2">
+                                <BriefcaseLogo3D size="medium" color="teal" />
+                                <span className="text-2xl font-bold font-headline text-[#008080] tracking-widest hidden xl:block">CONNEKT</span>
+                            </div>
+
+                            {/* Agency Branding (if on agency route) */}
+                            {isAgencyRoute && agency && (
+                                <>
+                                    <span className="text-gray-400 text-2xl font-light hidden xl:block">×</span>
+                                    <div className="flex items-center gap-2 hidden xl:flex">
+                                        {agency.logoUrl ? (
+                                            <img
+                                                src={agency.logoUrl}
+                                                alt={agency.name}
+                                                className="w-8 h-8 rounded-lg object-cover"
+                                            />
+                                        ) : (
+                                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#008080] to-teal-600 flex items-center justify-center text-white font-bold text-sm">
+                                                {agency.name[0].toUpperCase()}
+                                            </div>
+                                        )}
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-bold text-gray-900 dark:text-white leading-none">
+                                                {agency.name}
+                                            </span>
+                                            <span className="text-xs text-gray-500 dark:text-gray-400 leading-none mt-0.5">
+                                                @{agency.username}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     )}
 

@@ -4,20 +4,26 @@ import { TrendingUp, TrendingDown } from 'lucide-react';
 
 interface StatsCardProps {
     title: string;
-    value: number;
+    value: number | string;
     trend: string;
     trendValue: string;
     color: 'green' | 'white';
+    onClick?: () => void;
 }
 
-export default function StatsCard({ title, value, trend, trendValue, color }: StatsCardProps) {
+export default function StatsCard({ title, value, trend, trendValue, color, onClick }: StatsCardProps) {
     const isGreen = color === 'green';
+    const isClickable = !!onClick;
 
     return (
-        <div className={`relative p-6 rounded-2xl backdrop-blur-lg border transition-all hover:scale-[1.02] ${isGreen
-                ? 'bg-gradient-to-br from-[#008080] to-teal-600 border-teal-500/20 text-white shadow-lg shadow-teal-500/20'
-                : 'bg-white/50 dark:bg-zinc-900/50 border-white/20 dark:border-white/5'
-            }`}>
+        <div
+            onClick={onClick}
+            className={`relative p-6 rounded-2xl backdrop-blur-lg border transition-all ${isClickable ? 'cursor-pointer hover:scale-[1.03] active:scale-[0.98]' : 'hover:scale-[1.02]'
+                } ${isGreen
+                    ? 'bg-gradient-to-br from-[#008080] to-teal-600 border-teal-500/20 text-white shadow-lg shadow-teal-500/20'
+                    : 'bg-white/50 dark:bg-zinc-900/50 border-white/20 dark:border-white/5'
+                }`}
+        >
             <div className="flex items-start justify-between mb-4">
                 <h3 className={`text-sm font-medium ${isGreen ? 'text-white/90' : 'text-gray-500 dark:text-gray-400'}`}>{title}</h3>
                 {trendValue && (
@@ -32,6 +38,11 @@ export default function StatsCard({ title, value, trend, trendValue, color }: St
                 <TrendingUp size={14} className={isGreen ? 'text-white/80' : 'text-gray-400'} />
                 <span className={isGreen ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}>{trend}</span>
             </div>
+            {isClickable && (
+                <div className="absolute bottom-2 right-2 text-xs font-medium opacity-50">
+                    Click to view →
+                </div>
+            )}
         </div>
     );
 }
