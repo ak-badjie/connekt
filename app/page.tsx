@@ -466,7 +466,7 @@ export default function Home() {
   };
 
   return (
-    <div className="flex flex-col min-h-[100dvh] pt-20">
+    <div className="flex flex-col min-h-[100dvh] pt-16 pb-16">
       <section className="relative w-full py-6 md:py-10">
         <div className="absolute inset-0 -z-10">
           <Image

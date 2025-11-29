@@ -71,24 +71,29 @@ export function UsernameInput({ value, onChange, onValidityChange }: UsernameInp
 
     return (
         <div className="relative">
-            <input
-                type="text"
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                placeholder="@username"
-                className={`w-full bg-black/20 border rounded-xl p-4 outline-none transition-all ${error ? 'border-red-500/50 focus:border-red-500' :
+            <div className="relative">
+                <input
+                    type="text"
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    placeholder="username"
+                    className={`w-full bg-black/20 border rounded-xl p-4 pr-32 outline-none transition-all ${error ? 'border-red-500/50 focus:border-red-500' :
                         isAvailable ? 'border-green-500/50 focus:border-green-500' :
                             'border-white/10 focus:border-amber-500/50'
-                    }`}
-            />
-            <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                {loading ? (
-                    <Loader2 className="animate-spin text-amber-500" size={20} />
-                ) : isAvailable ? (
-                    <Check className="text-green-500" size={20} />
-                ) : error ? (
-                    <X className="text-red-500" size={20} />
-                ) : null}
+                        }`}
+                />
+                <div className="absolute right-12 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 text-sm pointer-events-none">
+                    @connekt.com
+                </div>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                    {loading ? (
+                        <Loader2 className="animate-spin text-amber-500" size={20} />
+                    ) : isAvailable ? (
+                        <Check className="text-green-500" size={20} />
+                    ) : error ? (
+                        <X className="text-red-500" size={20} />
+                    ) : null}
+                </div>
             </div>
             {error && <p className="text-red-400 text-xs mt-1 ml-1">{error}</p>}
             {isAvailable && <p className="text-green-400 text-xs mt-1 ml-1">Username is available</p>}

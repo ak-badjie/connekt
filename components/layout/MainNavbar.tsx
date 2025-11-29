@@ -4,9 +4,10 @@ import { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { AuthService } from '@/lib/services/auth-service';
-import { Search, Moon, Sun, LogOut, Settings, LayoutDashboard, ChevronDown, User } from 'lucide-react';
+import { Search, Moon, Sun, LogOut, Settings, LayoutDashboard, ChevronDown, User, Compass, Briefcase, Bot, Building2 } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import Image from 'next/image';
+import { BriefcaseLogo3D } from '@/components/auth/BriefcaseLogo3D';
+import Link from 'next/link';
 
 export default function MainNavbar() {
     const router = useRouter();
@@ -16,7 +17,7 @@ export default function MainNavbar() {
     const [dropdownOpen, setDropdownOpen] = useState(false);
 
     // Don't show on dashboard, auth, or mail routes
-    const hideRoutes = ['/dashboard', '/auth', '/admin/auth', '/mail', '/projects'];
+    const hideRoutes = ['/dashboard', '/auth', '/admin/auth', '/mail', '/projects', '/onboarding', '/intro'];
     if (hideRoutes.some(route => pathname?.startsWith(route))) {
         return null;
     }
@@ -30,29 +31,31 @@ export default function MainNavbar() {
     return (
         <nav className="fixed top-0 left-0 right-0 z-40 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl border-b border-gray-200/50 dark:border-zinc-800/50">
             <div className="max-w-7xl mx-auto px-6">
-                <div className="flex items-center justify-between h-20">
+                <div className="flex items-center justify-between h-16">
                     {/* Logo */}
-                    <div className="flex items-center gap-3 cursor-pointer" onClick={() => router.push('/')}>
-                        <div className="w-10 h-10 bg-gradient-to-br from-[#008080] to-teal-600 rounded-2xl flex items-center justify-center shadow-lg shadow-teal-500/20">
-                            <div className="w-5 h-5 bg-white rounded-full"></div>
-                        </div>
-                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Connekt</h1>
-                    </div>
+                    <Link href="/" className="flex items-center gap-3">
+                        <BriefcaseLogo3D size="medium" color="teal" />
+                        <span className="text-2xl font-bold font-headline text-[#008080] tracking-widest hidden md:block">CONNEKT</span>
+                    </Link>
 
                     {/* Center - Navigation Links */}
-                    <div className="hidden md:flex items-center gap-8">
-                        <a href="/#features" className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-[#008080] dark:hover:text-teal-400 transition-colors">
-                            Features
-                        </a>
-                        <a href="/#how-it-works" className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-[#008080] dark:hover:text-teal-400 transition-colors">
-                            How It Works
-                        </a>
-                        <a href="/#pricing" className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-[#008080] dark:hover:text-teal-400 transition-colors">
-                            Pricing
-                        </a>
-                        <a href="/#testimonials" className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-[#008080] dark:hover:text-teal-400 transition-colors">
-                            Testimonials
-                        </a>
+                    <div className="hidden md:flex items-center gap-6">
+                        <Link href="/explore" className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-[#008080] dark:hover:text-teal-400 transition-colors">
+                            <Compass size={16} />
+                            Explore
+                        </Link>
+                        <Link href="/marketplace" className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-[#008080] dark:hover:text-teal-400 transition-colors">
+                            <Briefcase size={16} />
+                            Jobs
+                        </Link>
+                        <Link href="/agency" className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-[#008080] dark:hover:text-teal-400 transition-colors">
+                            <Building2 size={16} />
+                            Agencies
+                        </Link>
+                        <Link href="/intro/ai" className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-[#008080] dark:hover:text-teal-400 transition-colors">
+                            <Bot size={16} />
+                            AI Agents
+                        </Link>
                     </div>
 
                     {/* Right - Actions */}

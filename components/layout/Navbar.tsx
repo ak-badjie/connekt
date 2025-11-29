@@ -112,7 +112,7 @@ export function Navbar() {
                                     </div>
                                     <div className="hidden md:block text-left">
                                         <p className="text-xs font-bold text-gray-900 dark:text-white leading-none mb-0.5">{userProfile?.displayName || 'User'}</p>
-                                        <p className="text-[10px] text-gray-500 leading-none">@{userProfile?.username || 'username'}</p>
+                                        <p className="text-[10px] text-gray-500 leading-none">{userProfile?.username ? `${userProfile.username}@connekt.com` : 'user@connekt.com'}</p>
                                     </div>
                                 </button>
 
