@@ -64,23 +64,8 @@ export default function AgencyDashboardPage() {
             {/* Header Area */}
             <div className="flex justify-between items-end mb-2">
                 <div>
-                    <div className="flex items-center gap-3 mb-2">
-                        {agency?.logoUrl ? (
-                            <img
-                                src={agency.logoUrl}
-                                alt={agency.name}
-                                className="w-12 h-12 rounded-xl object-cover"
-                            />
-                        ) : (
-                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#008080] to-teal-600 flex items-center justify-center">
-                                <Briefcase className="text-white" size={24} />
-                            </div>
-                        )}
-                        <div>
-                            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{agency?.name || 'Agency'} Dashboard</h1>
-                            <p className="text-gray-500 dark:text-gray-400 text-sm font-mono">{agency?.domain}</p>
-                        </div>
-                    </div>
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">Dashboard</h1>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">Manage your agency projects and team performance</p>
                 </div>
                 <div className="flex gap-3">
                     <button
@@ -180,10 +165,10 @@ export default function AgencyDashboardPage() {
                                     </p>
                                 </div>
                                 <span className={`px-2 py-1 rounded-full text-xs font-bold ${member.role === 'owner'
-                                        ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                                        : member.role === 'admin'
-                                            ? 'bg-[#008080]/10 text-[#008080]'
-                                            : 'bg-gray-200 dark:bg-zinc-700 text-gray-600 dark:text-gray-400'
+                                    ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                                    : member.role === 'admin'
+                                        ? 'bg-[#008080]/10 text-[#008080]'
+                                        : 'bg-gray-200 dark:bg-zinc-700 text-gray-600 dark:text-gray-400'
                                     }`}>
                                     {member.role}
                                 </span>
