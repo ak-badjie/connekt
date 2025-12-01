@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { ChatService } from '@/lib/services/chat-service';
 import { Loader2, Search, X, Users } from 'lucide-react';
 import { AgencyService } from '@/lib/services/agency-service';
+import { FirestoreService } from '@/lib/services/firestore-service';
 
 interface CreateChatModalProps {
     isOpen: boolean;
@@ -29,60 +30,88 @@ export function CreateChatModal({ isOpen, onClose, agencyId }: CreateChatModalPr
     }, [isOpen, agencyId]);
 
     const loadMembers = async () => {
-        setLoading(true);
-        try {
-            if (agencyId) {
-                // Fetch agency members
-                const agency = await AgencyService.getAgencyById(agencyId);
-                if (agency && agency.members) {
-                    // Map agency members to format needed. 
-                    // Note: AgencyMember doesn't have username, so we use email part or fetch profile.
-                    // For simplicity, we'll use email part as username for now.
-                    const mappedMembers = agency.members
-                        .filter(m => m.userId !== user?.uid)
-                        .map(m => ({
-                            userId: m.userId,
-                            username: m.agencyEmail.split('@')[0], // Fallback
-                            email: m.agencyEmail,
-                            role: m.role
-                        }));
-                    setMembers(mappedMembers);
-                }
-            } else {
-                // For regular users, we might fetch their connections or project members
-                // For now, let's just mock some "Suggested" users or leave empty to search
-                // In a real app, this would be UserService.searchUsers(query)
-                setMembers([
-                    { userId: 'u1', username: 'alice_dev', role: 'Developer' },
-                    { userId: 'u2', username: 'bob_design', role: 'Designer' },
-                    { userId: 'u3', username: 'charlie_pm', role: 'Manager' }
-                ]);
-            }
-        } catch (error) {
-            console.error('Error loading members:', error);
-        } finally {
-            setLoading(false);
-        }
+        // Initial load can be empty or suggested users
+        // For now we'll wait for search
+        setMembers([]);
     };
+
+    // Debounced search effect would be better, but for now simple effect
+    useEffect(() => {
+        const search = async () => {
+            if (!searchQuery || searchQuery.length < 2) {
+                setMembers([]);
+                return;
+            }
+
+            setLoading(true);
+            try {
+                if (agencyId) {
+                    // Existing agency logic
+                    const agency = await AgencyService.getAgencyById(agencyId);
+                    if (agency && agency.members) {
+                        const mappedMembers = agency.members
+                            .filter(m => m.userId !== user?.uid)
+                            .map(m => ({
+                                userId: m.userId,
+                                username: m.agencyEmail.split('@')[0],
+                                email: m.agencyEmail,
+                                role: m.role
+                            }));
+                        setMembers(mappedMembers.filter(m =>
+                            m.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            (m.email && m.email.toLowerCase().includes(searchQuery.toLowerCase()))
+                        ));
+                    }
+                } else {
+                    // Use FirestoreService search
+                    const users = await FirestoreService.searchUsers(searchQuery);
+                    setMembers(users.filter(u => u.uid !== user?.uid).map(u => ({
+                        userId: u.uid,
+                        username: u.username || 'Unknown',
+                        role: u.role,
+                        email: u.email
+                    })));
+                }
+            } catch (error) {
+                console.error("Error searching users:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        const timeoutId = setTimeout(search, 500);
+        return () => clearTimeout(timeoutId);
+    }, [searchQuery, agencyId, user]);
 
     const handleCreate = async () => {
         if (!user || !userProfile || !groupName.trim()) return;
 
         setCreating(true);
         try {
+            // Map selected members to participants format
+            const participants: { userId: string; username: string; role: 'admin' | 'member' }[] = selectedMembers.map(id => {
+                const member = members.find(m => m.userId === id);
+                return {
+                    userId: id,
+                    username: member?.username || 'Unknown',
+                    role: 'member'
+                };
+            });
+
+            // Add current user
+            participants.push({
+                userId: user.uid,
+                username: userProfile.username || 'Me',
+                role: 'admin'
+            });
+
             await ChatService.createConversation({
                 type: 'group',
-                members: [user.uid, ...selectedMembers],
+                participants,
                 title: groupName,
                 createdBy: user.uid,
-                memberDetails: {
-                    [user.uid]: {
-                        username: userProfile.username,
-                        photoURL: userProfile.photoURL || null,
-                        role: 'admin'
-                    },
-                    // In a real app, we'd add details for selectedMembers too
-                }
+                // memberDetails is handled by ChatService based on participants now (or we can pass it if needed, but service signature changed in my thought process? 
+                // Wait, let's check ChatService signature again. It takes participants array.
             });
             onClose();
             // Reset form
@@ -103,10 +132,7 @@ export function CreateChatModal({ isOpen, onClose, agencyId }: CreateChatModalPr
         }
     };
 
-    const filteredMembers = members.filter(m =>
-        m.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (m.email && m.email.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
+    const filteredMembers = members;
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>

@@ -32,15 +32,27 @@ export function GlobalChatWidget() {
                     <motion.div
                         drag
                         dragMomentum={false}
-                        initial={{ opacity: 0, y: 100, scale: 0.9 }}
+                        initial={{ opacity: 0, y: 100, scale: 0.9, width: 380 }}
                         animate={{
                             opacity: 1,
-                            y: isMinimized ? 'calc(100vh - 80px)' : 0,
+                            y: 0,
                             scale: 1,
-                            height: isMinimized ? '60px' : '600px'
+                            height: isMinimized ? 60 : 600,
+                            width: 380,
+                            borderRadius: "16px"
                         }}
-                        exit={{ opacity: 0, y: 100, scale: 0.9 }}
-                        className="fixed bottom-6 right-6 w-[380px] bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-zinc-800 overflow-hidden z-[9999] flex flex-col"
+                        exit={{
+                            height: [null, 60, 60],
+                            width: [380, 380, 60],
+                            opacity: [1, 1, 0],
+                            borderRadius: ["16px", "16px", "50%"],
+                            transition: {
+                                duration: 0.5,
+                                times: [0, 0.6, 1],
+                                ease: "easeInOut"
+                            }
+                        }}
+                        className="fixed bottom-6 right-6 bg-white dark:bg-zinc-900 shadow-2xl border border-gray-200 dark:border-zinc-800 overflow-hidden z-[9999] flex flex-col"
                     >
                         {/* Header */}
                         <div
