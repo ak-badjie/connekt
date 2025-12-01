@@ -10,6 +10,8 @@ import { HelpRequestModal } from './HelpRequestModal';
 import { ContractReviewModal } from './ContractReviewModal';
 import { Loader2, MoreVertical, Phone, Video, Info, ArrowLeft, HandHelping } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { MeetingService } from '@/lib/services/meeting-service';
+import { useConference } from '@/components/conference/ConferenceProvider';
 
 interface ChatWindowProps {
     conversationId: string;
@@ -25,6 +27,7 @@ export function ChatWindow({ conversationId, onBack }: ChatWindowProps) {
     const [selectedHelpMessage, setSelectedHelpMessage] = useState<Message | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
+    const { startMeeting } = useConference();
 
     useEffect(() => {
         if (!conversationId) return;
@@ -126,7 +129,39 @@ export function ChatWindow({ conversationId, onBack }: ChatWindowProps) {
                     <button className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors">
                         <Phone size={20} />
                     </button>
-                    <button className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors">
+                    <button
+                        onClick={async () => {
+                            if (!user) return;
+                            try {
+                                // Create a new meeting
+                                const meetingId = await MeetingService.createMeeting({
+                                    title: 'Instant Meeting',
+                                    startTime: Date.now(),
+                                    duration: 60,
+                                    hostId: user.uid,
+                                    hostName: userProfile?.username || 'Host',
+                                    participants: [user.uid], // Add other members if available
+                                    type: 'video',
+                                    conversationId: conversationId
+                                });
+
+                                // Send system message with join link
+                                await ChatService.sendMessage({
+                                    conversationId,
+                                    senderId: user.uid,
+                                    senderUsername: 'System',
+                                    content: `🎥 Video meeting started. Join here: [Join Meeting](${meetingId})`, // In real app, use a proper link or action
+                                    type: 'text'
+                                });
+
+                                // Start meeting locally
+                                startMeeting(meetingId);
+                            } catch (error) {
+                                console.error("Failed to start meeting:", error);
+                            }
+                        }}
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
+                    >
                         <Video size={20} />
                     </button>
                     <button className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors">

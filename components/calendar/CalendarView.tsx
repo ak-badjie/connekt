@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { TaskService } from '@/lib/services/task-service';
+import { MeetingService } from '@/lib/services/meeting-service';
 import { Task } from '@/lib/types/workspace.types';
 import {
     format,
@@ -61,13 +62,18 @@ export function CalendarView() {
                         priority: t.priority
                     }));
 
-                // Add some mock meetings for demo purposes since we don't have a MeetingService yet
-                const mockMeetings: CalendarEvent[] = [
-                    { id: 'm1', title: 'Team Sync', date: new Date(), type: 'meeting' },
-                    { id: 'm2', title: 'Client Review', date: new Date(Date.now() + 86400000 * 2), type: 'meeting' }
-                ];
+                // Fetch meetings for the user
+                const meetings = await MeetingService.getUpcomingMeetings(user.uid);
 
-                setEvents([...mappedEvents, ...mockMeetings]);
+                const mappedMeetings: CalendarEvent[] = meetings.map(m => ({
+                    id: m.id,
+                    title: m.title,
+                    date: new Date(m.startTime),
+                    type: 'meeting',
+                    status: m.status
+                }));
+
+                setEvents([...mappedEvents, ...mappedMeetings]);
             } catch (error) {
                 console.error('Error fetching calendar events:', error);
             } finally {
@@ -121,7 +127,7 @@ export function CalendarView() {
                             <ChevronRight size={20} />
                         </button>
                     </div>
-                    <button 
+                    <button
                         onClick={() => setIsScheduleModalOpen(true)}
                         className="flex items-center gap-2 px-4 py-2 bg-[#008080] text-white rounded-xl hover:bg-teal-600 transition-colors shadow-lg shadow-teal-500/20"
                     >
@@ -252,12 +258,12 @@ export function CalendarView() {
                         )}
                     </div>
                 </div>
-                </div>
             </div>
 
-            <ScheduleMeetingModal 
-                isOpen={isScheduleModalOpen} 
-                onClose={() => setIsScheduleModalOpen(false)} 
+
+            <ScheduleMeetingModal
+                isOpen={isScheduleModalOpen}
+                onClose={() => setIsScheduleModalOpen(false)}
                 selectedDate={selectedDate}
             />
         </div >

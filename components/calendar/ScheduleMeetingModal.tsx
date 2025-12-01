@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuth } from '@/context/AuthContext';
 import { ChatService } from '@/lib/services/chat-service';
+import { MeetingService } from '@/lib/services/meeting-service';
 import { Conversation } from '@/lib/types/chat.types';
 import { Loader2, Calendar, Video, Users } from 'lucide-react';
 
@@ -33,22 +34,22 @@ export function ScheduleMeetingModal({ isOpen, onClose, selectedDate }: Schedule
         if (!user) return;
         setLoading(true);
         try {
-            // In a real app, we'd have a method to fetch user's groups
-            // For now, we'll rely on the subscription or mock it, but let's assume we can fetch them
-            // Since we don't have a direct fetch method exposed yet, we might need to add one to ChatService
-            // or just use the realtime listener. For this modal, a fetch is better.
-            // Let's assume ChatService.getUserConversations exists or we use a temporary mock
+            // Subscribe to user's conversations
+            // We'll use the subscription to get initial data and then just set it
+            // In a real app, we might want to keep the subscription active, but for a modal, 
+            // fetching once or using a subscription that updates state is fine.
+            const unsubscribe = ChatService.subscribeToConversations(user.uid, (conversations) => {
+                // Filter for groups or projects (exclude direct messages if needed, or keep all)
+                // Usually meetings are for groups/projects
+                const groupChats = conversations.filter(c => c.type === 'group' || c.type === 'project' || c.type === 'workspace' || c.type === 'agency');
+                setGroups(groupChats);
+                setLoading(false);
+            });
 
-            // Mocking for UI demonstration as per previous patterns if service method missing
-            // In real implementation: const userGroups = await ChatService.getUserGroups(user.uid);
-            const mockGroups: Conversation[] = [
-                { id: 'g1', type: 'group', title: 'Marketing Team', members: [], createdBy: '', createdAt: null, updatedAt: null },
-                { id: 'g2', type: 'project', title: 'Project Alpha', members: [], createdBy: '', createdAt: null, updatedAt: null }
-            ];
-            setGroups(mockGroups);
+            // Clean up subscription when modal closes or unmounts
+            return () => unsubscribe();
         } catch (error) {
             console.error('Error loading groups:', error);
-        } finally {
             setLoading(false);
         }
     };
@@ -58,14 +59,24 @@ export function ScheduleMeetingModal({ isOpen, onClose, selectedDate }: Schedule
 
         setScheduling(true);
         try {
-            // 1. Create meeting event (would go to MeetingService)
-            // 2. Send notification/message to the group chat
+            // 1. Create meeting event
+            const meetingId = await MeetingService.createMeeting({
+                title,
+                startTime: new Date(`${selectedDate.toLocaleDateString()} ${time}`).getTime(),
+                duration: parseInt(duration),
+                hostId: user.uid,
+                hostName: user.displayName || 'Host',
+                participants: [user.uid], // In real app, add group members
+                type: 'video',
+                conversationId: selectedGroup
+            });
 
+            // 2. Send notification/message to the group chat
             await ChatService.sendMessage({
                 conversationId: selectedGroup,
                 senderId: user.uid,
-                senderUsername: 'System', // Or user name
-                content: `📅 New Meeting Scheduled: ${title} on ${selectedDate.toLocaleDateString()} at ${time}`,
+                senderUsername: 'System',
+                content: `📅 New Meeting Scheduled: ${title} on ${selectedDate.toLocaleDateString()} at ${time}. [Join Link](${meetingId})`,
                 type: 'text'
             });
 

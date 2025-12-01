@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { FirestoreService } from '@/lib/services/firestore-service';
 import { ChatSidebar } from '@/components/chat/ChatSidebar';
 import { ChatWindow } from '@/components/chat/ChatWindow';
 import { Users, MessageSquare, Plus, Search, MoreVertical } from 'lucide-react';
@@ -12,13 +14,30 @@ export function AgencyTeamsView() {
     const [activeTab, setActiveTab] = useState<'members' | 'groups'>('groups');
     const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
     const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
+    const [members, setMembers] = useState<any[]>([]);
+    const { user } = useAuth();
 
-    // Mock data for members - in real app fetch from AgencyService
-    const members = [
-        { id: '1', name: 'Sarah Connor', role: 'Project Manager', status: 'online', avatar: 'S' },
-        { id: '2', name: 'John Doe', role: 'Developer', status: 'offline', avatar: 'J' },
-        { id: '3', name: 'Jane Smith', role: 'Designer', status: 'busy', avatar: 'J' },
-    ];
+    useEffect(() => {
+        const fetchMembers = async () => {
+            if (!user) return;
+            try {
+                // Fetch some users to populate the list "as if" they are team members
+                const users = await FirestoreService.searchUsers('a');
+
+                setMembers(users.filter(u => u.uid !== user.uid).map(u => ({
+                    id: u.uid,
+                    name: u.username || 'Unknown',
+                    role: u.role,
+                    status: 'offline',
+                    avatar: (u.username || 'U')[0].toUpperCase()
+                })));
+            } catch (error) {
+                console.error("Error fetching team members:", error);
+            }
+        };
+
+        fetchMembers();
+    }, [user]);
 
     return (
         <div className="h-full flex flex-col md:flex-row rounded-2xl overflow-hidden border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
@@ -68,20 +87,26 @@ export function AgencyTeamsView() {
                                     />
                                 </div>
                             </div>
-                            {members.map(member => (
-                                <div key={member.id} className="p-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-zinc-800/50 rounded-xl cursor-pointer transition-colors group">
-                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center text-white font-bold">
-                                        {member.avatar}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h4 className="font-bold text-gray-900 dark:text-gray-100 text-sm">{member.name}</h4>
-                                        <p className="text-xs text-gray-500">{member.role}</p>
-                                    </div>
-                                    <button className="p-2 text-gray-400 hover:text-[#008080] hover:bg-[#008080]/10 rounded-full opacity-0 group-hover:opacity-100 transition-all">
-                                        <MessageSquare size={16} />
-                                    </button>
+                            {members.length === 0 ? (
+                                <div className="text-center py-8 text-gray-400 text-sm">
+                                    No members found.
                                 </div>
-                            ))}
+                            ) : (
+                                members.map(member => (
+                                    <div key={member.id} className="p-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-zinc-800/50 rounded-xl cursor-pointer transition-colors group">
+                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center text-white font-bold">
+                                            {member.avatar}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="font-bold text-gray-900 dark:text-gray-100 text-sm">{member.name}</h4>
+                                            <p className="text-xs text-gray-500">{member.role}</p>
+                                        </div>
+                                        <button className="p-2 text-gray-400 hover:text-[#008080] hover:bg-[#008080]/10 rounded-full opacity-0 group-hover:opacity-100 transition-all">
+                                            <MessageSquare size={16} />
+                                        </button>
+                                    </div>
+                                ))
+                            )}
                         </div>
                     )}
                 </div>
@@ -102,7 +127,7 @@ export function AgencyTeamsView() {
             <CreateChatModal
                 isOpen={isCreateGroupOpen}
                 onClose={() => setIsCreateGroupOpen(false)}
-                agencyId="current-agency-id" // In real app, get from params or context
+                agencyId="current-agency-id"
             />
 
             {/* Right Panel - Chat Window or Placeholder */}

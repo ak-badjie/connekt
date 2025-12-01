@@ -118,6 +118,25 @@ export const FirestoreService = {
         return snap.exists() ? snap.data().uid : null;
     },
 
+    async searchUsers(queryText: string): Promise<UserProfile[]> {
+        if (!queryText || queryText.length < 2) return [];
+
+        // Simple prefix search on username
+        // Note: Firestore doesn't support native full-text search. 
+        // For production, use Algolia or similar.
+        // This is a basic implementation using startAt/endAt pattern on username.
+
+        const q = query(
+            collection(db, 'users'),
+            where('username', '>=', queryText),
+            where('username', '<=', queryText + '\uf8ff'),
+            limit(10)
+        );
+
+        const snap = await getDocs(q);
+        return snap.docs.map(d => ({ uid: d.id, ...d.data() } as UserProfile));
+    },
+
     // ==========================================
     // PROJECTS & WORKSPACE
     // ==========================================
