@@ -7,6 +7,7 @@ import { Wallet as WalletType, WalletTransaction, EscrowHold } from '@/lib/types
 import { WalletBalanceCard } from '@/components/wallet/WalletBalanceCard';
 import { TransactionHistoryTable } from '@/components/wallet/TransactionHistoryTable';
 import { EscrowHoldingsList } from '@/components/wallet/EscrowHoldingsList';
+import { TopUpModal } from '@/components/wallet/TopUpModal';
 import { motion } from 'framer-motion';
 import { ArrowUpDown, Filter, Download } from 'lucide-react';
 
@@ -16,6 +17,7 @@ export default function WalletPage() {
     const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
     const [escrowHoldings, setEscrowHoldings] = useState<EscrowHold[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isTopUpModalOpen, setIsTopUpModalOpen] = useState(false);
 
     useEffect(() => {
         const loadWalletData = async () => {
@@ -26,12 +28,12 @@ export default function WalletPage() {
                 const walletId = `user_${user.uid}`;
 
                 // Load wallet
-                let walletData = await WalletService.getWallet(walletId);
+                let walletData = await WalletService.getWallet(user.uid, 'user');
 
                 // Create wallet if it doesn't exist
                 if (!walletData) {
-                    await WalletService.createWallet(walletId, user.uid, 'user');
-                    walletData = await WalletService.getWallet(walletId);
+                    await WalletService.createWallet(user.uid, 'user');
+                    walletData = await WalletService.getWallet(user.uid, 'user');
                 }
 
                 setWallet(walletData);
@@ -42,7 +44,7 @@ export default function WalletPage() {
                     setTransactions(txHistory);
 
                     // Calculate escrow holdings
-                    const escrowOut = walletData.escrowHolds
+                    const escrowOut = (walletData.escrowHolds || [])
                         .filter(h => h.status === 'held')
                         .reduce((sum, h) => sum + h.amount, 0);
 
@@ -50,7 +52,7 @@ export default function WalletPage() {
                         .filter(t => t.type === 'escrow_hold' && t.status === 'pending')
                         .reduce((sum, t) => sum + t.amount, 0);
 
-                    setEscrowHoldings(walletData.escrowHolds);
+                    setEscrowHoldings(walletData.escrowHolds || []);
                 }
             } catch (error) {
                 console.error('Error loading wallet:', error);
@@ -94,6 +96,7 @@ export default function WalletPage() {
                     pendingIn={pendingIn}
                     pendingOut={pendingOut}
                     isAgency={false}
+                    onAddFunds={() => setIsTopUpModalOpen(true)}
                 />
 
                 {/* Escrow Holdings */}
@@ -128,6 +131,15 @@ export default function WalletPage() {
                             <motion.button
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
+                                onClick={() => setIsTopUpModalOpen(true)}
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#008080] hover:bg-teal-600 text-white text-sm font-bold transition-colors shadow-lg shadow-teal-500/20"
+                            >
+                                <ArrowUpDown size={16} />
+                                Top Up
+                            </motion.button>
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
                                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-sm font-medium transition-colors"
                             >
                                 <Filter size={16} />
@@ -136,7 +148,7 @@ export default function WalletPage() {
                             <motion.button
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
-                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#008080] hover:bg-teal-600 text-white text-sm font-bold transition-colors"
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-sm font-medium transition-colors"
                             >
                                 <Download size={16} />
                                 Export
@@ -147,6 +159,12 @@ export default function WalletPage() {
                     <TransactionHistoryTable transactions={transactions} isLoading={isLoading} />
                 </motion.div>
             </div>
+
+            <TopUpModal
+                isOpen={isTopUpModalOpen}
+                onClose={() => setIsTopUpModalOpen(false)}
+                walletId={wallet?.id || ''}
+            />
         </div>
     );
 }
