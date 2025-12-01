@@ -6,7 +6,7 @@ import { ChatWindow } from '@/components/chat/ChatWindow';
 import { Users, MessageSquare, Plus, Search, MoreVertical } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-import { CreateGroupModal } from './CreateGroupModal';
+import { CreateChatModal } from '@/components/chat/CreateChatModal';
 
 export function AgencyTeamsView() {
     const [activeTab, setActiveTab] = useState<'members' | 'groups'>('groups');
@@ -99,7 +99,7 @@ export function AgencyTeamsView() {
                 )}
             </div>
 
-            <CreateGroupModal
+            <CreateChatModal
                 isOpen={isCreateGroupOpen}
                 onClose={() => setIsCreateGroupOpen(false)}
                 agencyId="current-agency-id" // In real app, get from params or context
