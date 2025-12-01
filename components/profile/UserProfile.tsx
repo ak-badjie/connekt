@@ -7,12 +7,33 @@ import {
     MapPin, Calendar, Mail, Edit, Briefcase, GraduationCap,
     Star, Github, Linkedin, Twitter, Globe, Camera, Video,
     Award, Users, TrendingUp, Clock, Target, Play, Settings,
-    Plus, Link as LinkIcon, Heart, MessageCircle
+    Plus, Link as LinkIcon, Heart, MessageCircle, GripVertical
 } from 'lucide-react';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+
 import { ExtendedUserProfile } from '@/lib/types/profile.types';
 import { ProfileService } from '@/lib/services/profile-service';
 import { ReviewSection } from './ReviewSection';
 import { PrivacySettingsPanel } from './PrivacySettingsPanel';
+import { DraggableSection } from './DraggableSection';
+import { TrailerVideoSection } from './TrailerVideoSection';
+import { ExperienceForm } from './ExperienceForm';
+import { EducationForm } from './EducationForm';
+import { CustomSectionCreator } from './CustomSectionCreator';
 
 interface UserProfileProps {
     user: ExtendedUserProfile;
@@ -22,12 +43,30 @@ interface UserProfileProps {
 export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
     const [user, setUser] = useState(initialUser);
     const [showPrivacySettings, setShowPrivacySettings] = useState(false);
-    const [showEditModal, setShowEditModal] = useState(false);
     const [isFollowing, setIsFollowing] = useState(false);
     const [projects, setProjects] = useState<any[]>([]);
     const [tasks, setTasks] = useState<any[]>([]);
+    const [activeForm, setActiveForm] = useState<'experience' | 'education' | 'custom' | null>(null);
+
+    // Section Order State
+    const [sectionOrder, setSectionOrder] = useState<string[]>([]);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
 
     useEffect(() => {
+        // Initialize section order
+        if (user.sectionOrder && user.sectionOrder.length > 0) {
+            setSectionOrder(user.sectionOrder.map(s => s.sectionId));
+        } else {
+            // Default order
+            setSectionOrder(['video_intro', 'experience', 'education', 'projects', 'reviews']);
+        }
+
         // Load projects and tasks
         loadProjects();
         loadTasks();
@@ -48,6 +87,30 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
         setTasks(tasksData);
     };
 
+    const handleDragEnd = async (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (over && active.id !== over.id) {
+            setSectionOrder((items) => {
+                const oldIndex = items.indexOf(active.id as string);
+                const newIndex = items.indexOf(over.id as string);
+                const newOrder = arrayMove(items, oldIndex, newIndex);
+
+                // Persist to Firestore
+                const orderObjects = newOrder.map((id, index) => ({
+                    sectionId: id,
+                    type: id.startsWith('custom_') ? 'custom' : 'default',
+                    order: index
+                }));
+
+                // We cast to any because the type definition might need update in the service call
+                ProfileService.updateSectionOrder(user.uid, orderObjects as any);
+
+                return newOrder;
+            });
+        }
+    };
+
     const formatDate = (timestamp: any) => {
         if (!timestamp) return '';
         const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
@@ -58,9 +121,192 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
         return user.stats.timeOnPlatform || 0;
     };
 
+    // Render helper for sections
+    const renderSection = (sectionId: string) => {
+        switch (sectionId) {
+            case 'video_intro':
+                return (
+                    <DraggableSection key={sectionId} id={sectionId} isOwner={isOwner} title="Video Intro">
+                        <TrailerVideoSection
+                            uid={user.uid}
+                            videoUrl={user.videoIntro}
+                            isOwner={isOwner}
+                            onUpdate={(url) => setUser({ ...user, videoIntro: url })}
+                        />
+                    </DraggableSection>
+                );
+
+            case 'experience':
+                return (
+                    <DraggableSection key={sectionId} id={sectionId} isOwner={isOwner} title="Experience">
+                        <div className="profile-section">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                    <Briefcase className="w-6 h-6 text-teal-600" />
+                                    Work Experience
+                                </h3>
+                                {isOwner && (
+                                    <button
+                                        onClick={() => setActiveForm('experience')}
+                                        className="px-4 py-2 text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded-xl transition-colors flex items-center gap-2"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                        Add
+                                    </button>
+                                )}
+                            </div>
+
+                            <div className="space-y-6">
+                                {user.experience?.map((exp, index) => (
+                                    <motion.div
+                                        key={exp.id}
+                                        initial={{ opacity: 0, x: -20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: index * 0.1 }}
+                                        className="relative pl-8 border-l-2 border-teal-200 dark:border-teal-800"
+                                    >
+                                        <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-teal-500 border-4 border-white dark:border-zinc-900" />
+                                        <h4 className="text-lg font-bold text-gray-900 dark:text-white">{exp.title}</h4>
+                                        <p className="text-teal-600 font-medium">{exp.company}</p>
+                                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                                            {formatDate(exp.startDate)} - {exp.current ? 'Present' : formatDate(exp.endDate)}
+                                        </p>
+                                        <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                                            {exp.description}
+                                        </p>
+                                        {exp.skills && exp.skills.length > 0 && (
+                                            <div className="flex flex-wrap gap-2 mt-3">
+                                                {exp.skills.map((skill) => (
+                                                    <span
+                                                        key={skill}
+                                                        className="px-3 py-1 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-medium"
+                                                    >
+                                                        {skill}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </motion.div>
+                                ))}
+                                {(!user.experience || user.experience.length === 0) && (
+                                    <p className="text-gray-500 italic text-center py-8">No experience added yet.</p>
+                                )}
+                            </div>
+                        </div>
+                    </DraggableSection>
+                );
+
+            case 'education':
+                return (
+                    <DraggableSection key={sectionId} id={sectionId} isOwner={isOwner} title="Education">
+                        <div className="profile-section">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                    <GraduationCap className="w-6 h-6 text-teal-600" />
+                                    Education
+                                </h3>
+                                {isOwner && (
+                                    <button
+                                        onClick={() => setActiveForm('education')}
+                                        className="px-4 py-2 text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded-xl transition-colors flex items-center gap-2"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                        Add
+                                    </button>
+                                )}
+                            </div>
+
+                            <div className="space-y-4">
+                                {user.education?.map((edu, index) => (
+                                    <motion.div
+                                        key={edu.id}
+                                        initial={{ opacity: 0, x: -20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: index * 0.1 }}
+                                        className="glass-card-subtle p-5 rounded-2xl"
+                                    >
+                                        <h4 className="text-lg font-bold text-gray-900 dark:text-white">{edu.school}</h4>
+                                        <p className="text-teal-600 font-medium">{edu.degree} in {edu.field}</p>
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                                            {formatDate(edu.startDate)} - {edu.current ? 'Present' : formatDate(edu.endDate)}
+                                        </p>
+                                    </motion.div>
+                                ))}
+                                {(!user.education || user.education.length === 0) && (
+                                    <p className="text-gray-500 italic text-center py-8">No education added yet.</p>
+                                )}
+                            </div>
+                        </div>
+                    </DraggableSection>
+                );
+
+            case 'projects':
+                return (
+                    <DraggableSection key={sectionId} id={sectionId} isOwner={isOwner} title="Projects">
+                        <div className="profile-section">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                    <Briefcase className="w-6 h-6 text-teal-600" />
+                                    Projects
+                                </h3>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {projects.map((project) => (
+                                    <div key={project.id} className="glass-card p-4 rounded-xl">
+                                        <h4 className="font-bold text-gray-900 dark:text-white">{project.title}</h4>
+                                        <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">{project.description}</p>
+                                    </div>
+                                ))}
+                                {projects.length === 0 && (
+                                    <p className="text-gray-500 italic text-center py-8 col-span-2">No projects to display.</p>
+                                )}
+                            </div>
+                        </div>
+                    </DraggableSection>
+                );
+
+            case 'reviews':
+                return (
+                    <DraggableSection key={sectionId} id={sectionId} isOwner={isOwner} title="Reviews">
+                        <ReviewSection
+                            profileUid={user.uid}
+                            currentUserUid={isOwner ? undefined : user.uid}
+                            isOwner={isOwner}
+                            averageRating={user.stats.averageRating}
+                            totalRatings={user.stats.totalRatings}
+                        />
+                    </DraggableSection>
+                );
+
+            default:
+                // Handle custom sections
+                if (sectionId.startsWith('custom_')) {
+                    // Find the custom section data
+                    const customSection = user.customSections?.find(s => s.id === sectionId);
+                    if (!customSection) return null;
+
+                    return (
+                        <DraggableSection key={sectionId} id={sectionId} isOwner={isOwner} title={customSection.title}>
+                            <div className="profile-section">
+                                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+                                    {customSection.title}
+                                </h3>
+                                {/* Render content based on type - simplified for now */}
+                                <div className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                                    {customSection.type === 'text' && customSection.content.richText}
+                                    {/* Add other types here */}
+                                </div>
+                            </div>
+                        </DraggableSection>
+                    );
+                }
+                return null;
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-teal-50 dark:from-zinc-950 dark:via-zinc-900 dark:to-teal-950">
-            {/* Header Section - Matches Reference Image */}
+            {/* Header Section */}
             <div className="relative h-80 overflow-hidden">
                 {/* Background Image */}
                 <div className="absolute inset-0">
@@ -171,15 +417,7 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
                             <div className="flex items-center gap-3">
                                 {isOwner ? (
                                     <>
-                                        <motion.button
-                                            onClick={() => setShowEditModal(true)}
-                                            whileHover={{ scale: 1.05 }}
-                                            whileTap={{ scale: 0.95 }}
-                                            className="px-6 py-3 bg-white/20 dark:bg-zinc-900/20 backdrop-blur-3xl border border-white/30 text-white rounded-xl font-medium hover:bg-white/30 transition-all flex items-center gap-2 shadow-lg"
-                                        >
-                                            <Edit className="w-4 h-4" />
-                                            Edit Profile
-                                        </motion.button>
+                                        {/* Edit Profile Button Removed as requested - "Edit Mode" is automatic */}
                                         <motion.button
                                             onClick={() => setShowPrivacySettings(!showPrivacySettings)}
                                             whileHover={{ scale: 1.05 }}
@@ -243,6 +481,56 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* Experience Form */}
+            {activeForm === 'experience' && (
+                <ExperienceForm
+                    userId={user.uid}
+                    onSave={(exp) => {
+                        const newExperience = [...(user.experience || []), exp];
+                        setUser({ ...user, experience: newExperience });
+                        setActiveForm(null);
+                    }}
+                    onCancel={() => setActiveForm(null)}
+                />
+            )}
+
+            {/* Education Form */}
+            {activeForm === 'education' && (
+                <EducationForm
+                    userId={user.uid}
+                    onSave={(edu) => {
+                        const newEducation = [...(user.education || []), edu];
+                        setUser({ ...user, education: newEducation });
+                        setActiveForm(null);
+                    }}
+                    onCancel={() => setActiveForm(null)}
+                />
+            )}
+
+            {/* Custom Section Creator */}
+            {activeForm === 'custom' && (
+                <CustomSectionCreator
+                    uid={user.uid}
+                    onSave={(section) => {
+                        const newSections = [...(user.customSections || []), section];
+                        const newOrder = [...sectionOrder, section.id];
+                        setUser({ ...user, customSections: newSections });
+                        setSectionOrder(newOrder);
+
+                        // Also update order in DB
+                        const orderObjects = newOrder.map((id, index) => ({
+                            sectionId: id,
+                            type: id.startsWith('custom_') ? 'custom' : 'default',
+                            order: index
+                        }));
+                        ProfileService.updateSectionOrder(user.uid, orderObjects as any);
+
+                        setActiveForm(null);
+                    }}
+                    onCancel={() => setActiveForm(null)}
+                />
+            )}
 
             {/* Main Content - Full Scroll Layout */}
             <div className="max-w-7xl mx-auto px-8 py-12">
@@ -376,124 +664,33 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
                         </div>
                     </div>
 
-                    {/* Main Content Column */}
+                    {/* Main Content Column - Draggable Canvas */}
                     <div className="lg:col-span-2 space-y-8">
-                        {/* Video Intro */}
-                        {user.videoIntro && (
-                            <div className="profile-section">
-                                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                                    <Video className="w-6 h-6 text-teal-600" />
-                                    Video Introduction
-                                </h3>
-                                <div className="aspect-video rounded-2xl overflow-hidden bg-black relative group">
-                                    <video
-                                        src={user.videoIntro}
-                                        controls
-                                        className="w-full h-full object-cover"
-                                    />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                                </div>
-                            </div>
+                        <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragEnd={handleDragEnd}
+                        >
+                            <SortableContext
+                                items={sectionOrder}
+                                strategy={verticalListSortingStrategy}
+                            >
+                                {sectionOrder.map((sectionId) => renderSection(sectionId))}
+                            </SortableContext>
+                        </DndContext>
+
+                        {/* Add Section Button (Owner Only) */}
+                        {isOwner && (
+                            <motion.button
+                                onClick={() => setActiveForm('custom')}
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                className="w-full py-4 border-2 border-dashed border-gray-300 dark:border-zinc-700 rounded-2xl flex items-center justify-center gap-2 text-gray-500 hover:text-teal-600 hover:border-teal-500/50 hover:bg-teal-50/50 dark:hover:bg-teal-900/10 transition-all"
+                            >
+                                <Plus className="w-5 h-5" />
+                                <span className="font-medium">Add Custom Section</span>
+                            </motion.button>
                         )}
-
-                        {/* Experience */}
-                        <div className="profile-section">
-                            <div className="flex items-center justify-between mb-6">
-                                <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                    <Briefcase className="w-6 h-6 text-teal-600" />
-                                    Work Experience
-                                </h3>
-                                {isOwner && (
-                                    <button className="px-4 py-2 text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded-xl transition-colors flex items-center gap-2">
-                                        <Plus className="w-4 h-4" />
-                                        Add
-                                    </button>
-                                )}
-                            </div>
-
-                            <div className="space-y-6">
-                                {user.experience?.map((exp, index) => (
-                                    <motion.div
-                                        key={exp.id}
-                                        initial={{ opacity: 0, x: -20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: index * 0.1 }}
-                                        className="relative pl-8 border-l-2 border-teal-200 dark:border-teal-800"
-                                    >
-                                        <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-teal-500 border-4 border-white dark:border-zinc-900" />
-                                        <h4 className="text-lg font-bold text-gray-900 dark:text-white">{exp.title}</h4>
-                                        <p className="text-teal-600 font-medium">{exp.company}</p>
-                                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-                                            {formatDate(exp.startDate)} - {exp.current ? 'Present' : formatDate(exp.endDate)}
-                                        </p>
-                                        <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                                            {exp.description}
-                                        </p>
-                                        {exp.skills && exp.skills.length > 0 && (
-                                            <div className="flex flex-wrap gap-2 mt-3">
-                                                {exp.skills.map((skill) => (
-                                                    <span
-                                                        key={skill}
-                                                        className="px-3 py-1 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-medium"
-                                                    >
-                                                        {skill}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </motion.div>
-                                ))}
-                                {(!user.experience || user.experience.length === 0) && (
-                                    <p className="text-gray-500 italic text-center py-8">No experience added yet.</p>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Education */}
-                        <div className="profile-section">
-                            <div className="flex items-center justify-between mb-6">
-                                <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                    <GraduationCap className="w-6 h-6 text-teal-600" />
-                                    Education
-                                </h3>
-                                {isOwner && (
-                                    <button className="px-4 py-2 text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded-xl transition-colors flex items-center gap-2">
-                                        <Plus className="w-4 h-4" />
-                                        Add
-                                    </button>
-                                )}
-                            </div>
-
-                            <div className="space-y-4">
-                                {user.education?.map((edu, index) => (
-                                    <motion.div
-                                        key={edu.id}
-                                        initial={{ opacity: 0, x: -20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: index * 0.1 }}
-                                        className="glass-card-subtle p-5 rounded-2xl"
-                                    >
-                                        <h4 className="text-lg font-bold text-gray-900 dark:text-white">{edu.school}</h4>
-                                        <p className="text-teal-600 font-medium">{edu.degree} in {edu.field}</p>
-                                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                                            {formatDate(edu.startDate)} - {edu.current ? 'Present' : formatDate(edu.endDate)}
-                                        </p>
-                                    </motion.div>
-                                ))}
-                                {(!user.education || user.education.length === 0) && (
-                                    <p className="text-gray-500 italic text-center py-8">No education added yet.</p>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Reviews & Ratings */}
-                        <ReviewSection
-                            profileUid={user.uid}
-                            currentUserUid={isOwner ? undefined : user.uid}
-                            isOwner={isOwner}
-                            averageRating={user.stats.averageRating}
-                            totalRatings={user.stats.totalRatings}
-                        />
                     </div>
                 </div>
             </div>

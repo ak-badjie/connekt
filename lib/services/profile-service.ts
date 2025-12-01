@@ -359,6 +359,33 @@ export const ProfileService = {
         }
     },
 
+    /**
+     * Upload review media
+     */
+    async uploadReviewMedia(uid: string, file: File): Promise<ProfileMedia | null> {
+        try {
+            const mediaId = `media_${Date.now()}`;
+            const fileExt = file.name.split('.').pop();
+            const filePath = `profiles/users/${uid}/reviews/${mediaId}.${fileExt}`;
+            const storageRef = ref(storage, filePath);
+
+            await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(storageRef);
+
+            return {
+                id: mediaId,
+                type: file.type.startsWith('video/') ? 'video' : 'image',
+                url: downloadURL,
+                size: file.size,
+                mimeType: file.type,
+                uploadedAt: Timestamp.now(),
+            };
+        } catch (error) {
+            console.error('Error uploading review media:', error);
+            return null;
+        }
+    },
+
     // ==========================================
     // PRIVACY SETTINGS
     // ==========================================
@@ -396,7 +423,7 @@ export const ProfileService = {
     /**
      * Add rating to a user
      */
-    async addRating(toUserId: string, fromUserId: string, rating: number, review?: string, projectId?: string): Promise<boolean> {
+    async addRating(toUserId: string, fromUserId: string, rating: number, review?: string, projectId?: string, media?: ProfileMedia[]): Promise<boolean> {
         try {
             // Get from user info
             const fromUserDoc = await getDoc(doc(db, 'users', fromUserId));
@@ -410,6 +437,7 @@ export const ProfileService = {
                 rating,
                 review,
                 projectId,
+                media: media || [],
                 createdAt: Timestamp.now(),
             };
 

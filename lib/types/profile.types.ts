@@ -77,6 +77,7 @@ export interface Rating {
     review?: string;
     projectId?: string;
     projectName?: string;
+    media?: ProfileMedia[];
     createdAt: Timestamp | any;
 }
 

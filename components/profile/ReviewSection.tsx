@@ -283,6 +283,35 @@ export function ReviewSection({
                                         </p>
                                     )}
 
+                                    {/* Media Gallery */}
+                                    {review.media && review.media.length > 0 && (
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
+                                            {review.media.map((media) => (
+                                                <div
+                                                    key={media.id}
+                                                    className="relative aspect-square rounded-xl overflow-hidden group cursor-pointer border-2 border-gray-200 dark:border-zinc-700 hover:border-teal-500 dark:hover:border-teal-500 transition-all"
+                                                >
+                                                    {media.type === 'image' ? (
+                                                        <Image
+                                                            src={media.url}
+                                                            alt={media.title || 'Review media'}
+                                                            width={200}
+                                                            height={200}
+                                                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                                                        />
+                                                    ) : (
+                                                        <video
+                                                            src={media.url}
+                                                            className="w-full h-full object-cover"
+                                                            controls
+                                                        />
+                                                    )}
+                                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
                                     {review.projectName && (
                                         <div className="inline-flex items-center gap-2 px-3 py-1 bg-teal-50 dark:bg-teal-900/20 text-teal-600 rounded-lg text-sm">
                                             <TrendingUp className="w-4 h-4" />
