@@ -2,7 +2,8 @@
 
 import { X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 interface StatDetail {
     id: string;
@@ -29,6 +30,7 @@ interface StatsModalProps {
 
 export default function StatsModal({ isOpen, onClose, title, items, data, type, onItemClick }: StatsModalProps) {
     const router = useRouter();
+    const [mounted, setMounted] = useState(false);
 
     // Support both 'items' and 'data' props
     const modalItems = items || data || [];
@@ -41,6 +43,12 @@ export default function StatsModal({ isOpen, onClose, title, items, data, type, 
                     'POTs to Review'
     );
 
+    // Set mounted state for portal rendering
+    useEffect(() => {
+        setMounted(true);
+        return () => setMounted(false);
+    }, []);
+
     useEffect(() => {
         if (isOpen) {
             document.body.style.overflow = 'hidden';
@@ -52,7 +60,7 @@ export default function StatsModal({ isOpen, onClose, title, items, data, type, 
         };
     }, [isOpen]);
 
-    if (!isOpen) return null;
+    if (!isOpen || !mounted) return null;
 
     const handleItemClick = (item: StatDetail) => {
         if (onItemClick) {
@@ -194,16 +202,16 @@ export default function StatsModal({ isOpen, onClose, title, items, data, type, 
         }
     };
 
-    return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
+    const modalContent = (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 animate-in fade-in duration-200 pointer-events-auto">
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
                 onClick={onClose}
             />
 
             {/* Modal */}
-            <div className="relative w-full max-w-4xl max-h-[85vh] bg-gray-50 dark:bg-zinc-900 rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="relative w-full max-w-4xl max-h-[85vh] bg-gray-50 dark:bg-zinc-900 rounded-3xl shadow-2xl drop-shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 pointer-events-auto">
                 {/* Header */}
                 <div className="sticky top-0 z-10 bg-white dark:bg-zinc-800 border-b border-gray-200 dark:border-zinc-700 px-6 py-4 flex items-center justify-between">
                     <div>
@@ -236,4 +244,6 @@ export default function StatsModal({ isOpen, onClose, title, items, data, type, 
             </div>
         </div>
     );
+
+    return createPortal(modalContent, document.body);
 }

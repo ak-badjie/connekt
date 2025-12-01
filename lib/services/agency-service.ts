@@ -13,6 +13,7 @@ import {
     serverTimestamp,
     Timestamp
 } from 'firebase/firestore';
+import { ChatService } from './chat-service';
 
 // Agency Types & Interfaces
 export interface Agency {
@@ -119,6 +120,24 @@ export const AgencyService = {
                 agencyEmails: arrayUnion(agencyData.ownerAgencyEmail),
                 updatedAt: serverTimestamp()
             });
+
+            // Create Agency Chat
+            try {
+                await ChatService.createConversation({
+                    type: 'agency',
+                    title: agencyData.name,
+                    description: `Official chat for agency: ${agencyData.name}`,
+                    agencyId: agencyId,
+                    createdBy: agencyData.ownerId,
+                    participants: [{
+                        userId: agencyData.ownerId,
+                        username: agencyData.username, // Using agency username as participant name might be confusing, but okay for now
+                        role: 'admin'
+                    }]
+                });
+            } catch (error) {
+                console.error('Failed to create agency chat:', error);
+            }
 
             return agency;
         } catch (error) {
@@ -259,6 +278,20 @@ export const AgencyService = {
                 agencyEmails: arrayUnion(member.agencyEmail),
                 updatedAt: serverTimestamp()
             });
+
+            // Add to Agency Chat
+            try {
+                const chat = await ChatService.getConversationByContextId(agencyId, 'agency');
+                if (chat) {
+                    await ChatService.addMember(chat.id, {
+                        userId: member.userId,
+                        username: member.agencyEmail.split('@')[0], // Use part of email as username or fetch real username
+                        role: member.role === 'admin' ? 'admin' : 'member'
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to add member to agency chat:', error);
+            }
 
             return true;
         } catch (error) {

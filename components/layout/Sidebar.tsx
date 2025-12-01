@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutGrid, Briefcase, FolderKanban, CheckSquare, BarChart2, Users, Settings, HelpCircle, LogOut, Download, HardDrive, User as UserIcon, Wallet } from 'lucide-react';
+import { LayoutGrid, Briefcase, FolderKanban, CheckSquare, BarChart2, Users, Settings, HelpCircle, LogOut, Download, HardDrive, User as UserIcon, Wallet, MessageSquare, Calendar } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
@@ -57,7 +57,9 @@ export function Sidebar({ agency = null }: SidebarProps) {
         { icon: FolderKanban, label: 'Workspaces', href: `/agency/${agency.username}/dashboard/workspaces` },
         { icon: Briefcase, label: 'Projects', href: `/agency/${agency.username}/dashboard/projects` },
         { icon: CheckSquare, label: 'Tasks', href: `/agency/${agency.username}/dashboard/tasks` },
-        { icon: Users, label: 'Team', href: `/agency/${agency.username}/dashboard/team` },
+        { icon: Users, label: 'Teams', href: `/agency/${agency.username}/dashboard/teams` },
+        { icon: Calendar, label: 'Calendar', href: `/agency/${agency.username}/dashboard/calendar` },
+        { icon: Users, label: 'Team', href: `/agency/${agency.username}/dashboard/team-management` }, // Keeping original Team for now, maybe merge later?
         { icon: Wallet, label: 'Wallet', href: `/agency/${agency.username}/dashboard/wallet` },
         { icon: UserIcon, label: 'Profile', href: `/agency/@${agency.username}` },
     ] : [
@@ -65,12 +67,13 @@ export function Sidebar({ agency = null }: SidebarProps) {
         { icon: FolderKanban, label: 'Workspaces', href: '/dashboard/workspaces' },
         { icon: Briefcase, label: 'Projects', href: '/dashboard/projects' },
         { icon: CheckSquare, label: 'Tasks', href: '/dashboard/tasks' },
+        { icon: Users, label: 'Teams', href: '/dashboard/teams' },
+        { icon: Calendar, label: 'Calendar', href: '/dashboard/calendar' },
         { icon: BarChart2, label: 'Analytics', href: '/analytics' },
         { icon: Users, label: 'Team', href: '/agency' },
         { icon: Wallet, label: 'Wallet', href: '/dashboard/wallet' },
         { icon: UserIcon, label: 'Profile', href: userProfile?.username ? `/@${userProfile.username}` : '#' },
     ];
-
     const storageUsedGB = storageQuota ? StorageQuotaService.bytesToGB(storageQuota.usedSpace) : 0;
     const storageTotalGB = storageQuota ? StorageQuotaService.bytesToGB(storageQuota.totalQuota) : 1.0;
     const storagePercentage = (storageUsedGB / storageTotalGB) * 100;

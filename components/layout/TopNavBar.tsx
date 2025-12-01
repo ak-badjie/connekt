@@ -7,6 +7,8 @@ import { useTheme } from 'next-themes';
 import { usePathname, useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { MailService } from '@/lib/services/mail-service';
+import NotificationIcon from './NotificationIcon';
 import Link from 'next/link';
 
 const TopNavBar = () => {
@@ -15,7 +17,26 @@ const TopNavBar = () => {
     const pathname = usePathname();
     const router = useRouter();
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [unreadMailCount, setUnreadMailCount] = useState(0);
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Fetch unread mail count
+    useEffect(() => {
+        if (user) {
+            const fetchMailCount = async () => {
+                try {
+                    const stats = await MailService.getMailStats(user.uid);
+                    setUnreadMailCount(stats.unreadInbox);
+                } catch (error) {
+                    console.error('Error fetching mail stats:', error);
+                }
+            };
+            fetchMailCount();
+            // Refresh every 30 seconds
+            const interval = setInterval(fetchMailCount, 30000);
+            return () => clearInterval(interval);
+        }
+    }, [user]);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -83,18 +104,20 @@ const TopNavBar = () => {
 
                 {/* Right Actions */}
                 <div className="flex items-center gap-3 ml-6">
-                    {/* Mail Icon */}
+                    {/* Mail Icon with Badge */}
                     <Link href="/mail">
-                        <button className="p-3 bg-white dark:bg-zinc-800 rounded-full shadow-sm hover:shadow-md hover:scale-105 text-gray-600 dark:text-gray-300 hover:text-[#008080] dark:hover:text-[#008080] transition-all duration-200 border border-gray-100 dark:border-zinc-700">
+                        <button className="relative p-3 bg-white dark:bg-zinc-800 rounded-full shadow-sm hover:shadow-md hover:scale-105 text-gray-600 dark:text-gray-300 hover:text-[#008080] dark:hover:text-[#008080] transition-all duration-200 border border-gray-100 dark:border-zinc-700">
                             <Mail className="w-5 h-5" />
+                            {unreadMailCount > 0 && (
+                                <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 flex items-center justify-center bg-[#008080] text-white text-xs font-bold rounded-full border-2 border-white dark:border-zinc-800">
+                                    {unreadMailCount > 99 ? '99+' : unreadMailCount}
+                                </span>
+                            )}
                         </button>
                     </Link>
 
                     {/* Notifications Icon */}
-                    <button className="relative p-3 bg-white dark:bg-zinc-800 rounded-full shadow-sm hover:shadow-md hover:scale-105 text-gray-600 dark:text-gray-300 hover:text-[#008080] dark:hover:text-[#008080] transition-all duration-200 border border-gray-100 dark:border-zinc-700">
-                        <Bell className="w-5 h-5" />
-                        <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-zinc-800 animate-pulse"></span>
-                    </button>
+                    <NotificationIcon />
 
                     {/* Session Dropdown */}
                     <div className="relative" ref={dropdownRef}>
