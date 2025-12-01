@@ -4,16 +4,15 @@ import { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { AuthService } from '@/lib/services/auth-service';
-import { Search, Moon, Sun, LogOut, Settings, LayoutDashboard, ChevronDown, User, Compass, Briefcase, Bot, Building2 } from 'lucide-react';
-import { useTheme } from 'next-themes';
+import { Search, LogOut, Settings, LayoutDashboard, ChevronDown, User, Compass, Briefcase, Bot, Building2 } from 'lucide-react';
 import { BriefcaseLogo3D } from '@/components/auth/BriefcaseLogo3D';
 import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function MainNavbar() {
     const router = useRouter();
     const pathname = usePathname();
     const { user } = useAuth();
-    const { theme, setTheme } = useTheme();
     const [dropdownOpen, setDropdownOpen] = useState(false);
 
     // Don't show on dashboard, auth, or mail routes
@@ -42,35 +41,59 @@ export default function MainNavbar() {
                         <span className="text-xl font-bold font-headline text-[#008080] tracking-widest">CONNEKT</span>
                     </Link>
 
-                    {/* Center - Navigation Links */}
-                    <div className="hidden md:flex items-center gap-6">
-                        <Link href="/explore" className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-[#008080] dark:hover:text-teal-400 transition-colors">
-                            <Compass size={16} />
-                            Explore
-                        </Link>
-                        <Link href="/marketplace" className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-[#008080] dark:hover:text-teal-400 transition-colors">
-                            <Briefcase size={16} />
-                            Jobs
-                        </Link>
-                        <Link href="/agency" className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-[#008080] dark:hover:text-teal-400 transition-colors">
-                            <Building2 size={16} />
-                            Agencies
-                        </Link>
-                        <Link href="/intro/ai" className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-[#008080] dark:hover:text-teal-400 transition-colors">
-                            <Bot size={16} />
-                            AI Agents
-                        </Link>
-                    </div>
+                    {/* Center - Conditional Content */}
+                    <AnimatePresence mode="wait">
+                        {pathname?.startsWith('/explore') ? (
+                            /* Search Bar for Explore Page */
+                            <motion.div
+                                key="explore-search"
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                transition={{ duration: 0.2 }}
+                                className="hidden md:block flex-1 max-w-2xl mx-8"
+                            >
+                                <div className="relative">
+                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                    <input
+                                        type="text"
+                                        placeholder="Search for projects, tasks, people, agencies..."
+                                        className="w-full pl-12 pr-4 py-2.5 rounded-full bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 focus:border-[#008080] focus:ring-2 focus:ring-teal-500/20 outline-none transition-all text-sm"
+                                    />
+                                </div>
+                            </motion.div>
+                        ) : (
+                            /* Navigation Links for Other Pages */
+                            <motion.div
+                                key="nav-links"
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                transition={{ duration: 0.2 }}
+                                className="hidden md:flex items-center gap-6"
+                            >
+                                <Link href="/explore" className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-[#008080] dark:hover:text-teal-400 transition-colors">
+                                    <Compass size={16} />
+                                    Explore
+                                </Link>
+                                <Link href="/marketplace" className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-[#008080] dark:hover:text-teal-400 transition-colors">
+                                    <Briefcase size={16} />
+                                    Jobs
+                                </Link>
+                                <Link href="/agency" className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-[#008080] dark:hover:text-teal-400 transition-colors">
+                                    <Building2 size={16} />
+                                    Agencies
+                                </Link>
+                                <Link href="/intro/ai" className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-[#008080] dark:hover:text-teal-400 transition-colors">
+                                    <Bot size={16} />
+                                    AI Agents
+                                </Link>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
                     {/* Right - Actions */}
                     <div className="flex items-center gap-4">
-                        {/* Theme Toggle */}
-                        <button
-                            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                            className="p-2.5 rounded-full bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
-                        >
-                            {theme === 'dark' ? <Sun size={18} className="text-yellow-400" /> : <Moon size={18} className="text-gray-600" />}
-                        </button>
 
                         {user ? (
                             /* User Dropdown */

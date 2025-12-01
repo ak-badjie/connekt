@@ -20,6 +20,7 @@ export interface Agency {
     name: string;
     username: string; // Agency handle/domain (e.g., "garden")
     domain: string; // Full domain (e.g., "garden.com")
+    agencyType: 'va_collective' | 'recruiter_collective'; // VA collective or Recruiter collective
     logoUrl?: string;
     ownerId: string; // User ID of agency owner
     members: AgencyMember[];
@@ -65,6 +66,7 @@ export const AgencyService = {
     async createAgency(agencyData: {
         name: string;
         username: string;
+        agencyType: 'va_collective' | 'recruiter_collective';
         logoUrl?: string;
         ownerId: string;
         ownerAgencyEmail: string; // Owner's email in the agency domain
@@ -94,6 +96,7 @@ export const AgencyService = {
                 name: agencyData.name,
                 username: normalizedUsername,
                 domain: `${normalizedUsername}.com`,
+                agencyType: agencyData.agencyType,
                 logoUrl: agencyData.logoUrl || '',
                 ownerId: agencyData.ownerId,
                 members: [ownerMember],
@@ -337,6 +340,33 @@ export const AgencyService = {
         } catch (error) {
             console.error('Error getting user agency email:', error);
             return null;
+        }
+    },
+
+    /**
+     * Get agencies by type (VA collective or Recruiter collective)
+     */
+    async getAgenciesByType(agencyType: 'va_collective' | 'recruiter_collective'): Promise<Agency[]> {
+        try {
+            const q = query(
+                collection(db, 'agencies'),
+                where('agencyType', '==', agencyType)
+            );
+
+            const querySnapshot = await getDocs(q);
+            const agencies: Agency[] = [];
+
+            querySnapshot.forEach((doc) => {
+                agencies.push({
+                    id: doc.id,
+                    ...doc.data()
+                } as Agency);
+            });
+
+            return agencies;
+        } catch (error) {
+            console.error('Error getting agencies by type:', error);
+            return [];
         }
     }
 };

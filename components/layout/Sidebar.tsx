@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutGrid, Briefcase, FolderKanban, CheckSquare, BarChart2, Users, Settings, HelpCircle, LogOut, Download, HardDrive, User as UserIcon } from 'lucide-react';
+import { LayoutGrid, Briefcase, FolderKanban, CheckSquare, BarChart2, Users, Settings, HelpCircle, LogOut, Download, HardDrive, User as UserIcon, Wallet } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
@@ -58,6 +58,7 @@ export function Sidebar({ agency = null }: SidebarProps) {
         { icon: Briefcase, label: 'Projects', href: `/agency/${agency.username}/dashboard/projects` },
         { icon: CheckSquare, label: 'Tasks', href: `/agency/${agency.username}/dashboard/tasks` },
         { icon: Users, label: 'Team', href: `/agency/${agency.username}/dashboard/team` },
+        { icon: Wallet, label: 'Wallet', href: `/agency/${agency.username}/dashboard/wallet` },
         { icon: UserIcon, label: 'Profile', href: `/agency/@${agency.username}` },
     ] : [
         { icon: LayoutGrid, label: 'Dashboard', href: '/dashboard' },
@@ -66,6 +67,7 @@ export function Sidebar({ agency = null }: SidebarProps) {
         { icon: CheckSquare, label: 'Tasks', href: '/dashboard/tasks' },
         { icon: BarChart2, label: 'Analytics', href: '/analytics' },
         { icon: Users, label: 'Team', href: '/agency' },
+        { icon: Wallet, label: 'Wallet', href: '/dashboard/wallet' },
         { icon: UserIcon, label: 'Profile', href: userProfile?.username ? `/@${userProfile.username}` : '#' },
     ];
 

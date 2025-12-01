@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { X, Send, Paperclip, Image as ImageIcon, Video, FileText, Link as LinkIcon, Loader2 } from 'lucide-react';
 import { AdvancedRichTextEditor } from './AdvancedRichTextEditor';
+import ContractMailComposer from './ContractMailComposer';
 import { Signature } from '@/lib/services/mail-service';
 import { Attachment, StorageService } from '@/lib/services/storage-service';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,7 +11,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 interface ComposeModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSend: (recipient: string, subject: string, body: string, attachments?: Attachment[], category?: string, signatureId?: string) => Promise<void>;
+    onSend: (
+        recipient: string,
+        subject: string,
+        body: string,
+        attachments?: Attachment[],
+        category?: string,
+        signatureId?: string,
+        contractData?: { templateId?: string; terms?: any } | null
+    ) => Promise<void>;
     onSaveDraft?: (recipient: string, subject: string, body: string, attachments?: Attachment[], category?: string) => Promise<void>;
     signatures?: Signature[];
     initialData?: {
@@ -32,6 +41,12 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
     const [sending, setSending] = useState(false);
     const [linkUrl, setLinkUrl] = useState('');
     const [showLinkInput, setShowLinkInput] = useState(false);
+
+    const [isContractMode, setIsContractMode] = useState(false);
+    const [contractData, setContractData] = useState<{
+        templateId?: string;
+        terms?: any;
+    } | null>(null);
 
     useEffect(() => {
         if (initialData) {
@@ -102,6 +117,24 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
         setAttachments(attachments.filter(a => a.id !== attachmentId));
     };
 
+    const handleContractGenerated = (data: {
+        title: string;
+        description: string;
+        terms: any;
+        templateId?: string;
+    }) => {
+        setSubject(data.title);
+        setBody(data.description);
+        setContractData({
+            templateId: data.templateId,
+            terms: data.terms
+        });
+        // Switch back to normal mode to review and send
+        setIsContractMode(false);
+        // Add a category automatically
+        setCategory('Contracts');
+    };
+
     const handleSend = async () => {
         if (!recipient || !subject) {
             alert('Please fill in recipient and subject');
@@ -115,12 +148,23 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
 
         setSending(true);
         try {
-            await onSend(recipient, subject, body, attachments, category || undefined, selectedSignature || undefined);
+            // Pass contract data to onSend handler if available
+            await onSend(
+                recipient,
+                subject,
+                body,
+                attachments,
+                category || undefined,
+                selectedSignature || undefined,
+                contractData
+            );
             setRecipient('');
             setSubject('');
             setBody('');
             setCategory('');
             setAttachments([]);
+            setContractData(null);
+            setIsContractMode(false);
             onClose();
         } catch (error: any) {
             alert(error.message || 'Failed to send message');
@@ -135,7 +179,7 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
         }
     };
 
-    const categories = ['Projects', 'Clients', 'Personal', 'Important'];
+    const categories = ['Projects', 'Clients', 'Personal', 'Important', 'Contracts'];
 
     const getAttachmentIcon = (attachment: Attachment) => {
         switch (attachment.type) {
@@ -164,7 +208,29 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                 >
                     {/* Header */}
                     <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200/50 dark:border-zinc-800/50 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl">
-                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">New Message</h2>
+                        <div className="flex items-center gap-4">
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-white">New Message</h2>
+                            <div className="flex bg-gray-100 dark:bg-zinc-800 rounded-lg p-1">
+                                <button
+                                    onClick={() => setIsContractMode(false)}
+                                    className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${!isContractMode
+                                        ? 'bg-white dark:bg-zinc-700 text-gray-900 dark:text-white shadow-sm'
+                                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                                        }`}
+                                >
+                                    Email
+                                </button>
+                                <button
+                                    onClick={() => setIsContractMode(true)}
+                                    className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${isContractMode
+                                        ? 'bg-white dark:bg-zinc-700 text-gray-900 dark:text-white shadow-sm'
+                                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                                        }`}
+                                >
+                                    Contract
+                                </button>
+                            </div>
+                        </div>
                         <button
                             onClick={onClose}
                             className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
@@ -186,38 +252,46 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                             <p className="text-xs text-gray-500 mt-1 px-1">Enter full Connekt mail address</p>
                         </div>
 
-                        <div className="flex gap-3">
-                            <input
-                                type="text"
-                                value={subject}
-                                onChange={(e) => setSubject(e.target.value)}
-                                placeholder="Subject"
-                                className="flex-1 px-4 py-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#008080]/30 transition-all font-medium"
-                            />
-                            <select
-                                value={category}
-                                onChange={(e) => setCategory(e.target.value)}
-                                className="px-4 py-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#008080]/30 transition-all text-sm"
-                            >
-                                <option value="">Category (optional)</option>
-                                {categories.map(cat => (
-                                    <option key={cat} value={cat}>{cat}</option>
-                                ))}
-                            </select>
-                        </div>
+                        {!isContractMode && (
+                            <div className="flex gap-3">
+                                <input
+                                    type="text"
+                                    value={subject}
+                                    onChange={(e) => setSubject(e.target.value)}
+                                    placeholder="Subject"
+                                    className="flex-1 px-4 py-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#008080]/30 transition-all font-medium"
+                                />
+                                <select
+                                    value={category}
+                                    onChange={(e) => setCategory(e.target.value)}
+                                    className="px-4 py-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#008080]/30 transition-all text-sm"
+                                >
+                                    <option value="">Category (optional)</option>
+                                    {categories.map(cat => (
+                                        <option key={cat} value={cat}>{cat}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                     </div>
 
-                    {/* Editor */}
+                    {/* Editor or Contract Composer */}
                     <div className="flex-1 overflow-hidden p-4">
-                        <AdvancedRichTextEditor
-                            value={body}
-                            onChange={setBody}
-                            minHeight="400px"
-                        />
+                        {isContractMode ? (
+                            <div className="h-full overflow-y-auto">
+                                <ContractMailComposer onContractGenerated={handleContractGenerated} />
+                            </div>
+                        ) : (
+                            <AdvancedRichTextEditor
+                                value={body}
+                                onChange={setBody}
+                                minHeight="400px"
+                            />
+                        )}
                     </div>
 
                     {/* Attachments */}
-                    {attachments.length > 0 && (
+                    {!isContractMode && attachments.length > 0 && (
                         <div className="px-6 py-3 border-t border-gray-200/50 dark:border-zinc-800/50 max-h-32 overflow-y-auto">
                             <div className="flex flex-wrap gap-2">
                                 {attachments.map((attachment) => (
@@ -247,7 +321,7 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                     )}
 
                     {/* Link Input */}
-                    {showLinkInput && (
+                    {!isContractMode && showLinkInput && (
                         <div className="px-6 py-3 border-t border-gray-200/50 dark:border-zinc-800/50 flex gap-2">
                             <input
                                 type="url"
@@ -272,79 +346,81 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                     )}
 
                     {/* Footer */}
-                    <div className="px-6 py-4 border-t border-gray-200/50 dark:border-zinc-800/50 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="file"
-                                id="file-upload"
-                                multiple
-                                onChange={(e) => handleFileUpload(e.target.files)}
-                                className="hidden"
-                                accept="image/*,video/*,.pdf,.doc,.docx,.txt,.csv,.xls,.xlsx"
-                            />
-                            <label
-                                htmlFor="file-upload"
-                                className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg cursor-pointer transition-colors"
-                                title="Attach file"
-                            >
-                                <Paperclip size={18} className="text-gray-600 dark:text-gray-400" />
-                            </label>
-                            <button
-                                onClick={() => setShowLinkInput(!showLinkInput)}
-                                className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
-                                title="Add link"
-                            >
-                                <LinkIcon size={18} className="text-gray-600 dark:text-gray-400" />
-                            </button>
-
-                            {signatures.length > 0 && (
-                                <select
-                                    value={selectedSignature}
-                                    onChange={(e) => setSelectedSignature(e.target.value)}
-                                    className="px-3 py-1.5 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#008080]/30"
+                    {!isContractMode && (
+                        <div className="px-6 py-4 border-t border-gray-200/50 dark:border-zinc-800/50 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="file"
+                                    id="file-upload"
+                                    multiple
+                                    onChange={(e) => handleFileUpload(e.target.files)}
+                                    className="hidden"
+                                    accept="image/*,video/*,.pdf,.doc,.docx,.txt,.csv,.xls,.xlsx"
+                                />
+                                <label
+                                    htmlFor="file-upload"
+                                    className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg cursor-pointer transition-colors"
+                                    title="Attach file"
                                 >
-                                    <option value="">No signature</option>
-                                    {signatures.map(sig => (
-                                        <option key={sig.id} value={sig.id}>{sig.name}</option>
-                                    ))}
-                                </select>
-                            )}
+                                    <Paperclip size={18} className="text-gray-600 dark:text-gray-400" />
+                                </label>
+                                <button
+                                    onClick={() => setShowLinkInput(!showLinkInput)}
+                                    className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                                    title="Add link"
+                                >
+                                    <LinkIcon size={18} className="text-gray-600 dark:text-gray-400" />
+                                </button>
 
-                            {uploading && (
-                                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                                    <Loader2 className="animate-spin" size={16} />
-                                    <span>{Math.round(uploadProgress)}%</span>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={handleSaveDraft}
-                                disabled={sending}
-                                className="px-6 py-2.5 bg-gray-200 dark:bg-zinc-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-300 dark:hover:bg-zinc-600 transition-all disabled:opacity-50"
-                            >
-                                Save Draft
-                            </button>
-                            <button
-                                onClick={handleSend}
-                                disabled={sending || !recipient || !subject}
-                                className="px-8 py-2.5 bg-gradient-to-r from-[#008080] to-teal-600 text-white rounded-xl font-bold shadow-lg shadow-teal-500/30 hover:shadow-teal-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                            >
-                                {sending ? (
-                                    <>
-                                        <Loader2 className="animate-spin" size={18} />
-                                        Sending...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Send size={18} />
-                                        Send
-                                    </>
+                                {signatures.length > 0 && (
+                                    <select
+                                        value={selectedSignature}
+                                        onChange={(e) => setSelectedSignature(e.target.value)}
+                                        className="px-3 py-1.5 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#008080]/30"
+                                    >
+                                        <option value="">No signature</option>
+                                        {signatures.map(sig => (
+                                            <option key={sig.id} value={sig.id}>{sig.name}</option>
+                                        ))}
+                                    </select>
                                 )}
-                            </button>
+
+                                {uploading && (
+                                    <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                                        <Loader2 className="animate-spin" size={16} />
+                                        <span>{Math.round(uploadProgress)}%</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handleSaveDraft}
+                                    disabled={sending}
+                                    className="px-6 py-2.5 bg-gray-200 dark:bg-zinc-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-300 dark:hover:bg-zinc-600 transition-all disabled:opacity-50"
+                                >
+                                    Save Draft
+                                </button>
+                                <button
+                                    onClick={handleSend}
+                                    disabled={sending || !recipient || !subject}
+                                    className="px-8 py-2.5 bg-gradient-to-r from-[#008080] to-teal-600 text-white rounded-xl font-bold shadow-lg shadow-teal-500/30 hover:shadow-teal-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                >
+                                    {sending ? (
+                                        <>
+                                            <Loader2 className="animate-spin" size={18} />
+                                            Sending...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Send size={18} />
+                                            Send
+                                        </>
+                                    )}
+                                </button>
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </motion.div>
             </div>
         </AnimatePresence>
