@@ -17,6 +17,7 @@ import {
     arrayRemove
 } from 'firebase/firestore';
 import { Workspace, WorkspaceMember } from '@/lib/types/workspace.types';
+import { ChatService } from './chat-service';
 
 export const WorkspaceService = {
     /**
@@ -47,6 +48,25 @@ export const WorkspaceService = {
         };
 
         const docRef = await addDoc(collection(db, 'workspaces'), workspaceData);
+
+        // Create Workspace Chat
+        try {
+            await ChatService.createConversation({
+                type: 'workspace',
+                title: data.name,
+                description: `Official chat for workspace: ${data.name}`,
+                workspaceId: docRef.id,
+                createdBy: data.ownerId,
+                participants: [{
+                    userId: data.ownerId,
+                    username: data.ownerUsername,
+                    role: 'admin'
+                }]
+            });
+        } catch (error) {
+            console.error('Failed to create workspace chat:', error);
+        }
+
         return docRef.id;
     },
 
@@ -125,6 +145,20 @@ export const WorkspaceService = {
             members: arrayUnion(workspaceMember),
             updatedAt: serverTimestamp()
         });
+
+        // Add to Workspace Chat
+        try {
+            const chat = await ChatService.getConversationByContextId(workspaceId, 'workspace');
+            if (chat) {
+                await ChatService.addMember(chat.id, {
+                    userId: member.userId,
+                    username: member.username,
+                    role: member.role === 'admin' ? 'admin' : 'member'
+                });
+            }
+        } catch (error) {
+            console.error('Failed to add member to workspace chat:', error);
+        }
     },
 
     /**

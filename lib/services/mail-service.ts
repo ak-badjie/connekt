@@ -14,6 +14,7 @@ import {
     Timestamp
 } from 'firebase/firestore';
 import { AgencyService } from './agency-service';
+import { NotificationService } from './notification-service';
 import type {
     ExtendedMailMessage,
     MailAddress,
@@ -153,7 +154,30 @@ export const MailService = {
             createdAt: serverTimestamp()
         };
 
-        await addDoc(collection(db, 'mails'), inboxMail);
+        const inboxDocRef = await addDoc(collection(db, 'mails'), inboxMail);
+
+        // Create notification for recipient
+        try {
+            await NotificationService.createNotification(
+                recipientId,
+                'mail',
+                'New Email Received',
+                `You have a new email from ${fromAddress.displayName}`,
+                'medium',
+                {
+                    type: 'mail',
+                    mailId: inboxDocRef.id,
+                    senderId: fromAddress.username,
+                    senderUsername: fromAddress.username,
+                    senderName: fromAddress.displayName,
+                    subject
+                },
+                '/mail',
+                'View Email'
+            );
+        } catch (error) {
+            console.error('Error creating mail notification:', error);
+        }
 
         // Create sent copy for sender
         const sentMail: Partial<ExtendedMailMessage> = {

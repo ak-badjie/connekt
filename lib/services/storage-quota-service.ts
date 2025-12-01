@@ -1,5 +1,6 @@
 import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc, increment, serverTimestamp, setDoc } from 'firebase/firestore';
+import { NotificationService } from './notification-service';
 
 export interface StorageQuota {
     userId: string;
@@ -100,6 +101,54 @@ export const StorageQuotaService = {
         }
 
         await updateDoc(storageRef, updateData);
+
+        // Check storage thresholds and send warnings
+        try {
+            const quota = await this.getStorageQuota(mailAddress);
+            if (quota) {
+                const newUsagePercentage = ((quota.usedSpace + fileSize) / quota.totalQuota) * 100;
+                const thresholds = [95, 90, 80];
+
+                for (const threshold of thresholds) {
+                    const oldUsagePercentage = (quota.usedSpace / quota.totalQuota) * 100;
+
+                    // Only notify if crossing threshold
+                    if (newUsagePercentage >= threshold && oldUsagePercentage < threshold) {
+                        // Extract userId from mailAddress (format: username@connekt.com)
+                        const [username] = mailAddress.split('@');
+                        const userRef = await getDoc(doc(db, 'usernames', username.toLowerCase()));
+
+                        if (userRef.exists()) {
+                            const userId = userRef.data().uid;
+                            const priority = threshold >= 95 ? 'urgent' : threshold >= 90 ? 'high' : 'medium';
+                            const title = threshold >= 95 ? 'Storage Almost Full!' : `Storage ${threshold}% Full`;
+                            const message = `You've used ${newUsagePercentage.toFixed(1)}% of your storage quota.`;
+
+                            await NotificationService.createNotification(
+                                userId,
+                                'storage',
+                                title,
+                                message,
+                                priority as 'urgent' | 'high' | 'medium',
+                                {
+                                    type: 'storage',
+                                    usedSpace: quota.usedSpace + fileSize,
+                                    totalQuota: quota.totalQuota,
+                                    usagePercentage: newUsagePercentage,
+                                    mailAddress,
+                                    threshold: threshold as 80 | 90 | 95 | 100
+                                },
+                                '/dashboard/storage',
+                                'Manage Storage'
+                            );
+                        }
+                        break; // Only send one notification
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error sending storage notification:', error);
+        }
     },
 
     /**

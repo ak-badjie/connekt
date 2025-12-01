@@ -14,6 +14,7 @@ import {
     arrayRemove
 } from 'firebase/firestore';
 import { Project, ProjectMember } from '@/lib/types/workspace.types';
+import { ChatService } from './chat-service';
 
 export const EnhancedProjectService = {
     /**
@@ -50,6 +51,26 @@ export const EnhancedProjectService = {
         };
 
         const docRef = await addDoc(collection(db, 'projects'), project);
+
+        // Create Project Chat
+        try {
+            await ChatService.createConversation({
+                type: 'project',
+                title: data.title,
+                description: `Official chat for project: ${data.title}`,
+                projectId: docRef.id,
+                workspaceId: data.workspaceId,
+                createdBy: data.ownerId,
+                participants: [{
+                    userId: data.ownerId,
+                    username: data.ownerUsername,
+                    role: 'admin'
+                }]
+            });
+        } catch (error) {
+            console.error('Failed to create project chat:', error);
+        }
+
         return docRef.id;
     },
 
@@ -195,6 +216,20 @@ export const EnhancedProjectService = {
             members: arrayUnion(projectMember),
             updatedAt: serverTimestamp()
         });
+
+        // Add to Project Chat
+        try {
+            const chat = await ChatService.getConversationByContextId(projectId, 'project');
+            if (chat) {
+                await ChatService.addMember(chat.id, {
+                    userId: member.userId,
+                    username: member.username,
+                    role: 'member'
+                });
+            }
+        } catch (error) {
+            console.error('Failed to add member to project chat:', error);
+        }
     },
 
     /**

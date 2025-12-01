@@ -5,6 +5,7 @@ import { Navbar } from '@/components/layout/Navbar';
 import { useAuth } from '@/context/AuthContext';
 import { redirect } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
+import { GlobalChatWidget } from '@/components/chat/GlobalChatWidget';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const { user, loading } = useAuth();
@@ -22,6 +23,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     {children}
                 </div>
             </main>
+            <GlobalChatWidget />
         </div>
     );
 }

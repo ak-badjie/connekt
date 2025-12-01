@@ -10,15 +10,36 @@ import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { BriefcaseLogo3D } from '@/components/auth/BriefcaseLogo3D';
 import { AgencyService, Agency } from '@/lib/services/agency-service';
+import { MailService } from '@/lib/services/mail-service';
 import { useRef } from 'react';
+import NotificationIcon from './NotificationIcon';
 
 export function Navbar() {
     const { user, userProfile } = useAuth();
     const { theme, setTheme } = useTheme();
     const pathname = usePathname();
+    const [unreadMailCount, setUnreadMailCount] = useState(0);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [agency, setAgency] = useState<Agency | null>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
+
+    // Fetch unread mail count
+    useEffect(() => {
+        if (user) {
+            const fetchMailCount = async () => {
+                try {
+                    const stats = await MailService.getMailStats(user.uid);
+                    setUnreadMailCount(stats.unreadInbox);
+                } catch (error) {
+                    console.error('Error fetching mail stats:', error);
+                }
+            };
+            fetchMailCount();
+            // Refresh every 30 seconds
+            const interval = setInterval(fetchMailCount, 30000);
+            return () => clearInterval(interval);
+        }
+    }, [user]);
 
     // Handle Ctrl+F / Cmd+F
     useEffect(() => {
@@ -143,13 +164,15 @@ export function Navbar() {
                             {/* Notifications & Mail (Private Only) */}
                             {isPrivatePage && (
                                 <>
-                                    <button className="w-10 h-10 rounded-full bg-white dark:bg-zinc-800 flex items-center justify-center text-gray-500 hover:text-[#008080] transition-colors shadow-sm border border-gray-100 dark:border-zinc-700 relative z-[101]">
-                                        <Mail size={18} />
-                                    </button>
-                                    <button className="w-10 h-10 rounded-full bg-white dark:bg-zinc-800 flex items-center justify-center text-gray-500 hover:text-[#008080] transition-colors shadow-sm border border-gray-100 dark:border-zinc-700 relative z-[101]">
-                                        <Bell size={18} />
-                                        <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-zinc-800"></span>
-                                    </button>
+                                    <Link href="/mail">
+                                        <button className="relative w-10 h-10 rounded-full bg-white dark:bg-zinc-800 flex items-center justify-center text-gray-500 hover:text-[#008080] transition-colors shadow-sm border border-gray-100 dark:border-zinc-700 z-[101]">
+                                            <Mail size={18} />
+                                            {unreadMailCount > 0 && (
+                                                <span className="absolute top-2 right-2.5 w-2 h-2 bg-[#008080] rounded-full border-2 border-white dark:border-zinc-800 animate-pulse"></span>
+                                            )}
+                                        </button>
+                                    </Link>
+                                    <NotificationIcon />
                                 </>
                             )}
 

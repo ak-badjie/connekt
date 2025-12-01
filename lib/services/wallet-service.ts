@@ -14,6 +14,7 @@ import {
     orderBy,
     limit as firestoreLimit
 } from 'firebase/firestore';
+import { NotificationService } from './notification-service';
 import type { Wallet, WalletTransaction, EscrowHold, PaymentRequest, WalletStats } from '@/lib/types/wallet.types';
 
 /**
@@ -197,6 +198,56 @@ export const WalletService = {
         };
 
         await setDoc(doc(db, 'escrow_holds', escrowId), escrowHold);
+
+        // Create notifications for both parties
+        try {
+            // Notify sender
+            await NotificationService.createNotification(
+                fromUserId,
+                'transaction',
+                'Escrow Hold Initiated',
+                `$${amount.toFixed(2)} has been held in escrow for contract.`,
+                'high',
+                {
+                    type: 'transaction',
+                    transactionId: escrowId,
+                    transactionType: 'escrow_hold',
+                    amount: -amount,
+                    currency: 'USD',
+                    fromUserId,
+                    toUserId,
+                    relatedEntityId: contractId,
+                    relatedEntityType: 'contract'
+                },
+                `/wallet`,
+                'View Wallet'
+            );
+
+            // Notify recipient
+            await NotificationService.createNotification(
+                toUserId,
+                'transaction',
+                'Escrow Payment Pending',
+                `$${amount.toFixed(2)} is being held in escrow for your contract.`,
+                'medium',
+                {
+                    type: 'transaction',
+                    transactionId: escrowId,
+                    transactionType: 'escrow_hold',
+                    amount,
+                    currency: 'USD',
+                    fromUserId,
+                    toUserId,
+                    relatedEntityId: contractId,
+                    relatedEntityType: 'contract'
+                },
+                `/wallet`,
+                'View Wallet'
+            );
+        } catch (error) {
+            console.error('Error creating escrow hold notifications:', error);
+        }
+
         return escrowId;
     },
 
@@ -234,6 +285,32 @@ export const WalletService = {
             status: 'released',
             releasedAt: serverTimestamp()
         });
+
+        // Notify recipient
+        try {
+            await NotificationService.createNotification(
+                escrow.toUserId,
+                'transaction',
+                'Payment Released',
+                `$${escrow.amount.toFixed(2)} has been released from escrow to your wallet.`,
+                'high',
+                {
+                    type: 'transaction',
+                    transactionId: contractId,
+                    transactionType: 'escrow_release',
+                    amount: escrow.amount,
+                    currency: 'USD',
+                    fromUserId: escrow.fromUserId,
+                    toUserId: escrow.toUserId,
+                    relatedEntityId: contractId,
+                    relatedEntityType: 'contract'
+                },
+                `/wallet`,
+                'View Wallet'
+            );
+        } catch (error) {
+            console.error('Error creating escrow release notification:', error);
+        }
     },
 
     /**
@@ -271,6 +348,32 @@ export const WalletService = {
             refundedAt: serverTimestamp(),
             reason
         });
+
+        // Notify sender about refund
+        try {
+            await NotificationService.createNotification(
+                escrow.fromUserId,
+                'transaction',
+                'Escrow Refunded',
+                `$${escrow.amount.toFixed(2)} has been refunded to your wallet.${reason ? ` Reason: ${reason}` : ''}`,
+                'high',
+                {
+                    type: 'transaction',
+                    transactionId: contractId,
+                    transactionType: 'refund',
+                    amount: escrow.amount,
+                    currency: 'USD',
+                    fromUserId: escrow.fromUserId,
+                    toUserId: escrow.toUserId,
+                    relatedEntityId: contractId,
+                    relatedEntityType: 'contract'
+                },
+                `/wallet`,
+                'View Wallet'
+            );
+        } catch (error) {
+            console.error('Error creating refund notification:', error);
+        }
     },
 
     /**
@@ -323,6 +426,53 @@ export const WalletService = {
             relatedEntityType,
             status: 'completed'
         });
+
+        // Create notifications for both parties
+        try {
+            // Notify sender
+            await NotificationService.createNotification(
+                paymentRequest.fromWalletId.replace('user_', '').replace('agency_', ''),
+                'transaction',
+                'Payment Sent',
+                `You sent $${amount.toFixed(2)}.`,
+                'medium',
+                {
+                    type: 'transaction',
+                    transactionId: senderTxnId,
+                    transactionType: 'payment',
+                    amount: -amount,
+                    currency: 'USD',
+                    toUserId: paymentRequest.toWalletId.replace('user_', '').replace('agency_', ''),
+                    relatedEntityId,
+                    relatedEntityType
+                },
+                `/wallet`,
+                'View Wallet'
+            );
+
+            // Notify recipient
+            await NotificationService.createNotification(
+                paymentRequest.toWalletId.replace('user_', '').replace('agency_', ''),
+                'transaction',
+                'Payment Received',
+                `You received $${amount.toFixed(2)}.`,
+                'high',
+                {
+                    type: 'transaction',
+                    transactionId: senderTxnId,
+                    transactionType: 'payment',
+                    amount,
+                    currency: 'USD',
+                    fromUserId: paymentRequest.fromWalletId.replace('user_', '').replace('agency_', ''),
+                    relatedEntityId,
+                    relatedEntityType
+                },
+                `/wallet`,
+                'View Wallet'
+            );
+        } catch (error) {
+            console.error('Error creating payment notifications:', error);
+        }
 
         return senderTxnId;
     },
