@@ -29,6 +29,8 @@ export interface WalletTransaction {
     status: 'pending' | 'completed' | 'failed';
     relatedUserId?: string;
     relatedContractId?: string;
+    relatedEntityId?: string;
+    relatedEntityType?: 'contract' | 'project' | 'task' | 'subscription';
     referenceId?: string;
     timestamp?: any; // Timestamp | FieldValue
     createdAt: any; // Timestamp | FieldValue
@@ -46,7 +48,10 @@ export interface EscrowHold {
     status: 'held' | 'released' | 'refunded';
     referenceId?: string;
     createdAt: any; // Timestamp | FieldValue
+    heldAt?: any; // Timestamp | FieldValue
     releasedAt?: any; // Timestamp | FieldValue
+    refundedAt?: any; // Timestamp | FieldValue
+    reason?: string;
 }
 
 /**

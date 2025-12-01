@@ -39,6 +39,7 @@ export const WalletService = {
             balance: 0,
             currency: 'USD',
             transactions: [],
+            escrowHolds: [],
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp()
         };
@@ -151,12 +152,12 @@ export const WalletService = {
             return false;
         }
 
-        const wallet = walletSnap.data() as Wallet;
-        return wallet.balance >= amount;
+        const walletData = walletSnap.data() as Wallet;
+        return walletData.balance >= amount;
     },
 
     /**
-     * Hold payment in escrow for a contract
+     * Hold funds in escrow for a contract
      */
     async holdInEscrow(
         contractId: string,
@@ -166,16 +167,18 @@ export const WalletService = {
         toUserId: string,
         amount: number
     ): Promise<string> {
-        // Check if sender has sufficient funds
         const hasFunds = await this.hasSufficientFunds(fromWalletId, amount);
+
         if (!hasFunds) {
-            throw new Error('Insufficient funds in wallet');
+            throw new Error('Insufficient funds');
         }
 
         // Deduct from sender's wallet
         await this.updateBalance(fromWalletId, -amount);
         await this.addTransaction(fromWalletId, {
             type: 'escrow_hold',
+            walletId: fromWalletId,
+            currency: 'USD',
             amount: -amount,
             description: `Escrow hold for contract ${contractId}`,
             relatedEntityId: contractId,
@@ -193,7 +196,9 @@ export const WalletService = {
             toWalletId,
             fromUserId,
             toUserId,
+            currency: 'USD',
             status: 'held',
+            createdAt: serverTimestamp(),
             heldAt: serverTimestamp()
         };
 
@@ -273,8 +278,10 @@ export const WalletService = {
         await this.updateBalance(escrow.toWalletId, escrow.amount);
         await this.addTransaction(escrow.toWalletId, {
             type: 'escrow_release',
+            walletId: escrow.toWalletId,
+            currency: 'USD',
             amount: escrow.amount,
-            description: `Payment received for contract ${contractId}`,
+            description: `Escrow release for contract ${contractId}`,
             relatedEntityId: contractId,
             relatedEntityType: 'contract',
             status: 'completed'
@@ -286,17 +293,17 @@ export const WalletService = {
             releasedAt: serverTimestamp()
         });
 
-        // Notify recipient
+        // Create notifications
         try {
             await NotificationService.createNotification(
                 escrow.toUserId,
                 'transaction',
-                'Payment Released',
-                `$${escrow.amount.toFixed(2)} has been released from escrow to your wallet.`,
+                'Payment Received',
+                `$${escrow.amount.toFixed(2)} has been released from escrow.`,
                 'high',
                 {
                     type: 'transaction',
-                    transactionId: contractId,
+                    transactionId: escrowId,
                     transactionType: 'escrow_release',
                     amount: escrow.amount,
                     currency: 'USD',
@@ -314,9 +321,9 @@ export const WalletService = {
     },
 
     /**
-     * Refund escrow payment to sender
+     * Refund escrow to sender
      */
-    async refundEscrow(contractId: string, reason?: string): Promise<void> {
+    async refundEscrow(contractId: string, reason: string): Promise<void> {
         const escrowId = `escrow_${contractId}`;
         const escrowRef = doc(db, 'escrow_holds', escrowId);
         const escrowSnap = await getDoc(escrowRef);
@@ -335,8 +342,10 @@ export const WalletService = {
         await this.updateBalance(escrow.fromWalletId, escrow.amount);
         await this.addTransaction(escrow.fromWalletId, {
             type: 'refund',
+            walletId: escrow.fromWalletId,
+            currency: 'USD',
             amount: escrow.amount,
-            description: `Refund for contract ${contractId}${reason ? `: ${reason}` : ''}`,
+            description: `Escrow refund for contract ${contractId}: ${reason || 'Contract cancelled'}`,
             relatedEntityId: contractId,
             relatedEntityType: 'contract',
             status: 'completed'
@@ -349,17 +358,17 @@ export const WalletService = {
             reason
         });
 
-        // Notify sender about refund
+        // Create notifications
         try {
             await NotificationService.createNotification(
                 escrow.fromUserId,
                 'transaction',
                 'Escrow Refunded',
-                `$${escrow.amount.toFixed(2)} has been refunded to your wallet.${reason ? ` Reason: ${reason}` : ''}`,
-                'high',
+                `$${escrow.amount.toFixed(2)} has been refunded. Reason: ${reason || 'Contract cancelled'}`,
+                'medium',
                 {
                     type: 'transaction',
-                    transactionId: contractId,
+                    transactionId: escrowId,
                     transactionType: 'refund',
                     amount: escrow.amount,
                     currency: 'USD',
@@ -377,111 +386,118 @@ export const WalletService = {
     },
 
     /**
-     * Get all escrow holds for a wallet
+     * Get escrow holds for a wallet
      */
     async getEscrowHolds(walletId: string): Promise<EscrowHold[]> {
         const q = query(
             collection(db, 'escrow_holds'),
-            where('fromWalletId', '==', walletId),
-            where('status', '==', 'held')
+            where('fromWalletId', '==', walletId)
         );
 
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        } as EscrowHold));
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as EscrowHold));
     },
 
     /**
-     * Process direct payment (without escrow)
+     * Process a direct payment between wallets
      */
     async processPayment(paymentRequest: PaymentRequest): Promise<string> {
         const { fromWalletId, toWalletId, amount, description, relatedEntityId, relatedEntityType } = paymentRequest;
 
-        // Check if sender has sufficient funds
         const hasFunds = await this.hasSufficientFunds(fromWalletId, amount);
+
         if (!hasFunds) {
-            throw new Error('Insufficient funds in wallet');
+            throw new Error('Insufficient funds');
         }
 
-        // Deduct from sender
-        await this.updateBalance(fromWalletId, -amount);
-        const senderTxnId = await this.addTransaction(fromWalletId, {
-            type: 'payment',
-            amount: -amount,
-            description,
-            relatedEntityId,
-            relatedEntityType,
-            status: 'completed'
-        });
-
-        // Add to recipient
-        await this.updateBalance(toWalletId, amount);
-        await this.addTransaction(toWalletId, {
-            type: 'payment',
-            amount,
-            description,
-            relatedEntityId,
-            relatedEntityType,
-            status: 'completed'
-        });
-
-        // Create notifications for both parties
         try {
+            // Deduct from sender
+            await this.updateBalance(fromWalletId, -amount);
+            const senderTxnId = await this.addTransaction(fromWalletId, {
+                type: 'payment',
+                walletId: fromWalletId,
+                currency: 'USD',
+                amount: -amount,
+                description,
+                relatedEntityId,
+                relatedEntityType,
+                status: 'completed'
+            });
+
+            // Add to recipient
+            await this.updateBalance(toWalletId, amount);
+            await this.addTransaction(toWalletId, {
+                type: 'payment',
+                walletId: toWalletId,
+                currency: 'USD',
+                amount,
+                description,
+                relatedEntityId,
+                relatedEntityType,
+                status: 'completed'
+            });
+
             // Notify sender
-            await NotificationService.createNotification(
-                paymentRequest.fromWalletId.replace('user_', '').replace('agency_', ''),
-                'transaction',
-                'Payment Sent',
-                `You sent $${amount.toFixed(2)}.`,
-                'medium',
-                {
-                    type: 'transaction',
-                    transactionId: senderTxnId,
-                    transactionType: 'payment',
-                    amount: -amount,
-                    currency: 'USD',
-                    toUserId: paymentRequest.toWalletId.replace('user_', '').replace('agency_', ''),
-                    relatedEntityId,
-                    relatedEntityType
-                },
-                `/wallet`,
-                'View Wallet'
-            );
+            try {
+                await NotificationService.createNotification(
+                    paymentRequest.fromUserId,
+                    'transaction',
+                    'Payment Sent',
+                    `$${amount.toFixed(2)} sent successfully.`,
+                    'medium',
+                    {
+                        type: 'transaction',
+                        transactionId: senderTxnId,
+                        transactionType: 'payment',
+                        amount: -amount,
+                        currency: 'USD',
+                        fromUserId: paymentRequest.fromUserId,
+                        toUserId: paymentRequest.toUserId,
+                        relatedEntityId,
+                        relatedEntityType: relatedEntityType as any
+                    },
+                    `/wallet`,
+                    'View Wallet'
+                );
 
-            // Notify recipient
-            await NotificationService.createNotification(
-                paymentRequest.toWalletId.replace('user_', '').replace('agency_', ''),
-                'transaction',
-                'Payment Received',
-                `You received $${amount.toFixed(2)}.`,
-                'high',
-                {
-                    type: 'transaction',
-                    transactionId: senderTxnId,
-                    transactionType: 'payment',
-                    amount,
-                    currency: 'USD',
-                    fromUserId: paymentRequest.fromWalletId.replace('user_', '').replace('agency_', ''),
-                    relatedEntityId,
-                    relatedEntityType
-                },
-                `/wallet`,
-                'View Wallet'
-            );
+                // Notify recipient
+                await NotificationService.createNotification(
+                    paymentRequest.toUserId,
+                    'transaction',
+                    'Payment Received',
+                    `$${amount.toFixed(2)} received.`,
+                    'high',
+                    {
+                        type: 'transaction',
+                        transactionId: senderTxnId,
+                        transactionType: 'payment',
+                        amount,
+                        currency: 'USD',
+                        fromUserId: paymentRequest.fromUserId,
+                        toUserId: paymentRequest.toUserId,
+                        relatedEntityId,
+                        relatedEntityType: relatedEntityType as any
+                    },
+                    `/wallet`,
+                    'View Wallet'
+                );
+            } catch (error) {
+                console.error('Error creating payment notifications:', error);
+            }
+
+            return senderTxnId;
         } catch (error) {
-            console.error('Error creating payment notifications:', error);
+            console.error('Payment processing error:', error);
+            throw error;
         }
-
-        return senderTxnId;
     },
 
     /**
      * Get wallet statistics
      */
     async getWalletStats(walletId: string): Promise<WalletStats> {
-        const transactions = await this.getTransactionHistory(walletId, 1000);
+        const wallet = await this.getWallet('', '');
+        const transactions = await this.getTransactionHistory(walletId);
 
         const stats: WalletStats = {
             totalDeposits: 0,
@@ -492,19 +508,19 @@ export const WalletService = {
             transactionCount: transactions.length
         };
 
-        transactions.forEach(txn => {
+        transactions.forEach((txn) => {
             if (txn.type === 'deposit') stats.totalDeposits += txn.amount;
             if (txn.type === 'withdrawal') stats.totalWithdrawals += Math.abs(txn.amount);
             if (txn.type === 'payment') {
-                if (txn.amount > 0) stats.totalPayments += txn.amount;
-                else stats.totalPayments += Math.abs(txn.amount);
+                stats.totalPayments += Math.abs(txn.amount);
             }
             if (txn.type === 'refund') stats.totalRefunds += txn.amount;
         });
 
-        // Get escrow holdings
         const escrowHolds = await this.getEscrowHolds(walletId);
-        stats.escrowHoldings = escrowHolds.reduce((sum, hold) => sum + hold.amount, 0);
+        stats.escrowHoldings = escrowHolds
+            .filter(hold => hold.status === 'held')
+            .reduce((sum, hold) => sum + hold.amount, 0);
 
         return stats;
     }

@@ -9,6 +9,7 @@ interface WalletBalanceCardProps {
     pendingIn?: number;
     pendingOut?: number;
     isAgency?: boolean;
+    onAddFunds?: () => void;
 }
 
 export function WalletBalanceCard({
@@ -16,7 +17,8 @@ export function WalletBalanceCard({
     currency = 'USD',
     pendingIn = 0,
     pendingOut = 0,
-    isAgency = false
+    isAgency = false,
+    onAddFunds
 }: WalletBalanceCardProps) {
     const containerVariants = {
         hidden: { opacity: 0, y: 20 },
@@ -76,6 +78,7 @@ export function WalletBalanceCard({
                     </div>
 
                     <motion.button
+                        onClick={onAddFunds}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         className="px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-xl text-white text-sm font-bold transition-all border border-white/20"
