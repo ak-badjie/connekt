@@ -30,9 +30,15 @@ export const TaskService = {
         pricing: TaskPricing;
         createdBy: string;
     }): Promise<string> {
-        const taskData: Omit<Task, 'id'> = {
-            ...data,
+        const task: Omit<Task, 'id'> = {
+            projectId: data.projectId,
+            workspaceId: data.workspaceId,
+            title: data.title,
+            description: data.description,
             status: 'todo',
+            priority: data.priority,
+            assigneeId: data.assigneeId,
+            assigneeUsername: data.assigneeUsername,
             isReassignable: true,
             timeline: {
                 startDate: data.timeline?.startDate,
@@ -40,11 +46,14 @@ export const TaskService = {
                 estimatedHours: data.timeline?.estimatedHours,
                 actualHours: 0
             },
+            pricing: data.pricing,
+            createdBy: data.createdBy,
+            isPublic: false,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp()
         };
 
-        const docRef = await addDoc(collection(db, 'tasks'), taskData);
+        const docRef = await addDoc(collection(db, 'tasks'), task);
         return docRef.id;
     },
 
@@ -348,5 +357,27 @@ export const TaskService = {
             pendingValidation: tasks.filter(t => t.status === 'pending-validation').length,
             done: tasks.filter(t => t.status === 'done').length
         };
+    },
+
+    /**
+     * Push task to public (Explore page)
+     */
+    async pushToPublic(taskId: string): Promise<void> {
+        const taskRef = doc(db, 'tasks', taskId);
+        await updateDoc(taskRef, {
+            isPublic: true,
+            publishedAt: serverTimestamp()
+        });
+    },
+
+    /**
+     * Remove task from public
+     */
+    async removeFromPublic(taskId: string): Promise<void> {
+        const taskRef = doc(db, 'tasks', taskId);
+        await updateDoc(taskRef, {
+            isPublic: false,
+            publishedAt: null
+        });
     }
 };

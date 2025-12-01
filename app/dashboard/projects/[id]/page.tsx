@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { EnhancedProjectService } from '@/lib/services/enhanced-project-service';
 import { TaskService } from '@/lib/services/task-service';
 import { Project, Task } from '@/lib/types/workspace.types';
-import { Loader2, Briefcase, ArrowLeft, Plus, Users, Calendar, DollarSign, Settings, UserPlus, Clock, CheckCircle2, Circle, AlertCircle } from 'lucide-react';
+import { Loader2, Briefcase, ArrowLeft, Plus, Users, Calendar, DollarSign, Settings, UserPlus, Clock, CheckCircle2, Circle, AlertCircle, Globe, Eye } from 'lucide-react';
 
 export default function ProjectDetailPage() {
     const params = useParams();
@@ -125,9 +125,29 @@ export default function ProjectDetailPage() {
                         </>
                     )}
                     {isOwner && (
-                        <button className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors">
-                            <Settings size={18} />
-                        </button>
+                        <>
+                            <button
+                                onClick={async () => {
+                                    if (project.isPublic) {
+                                        await EnhancedProjectService.removeFromPublic(projectId);
+                                        setProject({ ...project, isPublic: false });
+                                    } else {
+                                        await EnhancedProjectService.pushToPublic(projectId);
+                                        setProject({ ...project, isPublic: true });
+                                    }
+                                }}
+                                className={`px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${project.isPublic
+                                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/40'
+                                        : 'bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700'
+                                    }`}
+                            >
+                                {project.isPublic ? <Eye size={16} /> : <Globe size={16} />}
+                                {project.isPublic ? 'Public' : 'Push to Public'}
+                            </button>
+                            <button className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors">
+                                <Settings size={18} />
+                            </button>
+                        </>
                     )}
                 </div>
             </div>
@@ -203,9 +223,9 @@ export default function ProjectDetailPage() {
                                         >
                                             <div className="flex justify-between items-start mb-2">
                                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${task.priority === 'urgent' ? 'bg-red-100 text-red-600 dark:bg-red-900/30' :
-                                                        task.priority === 'high' ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/30' :
-                                                            task.priority === 'medium' ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30' :
-                                                                'bg-green-100 text-green-600 dark:bg-green-900/30'
+                                                    task.priority === 'high' ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/30' :
+                                                        task.priority === 'medium' ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30' :
+                                                            'bg-green-100 text-green-600 dark:bg-green-900/30'
                                                     }`}>
                                                     {task.priority}
                                                 </span>
@@ -253,8 +273,8 @@ export default function ProjectDetailPage() {
                                         </p>
                                     </div>
                                     <span className={`px-2 py-1 rounded-full text-xs font-bold ${member.role === 'owner' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30' :
-                                            member.role === 'supervisor' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' :
-                                                'bg-gray-100 text-gray-600 dark:bg-gray-800'
+                                        member.role === 'supervisor' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' :
+                                            'bg-gray-100 text-gray-600 dark:bg-gray-800'
                                         }`}>
                                         {member.role}
                                     </span>

@@ -105,6 +105,9 @@ export type ContractType =
     | 'workspace_invite'
     | 'agency_invite'
     | 'payment_request'
+    | 'job_short_term'     // Short-term job (few tasks, days to weeks)
+    | 'job_long_term'      // Long-term job (6+ months, monthly payment)
+    | 'job_project_based'  // Project-based job (single project scope)
     | 'general';
 
 export type ContractStatus =
@@ -113,6 +116,83 @@ export type ContractStatus =
     | 'rejected'
     | 'expired'
     | 'cancelled';
+
+/**
+ * Digital Signature for Contracts
+ */
+export interface ContractSignature {
+    userId: string;
+    username: string;
+    signedAt: any; // Timestamp
+    ipAddress?: string;
+    userAgent?: string;
+    signatureHash: string; // SHA-256 hash of contract content
+}
+
+/**
+ * Contract Enforcement Rules
+ */
+export interface ContractEnforcement {
+    paymentLocked: boolean;
+    paymentAmount?: number;       // Fixed amount
+    paymentRangeMin?: number;     // Or range
+    paymentRangeMax?: number;
+    timelineLocked: boolean;
+    startDate?: any;              // Timestamp
+    endDate?: any;                // Timestamp
+}
+
+/**
+ * Contract Violation
+ */
+export interface ContractViolation {
+    type: 'payment' | 'timeline' | 'terms';
+    description: string;
+    reportedAt: any; // Timestamp
+    reportedBy: string; // userId
+    status: 'pending' | 'resolved' | 'dismissed';
+}
+
+/**
+ * Contract Template
+ */
+export interface ContractTemplate {
+    id?: string;
+    name: string;
+    type: ContractType;
+    visibility: 'system' | 'agency_custom';
+    agencyId?: string; // If agency_custom
+
+    // Legal Header Configuration
+    headerConfig: {
+        showConnektLogo: boolean;
+        showCoatOfArms: boolean;
+        showGambianFlag: boolean;
+    };
+
+    // Template Content
+    bodyTemplate: string; // Markdown with {{variable}} placeholders
+    defaultTerms: string; // Markdown
+
+    // Variables for template
+    variables: Array<{
+        key: string;
+        label: string;
+        type: 'text' | 'number' | 'date' | 'currency';
+        required: boolean;
+    }>;
+
+    // Metadata
+    createdAt: any; // Timestamp
+    updatedAt: any; // Timestamp
+}
+
+export interface ContractVariable {
+    key: string;
+    label: string;
+    type: 'text' | 'number' | 'date' | 'currency';
+    required: boolean;
+}
 
 export interface Contract {
     id?: string;
@@ -131,6 +211,18 @@ export interface Contract {
     title: string;
     description: string;
     terms: ContractTerms;
+
+    // Template
+    templateId?: string;
+
+    // Signatures
+    signatures: ContractSignature[];
+
+    // Enforcement
+    enforcement?: ContractEnforcement;
+
+    // Violations
+    violations?: ContractViolation[];
 
     // Associated IDs
     relatedEntityId?: string; // Task ID, Project ID, Workspace ID, etc.
@@ -166,6 +258,33 @@ export interface ContractTerms {
     agencyName?: string;
     agencyRole?: 'member' | 'admin';
     agencyEmail?: string;
+
+    // Job Contract Terms
+    jobTitle?: string;
+    jobDescription?: string;
+    jobRequirements?: string[];
+
+    // Payment Structure
+    paymentType?: 'fixed' | 'hourly' | 'monthly' | 'range';
+    paymentAmount?: number;       // For fixed/hourly/monthly
+    paymentRangeMin?: number;     // For range-based
+    paymentRangeMax?: number;     // For range-based
+    paymentCurrency?: string;     // Default: USD
+    paymentSchedule?: string;     // e.g., "Monthly on 1st", "Upon completion"
+
+    // Timeline
+    startDate?: string;
+    endDate?: string;
+    duration?: number;            // In days
+    durationUnit?: 'days' | 'weeks' | 'months';
+
+    // Work Terms
+    hoursPerWeek?: number;
+    workLocation?: 'remote' | 'onsite' | 'hybrid';
+
+    // Termination
+    noticePeriod?: number;        // In days
+    terminationConditions?: string;
 
     // General Terms
     customTerms?: Record<string, any>;

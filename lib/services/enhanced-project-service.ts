@@ -29,23 +29,27 @@ export const EnhancedProjectService = {
         deadline?: string;
         recurringType?: 'none' | 'daily' | 'weekly' | 'monthly';
     }): Promise<string> {
-        const projectData: Omit<Project, 'id'> = {
-            ...data,
+        const project: Omit<Project, 'id'> = {
             status: 'planning',
             supervisors: [],
-            members: [{
-                userId: data.ownerId,
-                username: data.ownerUsername,
-                email: '', // Will be filled from user profile
-                role: 'owner',
-                assignedAt: serverTimestamp()
-            }],
+            members: [
+                {
+                    userId: data.ownerId,
+                    username: data.ownerUsername,
+                    email: '',
+                    role: 'owner',
+                    assignedAt: serverTimestamp()
+                }
+            ],
             recurringType: data.recurringType || 'none',
+            pricing: undefined,
+            isPublic: false,
             createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
+            updatedAt: serverTimestamp(),
+            ...data
         };
 
-        const docRef = await addDoc(collection(db, 'projects'), projectData);
+        const docRef = await addDoc(collection(db, 'projects'), project);
         return docRef.id;
     },
 
@@ -291,5 +295,27 @@ export const EnhancedProjectService = {
             planning: projects.filter(p => p.status === 'planning').length,
             onHold: projects.filter(p => p.status === 'on-hold').length
         };
+    },
+
+    /**
+     * Push project to public (Explore page)
+     */
+    async pushToPublic(projectId: string): Promise<void> {
+        const projectRef = doc(db, 'projects', projectId);
+        await updateDoc(projectRef, {
+            isPublic: true,
+            publishedAt: serverTimestamp()
+        });
+    },
+
+    /**
+     * Remove project from public
+     */
+    async removeFromPublic(projectId: string): Promise<void> {
+        const projectRef = doc(db, 'projects', projectId);
+        await updateDoc(projectRef, {
+            isPublic: false,
+            publishedAt: null
+        });
     }
 };

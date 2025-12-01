@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { MailService, MailMessage } from '@/lib/services/mail-service';
+import { ContractMailService } from '@/lib/services/contract-mail-service';
 import { ComposeModal } from '@/components/mail/ComposeModal';
 import { MailHeader } from '@/components/mail/MailHeader';
 import { MailPrimarySidebar } from '@/components/mail/MailPrimarySidebar';
@@ -92,7 +93,8 @@ export default function MailPage() {
         body: string,
         attachments?: any[],
         category?: string,
-        signatureId?: string
+        signatureId?: string,
+        contractData?: { templateId?: string; terms?: any } | null
     ) => {
         if (!user) return;
         const userDoc = await getDoc(doc(db, 'users', user.uid));
@@ -100,7 +102,42 @@ export default function MailPage() {
         const username = userData?.username || 'user';
         const displayName = userData?.displayName || username;
 
-        await MailService.sendMail(user.uid, username, displayName, recipient.split('@')[0], subject, body);
+        // Parse recipient to get username and address
+        const recipientParts = recipient.split('@');
+        const recipientUsername = recipientParts[0];
+        const recipientDomain = recipientParts[1] || 'connekt.com';
+        const toMailAddress = `${recipientUsername}@${recipientDomain}`;
+        const fromMailAddress = `${username}@connekt.com`;
+
+        // If contract data is present, create a contract
+        if (contractData) {
+            try {
+                // Create the contract
+                const contractId = await ContractMailService.createContract(
+                    user.uid,
+                    username,
+                    fromMailAddress,
+                    'unknown_user_id', // TODO: Lookup recipient user ID from username
+                    recipientUsername,
+                    toMailAddress,
+                    contractData.terms?.contractType || 'general',
+                    subject,
+                    body,
+                    contractData.terms || {},
+                    30 // 30 days expiration
+                );
+
+                console.log('Contract created with ID:', contractId);
+                // The ContractMailService.createContract already sends a notification mail
+            } catch (error) {
+                console.error('Error creating contract:', error);
+                throw new Error('Failed to create contract');
+            }
+        } else {
+            // Normal mail sending
+            await MailService.sendMail(user.uid, username, displayName, recipientUsername, subject, body);
+        }
+
         await loadMails();
     };
 

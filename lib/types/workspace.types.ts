@@ -36,6 +36,8 @@ export interface Project {
     members: ProjectMember[];
     recurringType?: 'none' | 'daily' | 'weekly' | 'monthly';
     pricing?: ProjectPricing;
+    isPublic: boolean; // NEW: For Explore page visibility
+    publishedAt?: any; // NEW: When pushed to public (Timestamp | Date | FieldValue)
     createdAt: any; // Timestamp | Date | FieldValue
     updatedAt: any; // Timestamp | Date | FieldValue
 }
@@ -78,6 +80,8 @@ export interface Task {
     pricing: TaskPricing;
     proofOfTask?: ProofOfTask;
     createdBy: string;
+    isPublic: boolean; // NEW: For Explore page visibility
+    publishedAt?: any; // NEW: When pushed to public (Timestamp | Date | FieldValue)
     createdAt: any; // Timestamp | Date | FieldValue
     updatedAt: any; // Timestamp | Date | FieldValue
 }
