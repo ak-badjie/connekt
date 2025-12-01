@@ -8,10 +8,30 @@ import {
     Twitter, Camera, Award, TrendingUp, Clock, Target, Settings,
     Plus, Building2, Phone, Calendar, ExternalLink, CheckCircle2
 } from 'lucide-react';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+
 import { ExtendedAgencyProfile } from '@/lib/types/profile.types';
 import { ProfileService } from '@/lib/services/profile-service';
 import { ReviewSection } from './ReviewSection';
 import { PrivacySettingsPanel } from './PrivacySettingsPanel';
+import { DraggableSection } from './DraggableSection';
+import { TrailerVideoSection } from './TrailerVideoSection';
+import { CustomSectionCreator } from './CustomSectionCreator';
+import { PortfolioForm } from './PortfolioForm';
 
 interface AgencyProfileProps {
     agency: ExtendedAgencyProfile;
@@ -21,20 +41,167 @@ interface AgencyProfileProps {
 export function AgencyProfile({ agency: initialAgency, isOwner }: AgencyProfileProps) {
     const [agency, setAgency] = useState(initialAgency);
     const [showPrivacySettings, setShowPrivacySettings] = useState(false);
-    const [showEditModal, setShowEditModal] = useState(false);
     const [isFollowing, setIsFollowing] = useState(false);
+    const [activeForm, setActiveForm] = useState<'portfolio' | 'custom' | null>(null);
+
+    // Section Order State
+    const [sectionOrder, setSectionOrder] = useState<string[]>([]);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
 
     useEffect(() => {
+        // Initialize section order
+        if (agency.sectionOrder && agency.sectionOrder.length > 0) {
+            setSectionOrder(agency.sectionOrder.map(s => s.sectionId));
+        } else {
+            // Default order
+            setSectionOrder(['video_reel', 'portfolio', 'reviews']);
+        }
+
         // Increment profile views if not owner
         if (!isOwner && agency.id) {
             ProfileService.incrementProfileViews(agency.id);
         }
     }, [agency.id, isOwner]);
 
+    const handleDragEnd = async (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (over && active.id !== over.id) {
+            setSectionOrder((items) => {
+                const oldIndex = items.indexOf(active.id as string);
+                const newIndex = items.indexOf(over.id as string);
+                const newOrder = arrayMove(items, oldIndex, newIndex);
+
+                // Persist to Firestore
+                const orderObjects = newOrder.map((id, index) => ({
+                    sectionId: id,
+                    type: id.startsWith('custom_') ? 'custom' : 'default',
+                    order: index
+                }));
+
+                ProfileService.updateAgencyProfile(agency.id, { sectionOrder: orderObjects } as any);
+
+                return newOrder;
+            });
+        }
+    };
+
     const formatDate = (timestamp: any) => {
         if (!timestamp) return '';
         const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
         return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    };
+
+    // Render helper for sections
+    const renderSection = (sectionId: string) => {
+        switch (sectionId) {
+            case 'video_reel':
+                return (
+                    <DraggableSection key={sectionId} id={sectionId} isOwner={isOwner} title="Video Reel">
+                        <TrailerVideoSection
+                            uid={agency.id}
+                            videoUrl={agency.videoReel}
+                            isOwner={isOwner}
+                            onUpdate={(url) => setAgency({ ...agency, videoReel: url })}
+                        />
+                    </DraggableSection>
+                );
+
+            case 'portfolio':
+                return (
+                    <DraggableSection key={sectionId} id={sectionId} isOwner={isOwner} title="Portfolio">
+                        <div className="profile-section">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                    <Briefcase className="w-6 h-6 text-blue-600" />
+                                    Portfolio
+                                </h3>
+                                {isOwner && (
+                                    <button
+                                        onClick={() => setActiveForm('portfolio')}
+                                        className="px-4 py-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-colors flex items-center gap-2"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                        Add Work
+                                    </button>
+                                )}
+                            </div>
+
+                            {agency.portfolio && agency.portfolio.length > 0 ? (
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                    {agency.portfolio.map((item, index) => (
+                                        <motion.div
+                                            key={item.id}
+                                            initial={{ opacity: 0, scale: 0.9 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            transition={{ delay: index * 0.05 }}
+                                            className="aspect-square rounded-2xl overflow-hidden glass-card hover:scale-105 transition-transform cursor-pointer relative group"
+                                        >
+                                            <Image
+                                                src={item.url}
+                                                alt={item.title || 'Portfolio Item'}
+                                                width={300}
+                                                height={300}
+                                                className="w-full h-full object-cover"
+                                            />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
+                                                <p className="text-white font-medium truncate">{item.title}</p>
+                                            </div>
+                                        </motion.div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-12 glass-card-subtle rounded-2xl">
+                                    <Briefcase className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+                                    <p className="text-gray-500 dark:text-gray-400 text-lg">No portfolio items yet</p>
+                                </div>
+                            )}
+                        </div>
+                    </DraggableSection>
+                );
+
+            case 'reviews':
+                return (
+                    <DraggableSection key={sectionId} id={sectionId} isOwner={isOwner} title="Reviews">
+                        {agency.id && (
+                            <ReviewSection
+                                profileUid={agency.id}
+                                currentUserUid={isOwner ? undefined : agency.id}
+                                isOwner={isOwner}
+                                averageRating={agency.stats?.averageRating || 0}
+                                totalRatings={agency.stats?.totalRatings || 0}
+                            />
+                        )}
+                    </DraggableSection>
+                );
+
+            default:
+                // Handle custom sections
+                if (sectionId.startsWith('custom_')) {
+                    const customSection = agency.customSections?.find(s => s.id === sectionId);
+                    if (!customSection) return null;
+
+                    return (
+                        <DraggableSection key={sectionId} id={sectionId} isOwner={isOwner} title={customSection.title}>
+                            <div className="profile-section">
+                                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+                                    {customSection.title}
+                                </h3>
+                                <div className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                                    {customSection.type === 'text' && customSection.content.richText}
+                                </div>
+                            </div>
+                        </DraggableSection>
+                    );
+                }
+                return null;
+        }
     };
 
     return (
@@ -166,15 +333,6 @@ export function AgencyProfile({ agency: initialAgency, isOwner }: AgencyProfileP
                                     {isOwner ? (
                                         <>
                                             <motion.button
-                                                onClick={() => setShowEditModal(true)}
-                                                whileHover={{ scale: 1.05 }}
-                                                whileTap={{ scale: 0.95 }}
-                                                className="px-6 py-3 bg-white/20 dark:bg-zinc-900/20 backdrop-blur-3xl border border-white/30 text-white rounded-xl font-medium hover:bg-white/30 transition-all flex items-center gap-2 shadow-lg"
-                                            >
-                                                <Edit className="w-4 h-4" />
-                                                Edit Profile
-                                            </motion.button>
-                                            <motion.button
                                                 onClick={() => setShowPrivacySettings(!showPrivacySettings)}
                                                 whileHover={{ scale: 1.05 }}
                                                 whileTap={{ scale: 0.95 }}
@@ -237,6 +395,43 @@ export function AgencyProfile({ agency: initialAgency, isOwner }: AgencyProfileP
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* Portfolio Form */}
+            {activeForm === 'portfolio' && agency.id && (
+                <PortfolioForm
+                    userId={agency.id}
+                    onSave={(item) => {
+                        const newPortfolio = [...(agency.portfolio || []), item];
+                        setAgency({ ...agency, portfolio: newPortfolio });
+                        setActiveForm(null);
+                    }}
+                    onCancel={() => setActiveForm(null)}
+                />
+            )}
+
+            {/* Custom Section Creator */}
+            {activeForm === 'custom' && agency.id && (
+                <CustomSectionCreator
+                    uid={agency.id}
+                    onSave={(section) => {
+                        const newSections = [...(agency.customSections || []), section];
+                        const newOrder = [...sectionOrder, section.id];
+                        setAgency({ ...agency, customSections: newSections });
+                        setSectionOrder(newOrder);
+
+                        // Also update order in DB
+                        const orderObjects = newOrder.map((id, index) => ({
+                            sectionId: id,
+                            type: id.startsWith('custom_') ? 'custom' : 'default',
+                            order: index
+                        }));
+                        ProfileService.updateAgencyProfile(agency.id, { sectionOrder: orderObjects } as any);
+
+                        setActiveForm(null);
+                    }}
+                    onCancel={() => setActiveForm(null)}
+                />
+            )}
 
             {/* Main Content - Corporate Layout */}
             <div className="max-w-7xl mx-auto px-8 py-12">
@@ -354,60 +549,32 @@ export function AgencyProfile({ agency: initialAgency, isOwner }: AgencyProfileP
                         </div>
                     </div>
 
-                    {/* Right Column - Portfolio & Reviews */}
+                    {/* Right Column - Draggable Canvas */}
                     <div className="lg:col-span-2 space-y-8">
-                        {/* Portfolio */}
-                        <div className="profile-section">
-                            <div className="flex items-center justify-between mb-6">
-                                <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                    <Briefcase className="w-6 h-6 text-blue-600" />
-                                    Portfolio
-                                </h3>
-                                {isOwner && (
-                                    <button className="px-4 py-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-colors flex items-center gap-2">
-                                        <Plus className="w-4 h-4" />
-                                        Add Work
-                                    </button>
-                                )}
-                            </div>
+                        <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragEnd={handleDragEnd}
+                        >
+                            <SortableContext
+                                items={sectionOrder}
+                                strategy={verticalListSortingStrategy}
+                            >
+                                {sectionOrder.map((sectionId) => renderSection(sectionId))}
+                            </SortableContext>
+                        </DndContext>
 
-                            {agency.portfolio && agency.portfolio.length > 0 ? (
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                    {agency.portfolio.map((item, index) => (
-                                        <motion.div
-                                            key={item.id}
-                                            initial={{ opacity: 0, scale: 0.9 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            transition={{ delay: index * 0.05 }}
-                                            className="aspect-square rounded-2xl overflow-hidden glass-card hover:scale-105 transition-transform cursor-pointer"
-                                        >
-                                            <Image
-                                                src={item.url}
-                                                alt={item.title || 'Portfolio Item'}
-                                                width={300}
-                                                height={300}
-                                                className="w-full h-full object-cover"
-                                            />
-                                        </motion.div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="text-center py-12 glass-card-subtle rounded-2xl">
-                                    <Briefcase className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
-                                    <p className="text-gray-500 dark:text-gray-400 text-lg">No portfolio items yet</p>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Reviews & Ratings */}
-                        {agency.id && (
-                            <ReviewSection
-                                profileUid={agency.id}
-                                currentUserUid={isOwner ? undefined : agency.id}
-                                isOwner={isOwner}
-                                averageRating={agency.stats?.averageRating || 0}
-                                totalRatings={agency.stats?.totalRatings || 0}
-                            />
+                        {/* Add Section Button (Owner Only) */}
+                        {isOwner && (
+                            <motion.button
+                                onClick={() => setActiveForm('custom')}
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                className="w-full py-4 border-2 border-dashed border-gray-300 dark:border-zinc-700 rounded-2xl flex items-center justify-center gap-2 text-gray-500 hover:text-blue-600 hover:border-blue-500/50 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-all"
+                            >
+                                <Plus className="w-5 h-5" />
+                                <span className="font-medium">Add Custom Section</span>
+                            </motion.button>
                         )}
                     </div>
                 </div>
