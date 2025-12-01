@@ -7,6 +7,8 @@ import { Conversation } from '@/lib/types/chat.types';
 import { formatDistanceToNow } from 'date-fns';
 import { Search, Plus, MessageSquare } from 'lucide-react';
 
+import { CreateChatModal } from './CreateChatModal';
+
 interface ChatSidebarProps {
     onSelectConversation: (conversationId: string) => void;
     selectedId?: string;
@@ -16,6 +18,7 @@ export function ChatSidebar({ onSelectConversation, selectedId }: ChatSidebarPro
     const { user } = useAuth();
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     useEffect(() => {
         if (!user) return;
@@ -47,7 +50,10 @@ export function ChatSidebar({ onSelectConversation, selectedId }: ChatSidebarPro
             <div className="p-4 border-b border-gray-200 dark:border-zinc-800">
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="text-xl font-bold text-gray-900 dark:text-white">Messages</h2>
-                    <button className="p-2 bg-[#008080]/10 text-[#008080] rounded-full hover:bg-[#008080]/20 transition-colors">
+                    <button
+                        onClick={() => setIsCreateModalOpen(true)}
+                        className="p-2 bg-[#008080]/10 text-[#008080] rounded-full hover:bg-[#008080]/20 transition-colors"
+                    >
                         <Plus size={20} />
                     </button>
                 </div>
@@ -112,6 +118,10 @@ export function ChatSidebar({ onSelectConversation, selectedId }: ChatSidebarPro
                     </div>
                 )}
             </div>
+            <CreateChatModal
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+            />
         </div>
     );
 }

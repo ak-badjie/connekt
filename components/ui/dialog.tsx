@@ -44,7 +44,7 @@ const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(
         if (!mounted || !open) return null
 
         return createPortal(
-            <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center">
                 {/* Backdrop */}
                 <div
                     className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity animate-in fade-in-0"
@@ -55,7 +55,7 @@ const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(
                 <div
                     ref={ref}
                     className={cn(
-                        "fixed z-50 grid w-full max-w-lg gap-4 border bg-background p-6 shadow-lg duration-200 animate-in fade-in-0 zoom-in-95 sm:rounded-lg md:w-full",
+                        "fixed z-[9999] grid w-full max-w-lg gap-4 border bg-background p-6 shadow-lg duration-200 animate-in fade-in-0 zoom-in-95 sm:rounded-lg md:w-full",
                         "bg-white dark:bg-zinc-900 dark:border-zinc-800",
                         className
                     )}
