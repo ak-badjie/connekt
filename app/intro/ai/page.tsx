@@ -1,11 +1,20 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import LoadingScreen from '@/components/ui/LoadingScreen';
+import { useMinimumLoading } from '@/hooks/useMinimumLoading';
 import { useRouter } from 'next/navigation';
 import { Bot, Sparkles, ArrowRight, Zap, Target, TrendingUp } from 'lucide-react';
 
 export default function AIIntroPage() {
     const router = useRouter();
+
+    const shouldShowLoading = useMinimumLoading(true, 6000); // Always load for at least 6s
+
+    if (shouldShowLoading) {
+        return <LoadingScreen variant="ai" />;
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-teal-50 dark:from-zinc-900 dark:via-black dark:to-zinc-900 flex flex-col items-center justify-center p-6 relative overflow-hidden">

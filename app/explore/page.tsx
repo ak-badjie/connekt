@@ -11,6 +11,8 @@ import { Briefcase, Users, DollarSign, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { ExploreSidebar } from '@/components/explore/ExploreSidebar';
 import { AdvertisementBanner } from '@/components/explore/AdvertisementBanner';
+import LoadingScreen from '@/components/ui/LoadingScreen';
+import { useMinimumLoading } from '@/hooks/useMinimumLoading';
 
 export default function ExplorePage() {
     const { user, userProfile } = useAuth();
@@ -69,6 +71,12 @@ export default function ExplorePage() {
 
         loadData();
     }, [viewMode, filters, userProfile]);
+
+    const shouldShowLoading = useMinimumLoading(isLoading);
+
+    if (shouldShowLoading) {
+        return <LoadingScreen variant="default" />;
+    }
 
     return (
         <div className="min-h-screen bg-zinc-50 dark:bg-black text-gray-900 dark:text-gray-100">

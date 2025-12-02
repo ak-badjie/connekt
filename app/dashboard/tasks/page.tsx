@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { TaskService } from '@/lib/services/task-service';
 import { Task } from '@/lib/types/workspace.types';
-import { CheckSquare, Clock, AlertCircle, CheckCircle2, Loader2, Filter } from 'lucide-react';
+import { CheckSquare, Clock, AlertCircle, CheckCircle2, Filter } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import LoadingScreen from '@/components/ui/LoadingScreen';
+import { useMinimumLoading } from '@/hooks/useMinimumLoading';
 
 export default function TasksStartupPage() {
     const { user, userProfile } = useAuth();
@@ -71,12 +73,10 @@ export default function TasksStartupPage() {
         done: allTasks.filter(t => t.status === 'done').length,
     };
 
-    if (loading) {
-        return (
-            <div className="h-[calc(100vh-120px)] flex items-center justify-center">
-                <Loader2 className="animate-spin text-[#008080]" size={40} />
-            </div>
-        );
+    const shouldShowLoading = useMinimumLoading(loading, 6000); // ConnektTeamLogo animations
+
+    if (shouldShowLoading) {
+        return <LoadingScreen variant="team" />;
     }
 
     return (
@@ -122,8 +122,8 @@ export default function TasksStartupPage() {
                         key={status}
                         onClick={() => setFilter(status)}
                         className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${filter === status
-                                ? 'bg-[#008080] text-white shadow-lg shadow-teal-500/30'
-                                : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700'
+                            ? 'bg-[#008080] text-white shadow-lg shadow-teal-500/30'
+                            : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700'
                             }`}
                     >
                         {status === 'all' ? 'All Tasks' : getStatusInfo(status).label}

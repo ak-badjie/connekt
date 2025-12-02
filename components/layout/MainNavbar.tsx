@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { AuthService } from '@/lib/services/auth-service';
 import { Search, LogOut, Settings, LayoutDashboard, ChevronDown, User, Compass, Briefcase, Bot, Building2 } from 'lucide-react';
-import { BriefcaseLogo3D } from '@/components/auth/BriefcaseLogo3D';
+import ConnektIcon from '@/components/branding/ConnektIcon';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -37,7 +37,7 @@ export default function MainNavbar() {
                 <div className="flex items-center justify-between h-16">
                     {/* Logo */}
                     <Link href="/" className="flex items-center gap-3">
-                        <BriefcaseLogo3D size="medium" color="teal" />
+                        <ConnektIcon className="w-10 h-10 text-[#008080]" />
                         <span className="text-xl font-bold font-headline text-[#008080] tracking-widest">CONNEKT</span>
                     </Link>
 

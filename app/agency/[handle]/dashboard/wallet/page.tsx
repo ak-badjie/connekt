@@ -10,6 +10,8 @@ import { TransactionHistoryTable } from '@/components/wallet/TransactionHistoryT
 import { EscrowHoldingsList } from '@/components/wallet/EscrowHoldingsList';
 import { motion } from 'framer-motion';
 import { Download, Filter, Users } from 'lucide-react';
+import LoadingScreen from '@/components/ui/LoadingScreen';
+import { useMinimumLoading } from '@/hooks/useMinimumLoading';
 
 export default function AgencyWalletPage() {
     const params = useParams();
@@ -72,6 +74,12 @@ export default function AgencyWalletPage() {
     const pendingOut = escrowHoldings
         .filter(h => h.status === 'held' && h.fromUserId === wallet?.ownerId)
         .reduce((sum, h) => sum + h.amount, 0);
+
+    const shouldShowLoading = useMinimumLoading(isLoading);
+
+    if (shouldShowLoading) {
+        return <LoadingScreen variant="wallet" />;
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-teal-50/30 dark:from-zinc-950 dark:via-zinc-900 dark:to-teal-950/20 p-6">
