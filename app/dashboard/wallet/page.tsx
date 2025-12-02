@@ -11,6 +11,8 @@ import { EscrowHoldingsList } from '@/components/wallet/EscrowHoldingsList';
 import { TopUpModal } from '@/components/wallet/TopUpModal';
 import { motion } from 'framer-motion';
 import { ArrowUpDown, Filter, Download } from 'lucide-react';
+import LoadingScreen from '@/components/ui/LoadingScreen';
+import { useMinimumLoading } from '@/hooks/useMinimumLoading';
 
 export default function WalletPage() {
     const { user } = useAuth();
@@ -99,6 +101,12 @@ export default function WalletPage() {
     const pendingOut = escrowHoldings
         .filter(h => h.status === 'held' && h.fromUserId === user?.uid)
         .reduce((sum, h) => sum + h.amount, 0);
+
+    const shouldShowLoading = useMinimumLoading(isLoading, 6000); // Ensure ConnektWalletLogo animations complete
+
+    if (shouldShowLoading) {
+        return <LoadingScreen variant="wallet" />;
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-teal-50/30 dark:from-zinc-950 dark:via-zinc-900 dark:to-teal-950/20 p-6">

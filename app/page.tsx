@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Bot, Briefcase, Users, FileText, Calendar, Star, Code, PenTool, BarChart, Settings, ShoppingCart, Search, Film, PencilRuler, Headphones, UserPlus, FileSearch, Handshake, PlusCircle, GraduationCap, ArrowRight, Book, LineChart, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import LoadingScreen from '@/components/ui/LoadingScreen';
+import { useMinimumLoading } from '@/hooks/useMinimumLoading';
 
 // ============= UTILITY FUNCTIONS =============
 const cn = (...classes: (string | undefined | null | false)[]) => {
@@ -464,6 +466,31 @@ export default function Home() {
     }
     router.push(`/marketplace${query}`);
   };
+
+  const { shouldShowAnimation, markPageVisited } = useLoadingSession();
+  const [initialLoading, setInitialLoading] = useState(true);
+
+  useEffect(() => {
+    const currentPath = '/';
+
+    if (shouldShowAnimation(currentPath)) {
+      // First visit - show animation
+      const timer = setTimeout(() => {
+        setInitialLoading(false);
+        markPageVisited(currentPath);
+      }, 100); // Fast fake load since this is a static page
+      return () => clearTimeout(timer);
+    } else {
+      // Already visited - skip animation
+      setInitialLoading(false);
+    }
+  }, [shouldShowAnimation, markPageVisited]);
+
+  const shouldShowLoading = useMinimumLoading(initialLoading, 6000); // Minimum 6s for branding
+
+  if (shouldShowLoading) {
+    return <LoadingScreen variant="default" />;
+  }
 
   return (
     <div className="flex flex-col min-h-[100dvh] pt-16 pb-16">

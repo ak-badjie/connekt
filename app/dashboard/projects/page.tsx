@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { EnhancedProjectService } from '@/lib/services/enhanced-project-service';
 import { Project } from '@/lib/types/workspace.types';
-import { Plus, Briefcase, Users, Calendar, DollarSign, ArrowRight, Loader2, Star } from 'lucide-react';
+import { Plus, Briefcase, Users, Calendar, DollarSign, ArrowRight, Star } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import LoadingScreen from '@/components/ui/LoadingScreen';
+import { useMinimumLoading } from '@/hooks/useMinimumLoading';
 
 export default function ProjectsStartupPage() {
     const { user, userProfile } = useAuth();
@@ -119,12 +121,10 @@ export default function ProjectsStartupPage() {
         </div>
     );
 
-    if (loading) {
-        return (
-            <div className="h-[calc(100vh-120px)] flex items-center justify-center">
-                <Loader2 className="animate-spin text-[#008080]" size={40} />
-            </div>
-        );
+    const shouldShowLoading = useMinimumLoading(loading, 6000); // ConnektTeamLogo animations
+
+    if (shouldShowLoading) {
+        return <LoadingScreen variant="team" />;
     }
 
     const allYourProjects = [...yourProjects, ...assignedProjects];

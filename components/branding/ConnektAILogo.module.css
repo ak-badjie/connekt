@@ -1,0 +1,201 @@
+/* ConnektAILogo Animations */
+:root {
+    --teal-primary: #0d9488;
+    --teal-light: #2dd4bf;
+    --teal-glow: rgba(13, 148, 136, 0.4);
+    --bg-white: #ffffff;
+    --slate-text: #475569;
+    --ease-tech: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    --ease-bounce: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.mainContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 350px;
+    width: 90%;
+    padding: 2rem;
+    position: relative;
+}
+
+.aiSvg {
+    width: 140px;
+    height: 140px;
+    margin-bottom: 30px;
+    filter: drop-shadow(0 0 0 rgba(13, 148, 136, 0));
+    animation: glowPulse 3s infinite ease-in-out 3s;
+}
+
+.aiPath {
+    fill: transparent;
+    stroke: var(--teal-primary);
+    stroke-width: 2px;
+    stroke-dasharray: 2000;
+    stroke-dashoffset: 2000;
+    animation:
+        circuitDraw 2.2s ease-in-out forwards,
+        digitalFill 0.6s steps(4, end) 2.2s forwards;
+}
+
+.aiPathGhost {
+    fill: transparent;
+    stroke: var(--teal-light);
+    stroke-width: 1px;
+    opacity: 0.5;
+    stroke-dasharray: 2000;
+    stroke-dashoffset: 2000;
+    transform-origin: center;
+    animation:
+        circuitDraw 2.5s ease-in-out 0.2s forwards,
+        ghostDissolve 0.5s ease 2.5s forwards;
+}
+
+.brandWrapper {
+    text-align: center;
+    overflow: hidden;
+}
+
+.brandName {
+    margin: 0;
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--teal-primary);
+    letter-spacing: -1px;
+    line-height: 1;
+    opacity: 0;
+    transform: translateY(40px);
+    animation: textCyberRise 0.8s var(--ease-bounce) 2.4s forwards;
+}
+
+.brandSlogan {
+    display: block;
+    margin-top: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2.5px;
+    color: var(--slate-text);
+    opacity: 0;
+    animation: simpleFade 1s ease 2.8s forwards;
+}
+
+.loaderTrack {
+    width: 100%;
+    height: 4px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    margin-top: 35px;
+    position: relative;
+    overflow: hidden;
+    opacity: 0;
+    animation: simpleFade 0.5s ease 3s forwards;
+}
+
+.loaderBar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 0%;
+    background: var(--teal-primary);
+    box-shadow: 0 0 10px var(--teal-light);
+    animation: processLoad 3s cubic-bezier(0.22, 1, 0.36, 1) 3.1s forwards;
+}
+
+@keyframes circuitDraw {
+    0% {
+        stroke-dashoffset: 2000;
+    }
+
+    100% {
+        stroke-dashoffset: 0;
+    }
+}
+
+@keyframes digitalFill {
+    0% {
+        fill: transparent;
+        opacity: 1;
+    }
+
+    25% {
+        fill: var(--teal-primary);
+        opacity: 0.6;
+    }
+
+    50% {
+        fill: transparent;
+        opacity: 1;
+    }
+
+    75% {
+        fill: var(--teal-primary);
+        opacity: 0.8;
+    }
+
+    100% {
+        fill: var(--teal-primary);
+        stroke: none;
+        opacity: 1;
+    }
+}
+
+@keyframes ghostDissolve {
+    to {
+        transform: scale(1.1);
+        opacity: 0;
+    }
+}
+
+@keyframes glowPulse {
+    0% {
+        filter: drop-shadow(0 0 0 rgba(13, 148, 136, 0));
+        transform: scale(1);
+    }
+
+    50% {
+        filter: drop-shadow(0 0 15px var(--teal-glow));
+        transform: scale(1.03);
+    }
+
+    100% {
+        filter: drop-shadow(0 0 0 rgba(13, 148, 136, 0));
+        transform: scale(1);
+    }
+}
+
+@keyframes textCyberRise {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes simpleFade {
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes processLoad {
+    0% {
+        width: 0%;
+    }
+
+    30% {
+        width: 40%;
+    }
+
+    50% {
+        width: 45%;
+    }
+
+    70% {
+        width: 85%;
+    }
+
+    100% {
+        width: 100%;
+    }
+}

@@ -4,7 +4,7 @@ import { Search, ChevronDown, User } from 'lucide-react';
 import { useState } from 'react';
 import type { MailAddress } from '@/lib/types/mail.types';
 import Image from 'next/image';
-import ConnektMailLogo from './ConnektMailLogo';
+import ConnektMailIcon from '@/components/branding/ConnektMailIcon';
 
 interface MailHeaderProps {
     mailAddresses: MailAddress[];
@@ -31,7 +31,7 @@ export function MailHeader({
             {/* Left: Mail Address Selector */}
             <div className="flex items-center gap-4">
                 <div className="flex items-center gap-3">
-                    <ConnektMailLogo size="medium" color="teal" />
+                    <ConnektMailIcon className="w-10 h-10" />
                     <span className="text-xl font-bold font-headline text-[#008080]">ConnektMail</span>
                 </div>
 

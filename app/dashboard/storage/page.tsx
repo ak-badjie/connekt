@@ -5,6 +5,8 @@ import { useAuth } from '@/context/AuthContext';
 import { StorageQuotaService, StorageQuota } from '@/lib/services/storage-quota-service';
 import { HardDrive, File, Mail, FileText } from 'lucide-react';
 import { motion } from 'framer-motion';
+import LoadingScreen from '@/components/ui/LoadingScreen';
+import { useMinimumLoading } from '@/hooks/useMinimumLoading';
 
 export default function StoragePage() {
     const { user, userProfile } = useAuth();
@@ -39,12 +41,10 @@ export default function StoragePage() {
     const usedGB = storageQuota ? StorageQuotaService.bytesToGB(storageQuota.usedSpace) : 0;
     const totalGB = storageQuota ? StorageQuotaService.bytesToGB(storageQuota.totalQuota) : 1;
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-full">
-                <div className="w-16 h-16 border-4 border-[#008080]/20 border-t-[#008080] rounded-full animate-spin"></div>
-            </div>
-        );
+    const shouldShowLoading = useMinimumLoading(loading, 6000); // Ensure ConnektStorageLogo animations complete
+
+    if (shouldShowLoading) {
+        return <LoadingScreen variant="storage" />;
     }
 
     return (

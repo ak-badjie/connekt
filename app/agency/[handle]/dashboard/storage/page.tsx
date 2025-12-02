@@ -7,6 +7,8 @@ import { StorageQuotaService, AgencyStorageQuota } from '@/lib/services/storage-
 import { AgencyService } from '@/lib/services/agency-service';
 import { HardDrive, File, Mail, FileText, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
+import LoadingScreen from '@/components/ui/LoadingScreen';
+import { useMinimumLoading } from '@/hooks/useMinimumLoading';
 
 export default function AgencyStoragePage() {
     const params = useParams();
@@ -47,12 +49,10 @@ export default function AgencyStoragePage() {
     const usedGB = agencyStorageQuota ? StorageQuotaService.bytesToGB(agencyStorageQuota.usedSpace) : 0;
     const totalGB = agencyStorageQuota ? StorageQuotaService.bytesToGB(agencyStorageQuota.totalQuota) : 1;
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-full">
-                <div className="w-16 h-16 border-4 border-[#008080]/20 border-t-[#008080] rounded-full animate-spin"></div>
-            </div>
-        );
+    const shouldShowLoading = useMinimumLoading(loading);
+
+    if (shouldShowLoading) {
+        return <LoadingScreen variant="storage" />;
     }
 
     return (

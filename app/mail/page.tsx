@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { MailService, MailMessage } from '@/lib/services/mail-service';
+import { MailService, type MailMessage } from '@/lib/services/mail-service';
 import { ContractMailService } from '@/lib/services/contract-mail-service';
 import { ComposeModal } from '@/components/mail/ComposeModal';
 import { MailHeader } from '@/components/mail/MailHeader';
@@ -14,7 +14,8 @@ import { MailViewerColumn } from '@/components/mail/MailViewerColumn';
 import LoadingScreen from '@/components/ui/LoadingScreen';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { MailAddress, MailCategory } from '@/lib/types/mail.types';
-import ConnektMailLogo from '@/components/mail/ConnektMailLogo';
+import ConnektMailLogo from '@/components/branding/ConnektMailLogo';
+import { useMinimumLoading } from '@/hooks/useMinimumLoading';
 
 export default function MailPage() {
     const { user } = useAuth();
@@ -164,7 +165,9 @@ export default function MailPage() {
         setShowIntro(false);
     };
 
-    if (!user) {
+    const shouldShowLoading = useMinimumLoading(!user || loading);
+
+    if (shouldShowLoading) {
         return <LoadingScreen variant="mail" />;
     }
 
@@ -331,7 +334,7 @@ export default function MailPage() {
                 onAddressChange={setSelectedAddress}
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
-                userProfile={{ displayName: user.displayName, email: user.email }}
+                userProfile={{ displayName: user?.displayName, email: user?.email }}
             />
 
             {/* Three-Column Layout */}

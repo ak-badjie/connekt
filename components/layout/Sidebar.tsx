@@ -7,7 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
 import { Agency } from '@/lib/services/agency-service';
-import { BriefcaseLogo3D } from '@/components/auth/BriefcaseLogo3D';
+import ConnektIcon from '@/components/branding/ConnektIcon';
 import { useState, useEffect } from 'react';
 import { StorageQuotaService, StorageQuota } from '@/lib/services/storage-quota-service';
 
@@ -70,7 +70,7 @@ export function Sidebar({ agency = null }: SidebarProps) {
         { icon: Users, label: 'Teams', href: '/dashboard/teams' },
         { icon: Calendar, label: 'Calendar', href: '/dashboard/calendar' },
         { icon: BarChart2, label: 'Analytics', href: '/analytics' },
-        { icon: Users, label: 'Team', href: '/agency' },
+
         { icon: Wallet, label: 'Wallet', href: '/dashboard/wallet' },
         { icon: UserIcon, label: 'Profile', href: userProfile?.username ? `/@${userProfile.username}` : '#' },
     ];
@@ -81,10 +81,10 @@ export function Sidebar({ agency = null }: SidebarProps) {
     return (
         <aside className="fixed left-4 top-4 bottom-4 w-64 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-white/20 dark:border-white/5 flex flex-col p-6 z-[110] hidden lg:flex transition-all duration-300 overflow-y-auto rounded-3xl shadow-2xl shadow-black/5">
             {/* Logo Section */}
-            <div className="flex items-center gap-3 mb-8 px-2">
-                <BriefcaseLogo3D size="medium" color="teal" />
+            <Link href="/" className="flex items-center gap-3 mb-8 px-2 cursor-pointer hover:opacity-80 transition-opacity">
+                <ConnektIcon className="w-12 h-12 text-[#008080]" />
                 <span className="text-xl font-bold font-headline text-[#008080] tracking-widest">CONNEKT</span>
-            </div>
+            </Link>
 
             <div className="space-y-1 mb-8">
                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 px-3">Menu</h3>
