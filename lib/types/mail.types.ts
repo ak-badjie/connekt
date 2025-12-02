@@ -269,7 +269,7 @@ export interface ContractTerms {
     paymentAmount?: number;       // For fixed/hourly/monthly
     paymentRangeMin?: number;     // For range-based
     paymentRangeMax?: number;     // For range-based
-    paymentCurrency?: string;     // Default: USD
+    paymentCurrency?: string;     // Default: GMD
     paymentSchedule?: string;     // e.g., "Monthly on 1st", "Upon completion"
 
     // Timeline

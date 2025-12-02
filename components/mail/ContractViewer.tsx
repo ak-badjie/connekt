@@ -131,7 +131,7 @@ export default function ContractViewer({ contract, onSign, onReject }: ContractV
                         <div className="grid grid-cols-2 gap-4 text-sm">
                             {contract.terms.paymentAmount && (
                                 <div>
-                                    <span className="font-semibold">Payment:</span> {contract.terms.paymentAmount} {contract.terms.paymentCurrency || 'USD'}
+                                    <span className="font-semibold">Payment:</span> {contract.terms.paymentAmount} {contract.terms.paymentCurrency || 'GMD'}
                                 </div>
                             )}
                             {contract.terms.paymentType && (
@@ -217,8 +217,8 @@ export default function ContractViewer({ contract, onSign, onReject }: ContractV
                         <p className="text-sm text-amber-900 dark:text-amber-200">
                             <strong>Payment Enforcement:</strong> This contract locks payment to{' '}
                             {contract.enforcement.paymentAmount
-                                ? `${contract.enforcement.paymentAmount} ${contract.terms.paymentCurrency || 'USD'}`
-                                : `${contract.enforcement.paymentRangeMin}-${contract.enforcement.paymentRangeMax} ${contract.terms.paymentCurrency || 'USD'}`
+                                ? `${contract.enforcement.paymentAmount} ${contract.terms.paymentCurrency || 'GMD'}`
+                                : `${contract.enforcement.paymentRangeMin}-${contract.enforcement.paymentRangeMax} ${contract.terms.paymentCurrency || 'GMD'}`
                             }
                         </p>
                     </div>

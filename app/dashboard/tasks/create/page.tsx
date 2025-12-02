@@ -24,7 +24,7 @@ export default function CreateTaskPage() {
         dueDate: '',
         estimatedHours: '',
         amount: '',
-        currency: 'USD'
+        currency: 'GMD'
     });
     const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -296,7 +296,7 @@ export default function CreateTaskPage() {
                                 onChange={handleChange}
                                 className="w-full px-4 py-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#008080]/20"
                             >
-                                <option value="USD">USD</option>
+                                <option value="GMD">GMD</option>
                                 <option value="EUR">EUR</option>
                                 <option value="GBP">GBP</option>
                             </select>

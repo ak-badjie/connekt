@@ -12,7 +12,9 @@ import {
     increment,
     arrayUnion,
     orderBy,
-    limit as firestoreLimit
+    limit as firestoreLimit,
+    runTransaction,
+    Timestamp
 } from 'firebase/firestore';
 import { NotificationService } from './notification-service';
 import type { Wallet, WalletTransaction, EscrowHold, PaymentRequest, WalletStats } from '@/lib/types/wallet.types';
@@ -37,7 +39,7 @@ export const WalletService = {
             ownerId,
             ownerType,
             balance: 0,
-            currency: 'USD',
+            currency: 'GMD',
             transactions: [],
             escrowHolds: [],
             createdAt: serverTimestamp(),
@@ -116,6 +118,85 @@ export const WalletService = {
     },
 
     /**
+     * Process top-up transaction atomically
+     */
+    async processTopUpTransaction(
+        walletId: string,
+        amount: number,
+        referenceId: string,
+        description: string,
+        metadata?: Record<string, any>
+    ): Promise<{ success: boolean; message: string }> {
+        return await runTransaction(db, async (transaction) => {
+            const walletRef = doc(db, 'wallets', walletId);
+            const walletDoc = await transaction.get(walletRef);
+
+            if (!walletDoc.exists()) {
+                throw new Error('Wallet not found');
+            }
+
+            const walletData = walletDoc.data() as Wallet;
+            const transactions = walletData.transactions || [];
+
+            // Idempotency Check: Check if transaction with this referenceId already exists
+            const exists = transactions.some(t => t.referenceId === referenceId);
+            if (exists) {
+                return { success: true, message: 'Transaction already processed' };
+            }
+
+            // Create new transaction object
+            const newTransaction: WalletTransaction = {
+                id: `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                type: 'deposit',
+                walletId,
+                amount,
+                currency: 'GMD',
+                description,
+                status: 'completed',
+                referenceId,
+                createdAt: Timestamp.now(),
+                metadata // Save metadata (e.g., paymentMethod)
+            };
+
+            // Update wallet atomically: increment balance AND add transaction
+            transaction.update(walletRef, {
+                balance: increment(amount),
+                transactions: arrayUnion(newTransaction),
+                updatedAt: serverTimestamp()
+            });
+
+            // Create notification (after transaction, though technically outside atomic block, it's safe enough for notifs)
+            try {
+                const userId = walletId.replace('user_', ''); // Extract userId
+                await NotificationService.createNotification(
+                    userId,
+                    'transaction',
+                    'Wallet Top-up Successful',
+                    `Your wallet has been credited with ${newTransaction.currency} ${amount.toFixed(2)}.`,
+                    'high',
+                    {
+                        type: 'transaction',
+                        transactionId: newTransaction.id!,
+                        transactionType: 'deposit',
+                        amount: amount,
+                        currency: newTransaction.currency,
+                        fromUserId: 'system',
+                        toUserId: userId,
+                        relatedEntityId: referenceId,
+                        relatedEntityType: 'subscription' as any // Generic entity type for top-ups
+                    },
+                    '/dashboard/wallet',
+                    'View Wallet'
+                );
+            } catch (e) {
+                console.error('Failed to send notification for top-up', e);
+            }
+
+            return { success: true, message: 'Top-up successful' };
+        });
+    },
+
+    /**
      * Get transaction history for a wallet
      */
     async getTransactionHistory(
@@ -178,7 +259,7 @@ export const WalletService = {
         await this.addTransaction(fromWalletId, {
             type: 'escrow_hold',
             walletId: fromWalletId,
-            currency: 'USD',
+            currency: 'GMD',
             amount: -amount,
             description: `Escrow hold for contract ${contractId}`,
             relatedEntityId: contractId,
@@ -196,7 +277,7 @@ export const WalletService = {
             toWalletId,
             fromUserId,
             toUserId,
-            currency: 'USD',
+            currency: 'GMD',
             status: 'held',
             createdAt: serverTimestamp(),
             heldAt: serverTimestamp()
@@ -211,14 +292,14 @@ export const WalletService = {
                 fromUserId,
                 'transaction',
                 'Escrow Hold Initiated',
-                `$${amount.toFixed(2)} has been held in escrow for contract.`,
+                `D${amount.toFixed(2)} has been held in escrow for contract.`,
                 'high',
                 {
                     type: 'transaction',
                     transactionId: escrowId,
                     transactionType: 'escrow_hold',
                     amount: -amount,
-                    currency: 'USD',
+                    currency: 'GMD',
                     fromUserId,
                     toUserId,
                     relatedEntityId: contractId,
@@ -233,14 +314,14 @@ export const WalletService = {
                 toUserId,
                 'transaction',
                 'Escrow Payment Pending',
-                `$${amount.toFixed(2)} is being held in escrow for your contract.`,
+                `D${amount.toFixed(2)} is being held in escrow for your contract.`,
                 'medium',
                 {
                     type: 'transaction',
                     transactionId: escrowId,
                     transactionType: 'escrow_hold',
                     amount,
-                    currency: 'USD',
+                    currency: 'GMD',
                     fromUserId,
                     toUserId,
                     relatedEntityId: contractId,
@@ -279,7 +360,7 @@ export const WalletService = {
         await this.addTransaction(escrow.toWalletId, {
             type: 'escrow_release',
             walletId: escrow.toWalletId,
-            currency: 'USD',
+            currency: 'GMD',
             amount: escrow.amount,
             description: `Escrow release for contract ${contractId}`,
             relatedEntityId: contractId,
@@ -299,14 +380,14 @@ export const WalletService = {
                 escrow.toUserId,
                 'transaction',
                 'Payment Received',
-                `$${escrow.amount.toFixed(2)} has been released from escrow.`,
+                `D${escrow.amount.toFixed(2)} has been released from escrow.`,
                 'high',
                 {
                     type: 'transaction',
                     transactionId: escrowId,
                     transactionType: 'escrow_release',
                     amount: escrow.amount,
-                    currency: 'USD',
+                    currency: 'GMD',
                     fromUserId: escrow.fromUserId,
                     toUserId: escrow.toUserId,
                     relatedEntityId: contractId,
@@ -343,7 +424,7 @@ export const WalletService = {
         await this.addTransaction(escrow.fromWalletId, {
             type: 'refund',
             walletId: escrow.fromWalletId,
-            currency: 'USD',
+            currency: 'GMD',
             amount: escrow.amount,
             description: `Escrow refund for contract ${contractId}: ${reason || 'Contract cancelled'}`,
             relatedEntityId: contractId,
@@ -364,14 +445,14 @@ export const WalletService = {
                 escrow.fromUserId,
                 'transaction',
                 'Escrow Refunded',
-                `$${escrow.amount.toFixed(2)} has been refunded. Reason: ${reason || 'Contract cancelled'}`,
+                `D${escrow.amount.toFixed(2)} has been refunded. Reason: ${reason || 'Contract cancelled'}`,
                 'medium',
                 {
                     type: 'transaction',
                     transactionId: escrowId,
                     transactionType: 'refund',
                     amount: escrow.amount,
-                    currency: 'USD',
+                    currency: 'GMD',
                     fromUserId: escrow.fromUserId,
                     toUserId: escrow.toUserId,
                     relatedEntityId: contractId,
@@ -416,7 +497,7 @@ export const WalletService = {
             const senderTxnId = await this.addTransaction(fromWalletId, {
                 type: 'payment',
                 walletId: fromWalletId,
-                currency: 'USD',
+                currency: 'GMD',
                 amount: -amount,
                 description,
                 relatedEntityId,
@@ -429,7 +510,7 @@ export const WalletService = {
             await this.addTransaction(toWalletId, {
                 type: 'payment',
                 walletId: toWalletId,
-                currency: 'USD',
+                currency: 'GMD',
                 amount,
                 description,
                 relatedEntityId,
@@ -443,14 +524,14 @@ export const WalletService = {
                     paymentRequest.fromUserId,
                     'transaction',
                     'Payment Sent',
-                    `$${amount.toFixed(2)} sent successfully.`,
+                    `D${amount.toFixed(2)} sent successfully.`,
                     'medium',
                     {
                         type: 'transaction',
                         transactionId: senderTxnId,
                         transactionType: 'payment',
                         amount: -amount,
-                        currency: 'USD',
+                        currency: 'GMD',
                         fromUserId: paymentRequest.fromUserId,
                         toUserId: paymentRequest.toUserId,
                         relatedEntityId,
@@ -465,14 +546,14 @@ export const WalletService = {
                     paymentRequest.toUserId,
                     'transaction',
                     'Payment Received',
-                    `$${amount.toFixed(2)} received.`,
+                    `D${amount.toFixed(2)} received.`,
                     'high',
                     {
                         type: 'transaction',
                         transactionId: senderTxnId,
                         transactionType: 'payment',
                         amount,
-                        currency: 'USD',
+                        currency: 'GMD',
                         fromUserId: paymentRequest.fromUserId,
                         toUserId: paymentRequest.toUserId,
                         relatedEntityId,
@@ -496,7 +577,6 @@ export const WalletService = {
      * Get wallet statistics
      */
     async getWalletStats(walletId: string): Promise<WalletStats> {
-        const wallet = await this.getWallet('', '');
         const transactions = await this.getTransactionHistory(walletId);
 
         const stats: WalletStats = {

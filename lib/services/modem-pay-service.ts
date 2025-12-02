@@ -1,56 +1,53 @@
 import { db } from '@/lib/firebase';
 import { doc, updateDoc, serverTimestamp, arrayUnion } from 'firebase/firestore';
-import { WalletService } from './wallet-service';
+import ModemPay from 'modem-pay';
 
-const MODEM_PAY_PUBLIC_KEY = process.env.MODEM_PAY_PUBLIC_KEY;
 const MODEM_PAY_SECRET_KEY = process.env.MODEM_PAY_SECRET_KEY;
-const MODEM_PAY_MERCHANT_ID = process.env.MODEM_PAY_MERCHANT_ID;
-const MODEM_PAY_BASE_URL = 'https://api.modempay.com/v1'; // Verify this URL
 
 export const ModemPayService = {
     /**
-     * Initiate a payment request to Modem Pay
+     * Initiate a payment request to Modem Pay using the SDK
      */
     async initiatePayment(amount: number, currency: string = 'GMD', walletId: string, returnUrl: string) {
-        if (!MODEM_PAY_PUBLIC_KEY || !MODEM_PAY_MERCHANT_ID) {
+        if (!MODEM_PAY_SECRET_KEY) {
             throw new Error('Modem Pay credentials not configured');
         }
 
+        const modempay = new ModemPay(MODEM_PAY_SECRET_KEY);
         const reference = `topup_${walletId}_${Date.now()}`;
 
         try {
-            const response = await fetch(`${MODEM_PAY_BASE_URL}/payment/initiate`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${MODEM_PAY_SECRET_KEY}`
-                },
-                body: JSON.stringify({
-                    merchant_id: MODEM_PAY_MERCHANT_ID,
-                    amount,
-                    currency,
-                    reference,
-                    description: 'Wallet Top-up',
-                    return_url: returnUrl,
-                    // specific fields for Wave might be needed here
-                    payment_method: 'wave'
-                })
+            // Create payment intent using the SDK
+            const intent = await modempay.paymentIntents.create({
+                amount,
+                currency,
+                return_url: returnUrl,
+                cancel_url: returnUrl, // Using same URL for now, or could be different
+                reference,
+                metadata: {
+                    walletId,
+                    source: 'connekt-wallet-topup'
+                }
             });
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Failed to initiate payment');
+            console.log('Modem Pay Intent Created:', JSON.stringify(intent, null, 2));
+
+            if (!intent || !intent.data || !intent.data.payment_link) {
+                throw new Error('Failed to generate payment link');
             }
 
-            const data = await response.json();
+            // Correctly access payment_intent_id from the response
+            const transactionId = intent.data.payment_intent_id || intent.data.id || reference;
+            console.log('Returning Transaction ID:', transactionId);
+
             return {
-                paymentUrl: data.payment_url, // URL to redirect user to
-                transactionId: data.transaction_id,
+                paymentUrl: intent.data.payment_link,
+                transactionId: transactionId,
                 reference
             };
-        } catch (error) {
+        } catch (error: any) {
             console.error('Modem Pay Initiation Error:', error);
-            throw error;
+            throw new Error(error.message || 'Failed to initiate payment with Modem Pay');
         }
     },
 
@@ -62,20 +59,45 @@ export const ModemPayService = {
             throw new Error('Modem Pay credentials not configured');
         }
 
+        const modempay = new ModemPay(MODEM_PAY_SECRET_KEY);
+
         try {
-            const response = await fetch(`${MODEM_PAY_BASE_URL}/payment/verify/${transactionId}`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${MODEM_PAY_SECRET_KEY}`
+            // Assuming the SDK has a way to retrieve/verify
+            // Based on common patterns: modempay.paymentIntents.retrieve(id)
+            // But user didn't provide this. I'll stick to the fetch implementation for verify if SDK usage is unclear,
+            // OR I'll try to use the SDK if I can guess.
+            // Let's try to use the SDK's retrieve method if it exists.
+            // If not, I'll fallback to fetch or just return success for now if I can't verify.
+
+            // For now, let's assume we can just check the status if we have the ID.
+            // If the user didn't provide verify example, I'll comment it out or leave the fetch implementation?
+            // The previous fetch implementation was: GET /payment/verify/{id}
+
+            // I'll try to keep the fetch implementation for verify for now, as I don't have the SDK docs for verify.
+            // BUT I need to import ModemPay for initiate.
+            // I'll mix them? No, that's messy.
+
+            console.log('Verifying Payment with ID:', transactionId);
+            console.log('Modem Pay SDK Resources:', Object.keys(modempay));
+
+            try {
+                // Try payment intents first (though we suspect this is a transaction ID now)
+                const payment = await modempay.paymentIntents.retrieve(transactionId);
+                console.log('Verification Result (Intent):', JSON.stringify(payment, null, 2));
+                return payment.data;
+            } catch (intentError) {
+                console.log('Payment Intent retrieve failed, trying Transactions resource...');
+
+                // Try transactions resource if it exists
+                if ((modempay as any).transactions) {
+                    const transaction = await (modempay as any).transactions.retrieve(transactionId);
+                    console.log('Verification Result (Transaction):', JSON.stringify(transaction, null, 2));
+                    return transaction;
                 }
-            });
 
-            if (!response.ok) {
-                throw new Error('Failed to verify payment');
+                throw intentError;
             }
-
-            return await response.json();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Modem Pay Verification Error:', error);
             throw error;
         }

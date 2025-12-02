@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { toast } from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
 import { WalletService } from '@/lib/services/wallet-service';
 import { Wallet as WalletType, WalletTransaction, EscrowHold } from '@/lib/types/wallet.types';
@@ -19,6 +20,8 @@ export default function WalletPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isTopUpModalOpen, setIsTopUpModalOpen] = useState(false);
 
+    const verificationAttempted = useRef(false);
+
     useEffect(() => {
         const loadWalletData = async () => {
             if (!user?.uid) return;
@@ -26,6 +29,31 @@ export default function WalletPage() {
             try {
                 setIsLoading(true);
                 const walletId = `user_${user.uid}`;
+
+                // Check for payment return parameters
+                const urlParams = new URLSearchParams(window.location.search);
+                const transactionId = urlParams.get('transaction_id') || urlParams.get('reference');
+
+                if (transactionId && !verificationAttempted.current) {
+                    verificationAttempted.current = true; // Mark as attempted immediately
+                    try {
+                        // Verify payment on server
+                        const verifyRes = await fetch('/api/wallet/verify-payment', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ transactionId, walletId })
+                        });
+
+                        if (verifyRes.ok) {
+                            // Clear URL params
+                            window.history.replaceState({}, '', window.location.pathname);
+                            // Show success toast
+                            toast.success('Payment verified successfully! Your wallet has been credited.');
+                        }
+                    } catch (err) {
+                        console.error('Verification check failed', err);
+                    }
+                }
 
                 // Load wallet
                 let walletData = await WalletService.getWallet(user.uid, 'user');

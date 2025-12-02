@@ -79,10 +79,10 @@ export function EscrowHoldingsList({ holdings, isLoading = false }: EscrowHoldin
                         {/* Status Indicator */}
                         <div className="absolute top-4 right-4">
                             <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold ${isActive
-                                    ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
-                                    : holding.status === 'released'
-                                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400'
+                                ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                                : holding.status === 'released'
+                                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400'
                                 }`}>
                                 {isActive ? <Lock size={12} /> : <Unlock size={12} />}
                                 {holding.status}
@@ -92,7 +92,7 @@ export function EscrowHoldingsList({ holdings, isLoading = false }: EscrowHoldin
                         {/* Amount */}
                         <div className="mb-4">
                             <div className="text-3xl font-black text-gray-900 dark:text-white mb-1">
-                                ${holding.amount.toFixed(2)}
+                                D{holding.amount.toFixed(2)}
                             </div>
                             <div className="text-xs text-gray-500 font-medium">{holding.currency}</div>
                         </div>
