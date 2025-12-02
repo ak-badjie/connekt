@@ -42,12 +42,25 @@ export function TopUpModal({ isOpen, onClose, walletId }: TopUpModalProps) {
                 })
             });
 
+            const text = await response.text();
+            let data;
+
+            try {
+                data = JSON.parse(text);
+            } catch (parseError) {
+                console.error('Failed to parse response:', text);
+                throw new Error('Server error: The server returned an invalid response. Please check the console for details.');
+            }
+
             if (!response.ok) {
-                const data = await response.json();
                 throw new Error(data.error || 'Failed to initiate payment');
             }
 
-            const { paymentUrl } = await response.json();
+            const { paymentUrl } = data;
+
+            if (!paymentUrl) {
+                throw new Error('No payment URL received from server');
+            }
 
             // Redirect to Modem Pay
             window.location.href = paymentUrl;

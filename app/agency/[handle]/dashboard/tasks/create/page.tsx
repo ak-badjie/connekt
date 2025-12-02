@@ -29,7 +29,7 @@ function CreateTaskForm() {
         dueDate: '',
         estimatedHours: '',
         amount: '',
-        currency: 'USD'
+        currency: 'GMD'
     });
 
     const [errors, setErrors] = useState<{ [key: string]: string }>({});

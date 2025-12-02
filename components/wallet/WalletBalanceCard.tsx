@@ -14,7 +14,7 @@ interface WalletBalanceCardProps {
 
 export function WalletBalanceCard({
     balance,
-    currency = 'USD',
+    currency = 'GMD',
     pendingIn = 0,
     pendingOut = 0,
     isAgency = false,
@@ -94,9 +94,11 @@ export function WalletBalanceCard({
                     transition={{ delay: 0.2, duration: 0.5 }}
                 >
                     <div className="text-5xl font-black text-white tracking-tight">
-                        ${balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        D{balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
-                    <div className="text-sm text-teal-100 mt-1">{currency}</div>
+                    <div className="text-sm text-teal-100 mt-1">
+                        {currency === 'GMD' || currency === 'USD' ? 'Gambian Dalasis' : currency}
+                    </div>
                 </motion.div>
 
                 {/* Stats Row */}
@@ -115,7 +117,7 @@ export function WalletBalanceCard({
                             <span className="text-xs text-teal-100 font-medium">Pending In</span>
                         </div>
                         <div className="text-2xl font-bold text-white">
-                            ${pendingIn.toLocaleString()}
+                            D{pendingIn.toLocaleString()}
                         </div>
                     </motion.div>
 
@@ -133,7 +135,7 @@ export function WalletBalanceCard({
                             <span className="text-xs text-teal-100 font-medium">Pending Out</span>
                         </div>
                         <div className="text-2xl font-bold text-white">
-                            ${pendingOut.toLocaleString()}
+                            D{pendingOut.toLocaleString()}
                         </div>
                     </motion.div>
                 </div>

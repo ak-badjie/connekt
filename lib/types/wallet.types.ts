@@ -12,7 +12,7 @@ export interface Wallet {
     ownerId: string; // userId or agencyId
     ownerType: 'user' | 'agency';
     balance: number; // Current available balance
-    currency: string; // Default: 'USD'
+    currency: string; // Default: 'GMD'
     transactions: WalletTransaction[];
     escrowHolds: EscrowHold[];
     createdAt: any; // Timestamp | Date | FieldValue
@@ -32,6 +32,7 @@ export interface WalletTransaction {
     relatedEntityId?: string;
     relatedEntityType?: 'contract' | 'project' | 'task' | 'subscription';
     referenceId?: string;
+    metadata?: Record<string, any>; // Flexible metadata for payment details, etc.
     timestamp?: any; // Timestamp | FieldValue
     createdAt: any; // Timestamp | FieldValue
 }
@@ -60,6 +61,8 @@ export interface EscrowHold {
 export interface PaymentRequest {
     fromWalletId: string;
     toWalletId: string;
+    fromUserId: string;
+    toUserId: string;
     amount: number;
     description: string;
     relatedEntityId?: string;
