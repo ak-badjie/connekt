@@ -6,8 +6,7 @@ import { WorkspaceService } from '@/lib/services/workspace-service';
 import { Workspace } from '@/lib/types/workspace.types';
 import { Plus, Folder, Users, Clock, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import LoadingScreen from '@/components/ui/LoadingScreen';
-import { useMinimumLoading } from '@/hooks/useMinimumLoading';
+
 
 export default function WorkspacesStartupPage() {
     const { user, userProfile } = useAuth();
@@ -44,11 +43,8 @@ export default function WorkspacesStartupPage() {
         router.push(`/dashboard/workspaces/${workspaceId}`);
     };
 
-    const shouldShowLoading = useMinimumLoading(loading, 6000); // ConnektTeamLogo animations
+    // Loading check removed as per request
 
-    if (shouldShowLoading) {
-        return <LoadingScreen variant="team" />;
-    }
 
     return (
         <div className="max-w-[1400px] mx-auto space-y-8">

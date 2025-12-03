@@ -16,6 +16,13 @@ interface LoadingScreenProps {
 }
 
 export default function LoadingScreen({ variant = 'default', className = '' }: LoadingScreenProps) {
+    React.useEffect(() => {
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, []);
+
     const renderLogo = () => {
         switch (variant) {
             case 'mail':
@@ -34,7 +41,7 @@ export default function LoadingScreen({ variant = 'default', className = '' }: L
     };
 
     return (
-        <div className={`fixed inset-0 z-[9999] bg-white flex items-center justify-center ${className}`}>
+        <div className={`fixed inset-0 z-[9999] bg-white flex items-center justify-center overflow-hidden ${className}`}>
             {renderLogo()}
         </div>
     );

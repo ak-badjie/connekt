@@ -7,6 +7,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import LoadingScreen from '@/components/ui/LoadingScreen';
 import { useMinimumLoading } from '@/hooks/useMinimumLoading';
+import { useAnimation } from '@/context/AnimationContext';
 
 // ============= UTILITY FUNCTIONS =============
 const cn = (...classes: (string | undefined | null | false)[]) => {
@@ -467,28 +468,26 @@ export default function Home() {
     router.push(`/marketplace${query}`);
   };
 
-  const { shouldShowAnimation, markPageVisited } = useLoadingSession();
+  const { hasGlobalAnimationRun, setHasGlobalAnimationRun } = useAnimation();
   const [initialLoading, setInitialLoading] = useState(true);
 
   useEffect(() => {
-    const currentPath = '/';
-
-    if (shouldShowAnimation(currentPath)) {
-      // First visit - show animation
-      const timer = setTimeout(() => {
-        setInitialLoading(false);
-        markPageVisited(currentPath);
-      }, 100); // Fast fake load since this is a static page
-      return () => clearTimeout(timer);
-    } else {
-      // Already visited - skip animation
+    // Simulate initial data load
+    const timer = setTimeout(() => {
       setInitialLoading(false);
+    }, 100); // Fast fake load since this is a static page
+    return () => clearTimeout(timer);
+  }, []);
+
+  const shouldShowLoading = useMinimumLoading(initialLoading && !hasGlobalAnimationRun, 6000); // Minimum 6s for branding
+
+  useEffect(() => {
+    if (!shouldShowLoading && !hasGlobalAnimationRun) {
+      setHasGlobalAnimationRun(true);
     }
-  }, [shouldShowAnimation, markPageVisited]);
+  }, [shouldShowLoading, hasGlobalAnimationRun, setHasGlobalAnimationRun]);
 
-  const shouldShowLoading = useMinimumLoading(initialLoading, 6000); // Minimum 6s for branding
-
-  if (shouldShowLoading) {
+  if (shouldShowLoading && !hasGlobalAnimationRun) {
     return <LoadingScreen variant="default" />;
   }
 
