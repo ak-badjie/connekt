@@ -105,7 +105,7 @@ export const WalletService = {
         const fullTransaction: WalletTransaction = {
             ...transaction,
             id: transactionId,
-            createdAt: serverTimestamp()
+            createdAt: Timestamp.now() // Use Timestamp.now() instead of serverTimestamp() for arrayUnion
         };
 
         const walletRef = doc(db, 'wallets', walletId);

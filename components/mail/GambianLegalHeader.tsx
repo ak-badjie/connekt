@@ -13,10 +13,10 @@ interface GambianLegalHeaderProps {
  * Displays the official header for Connekt contract documents under Gambian law.
  * Includes Connekt logo, Gambian Coat of Arms, and Gambian flag.
  * 
- * Note: Placeholder images are used. Replace with actual assets:
- * - /legal/connekt-logo.svg
- * - /legal/gambian-coat-of-arms.svg  
- * - /legal/gambian-flag.svg
+ * Images used:
+ * - /connekt-africa-logo.png
+ * - /gambian_coat_of_arm.jpg  
+ * - /gambian_flag.png
  */
 export default function GambianLegalHeader({
     size = 'medium',
@@ -46,13 +46,12 @@ export default function GambianLegalHeader({
                 {/* Left: Connekt Logo */}
                 {showConnektLogo && (
                     <div className="flex items-center gap-2">
-                        {/* TODO: Replace with actual Connekt logo */}
-                        <div
-                            className="rounded-lg bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center text-white font-bold"
-                            style={{ width: itemSize, height: itemSize }}
-                        >
-                            <span className="text-xl">C</span>
-                        </div>
+                        <img
+                            src="/connekt-africa-logo.png"
+                            alt="Connekt Africa Logo"
+                            style={{ width: itemSize, height: itemSize, objectFit: 'contain' }}
+                            className="rounded-lg"
+                        />
                         <div className="hidden sm:block">
                             <p className="text-sm font-semibold text-gray-900 dark:text-white">Connekt</p>
                             <p className="text-xs text-gray-600 dark:text-gray-400">Gambia Platform</p>
@@ -63,26 +62,12 @@ export default function GambianLegalHeader({
                 {/* Center: Gambian Coat of Arms */}
                 {showCoatOfArms && (
                     <div className="flex flex-col items-center">
-                        {/* TODO: Replace with actual Gambian Coat of Arms SVG */}
-                        <div
-                            className="rounded-full bg-gradient-to-br from-red-600 via-blue-600 to-green-600 flex items-center justify-center shadow-lg"
-                            style={{ width: itemSize, height: itemSize }}
-                        >
-                            <div className="w-2/3 h-2/3 bg-white rounded-full flex items-center justify-center">
-                                <svg
-                                    width="24"
-                                    height="24"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    className="text-blue-600"
-                                >
-                                    <path
-                                        d="M12 2L2 7v6c0 5.5 3.8 10.7 10 12 6.2-1.3 10-6.5 10-12V7l-10-5z"
-                                        fill="currentColor"
-                                    />
-                                </svg>
-                            </div>
-                        </div>
+                        <img
+                            src="/gambian_coat_of_arm.jpg"
+                            alt="Gambian Coat of Arms"
+                            style={{ width: itemSize, height: itemSize, objectFit: 'contain' }}
+                            className="rounded-lg shadow-lg"
+                        />
                         <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mt-1 hidden sm:block">
                             Republic of The Gambia
                         </p>
@@ -92,20 +77,12 @@ export default function GambianLegalHeader({
                 {/* Right: Gambian Flag */}
                 {showGambianFlag && (
                     <div className="flex items-center gap-2">
-                        {/* TODO: Replace with actual Gambian flag image */}
-                        <div
-                            className="border border-gray-300 shadow-md overflow-hidden"
-                            style={{ width: itemSize * 1.5, height: itemSize }}
-                        >
-                            {/* Gambian flag stripes: Red, Blue (with white borders), Green */}
-                            <div className="flex flex-col h-full">
-                                <div className="flex-1 bg-red-600"></div>
-                                <div className="h-0.5 bg-white"></div>
-                                <div className="flex-[2] bg-blue-600"></div>
-                                <div className="h-0.5 bg-white"></div>
-                                <div className="flex-1 bg-green-600"></div>
-                            </div>
-                        </div>
+                        <img
+                            src="/gambian_flag.png"
+                            alt="Gambian Flag"
+                            style={{ width: itemSize * 1.5, height: itemSize, objectFit: 'cover' }}
+                            className="border border-gray-300 shadow-md"
+                        />
                         <div className="hidden sm:block">
                             <p className="text-xs font-medium text-gray-700 dark:text-gray-300">Under</p>
                             <p className="text-xs font-medium text-gray-700 dark:text-gray-300">Gambian Law</p>

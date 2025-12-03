@@ -5,6 +5,9 @@ import { ContractTemplate, ContractVariable } from '@/lib/types/mail.types';
 import { ContractTemplateService } from '@/lib/services/contract-template-service';
 import GambianLegalHeader from './GambianLegalHeader';
 import { SYSTEM_TEMPLATES } from '@/lib/data/contract-templates';
+import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
+import { AIContractDrafterModal } from './ai/AIContractDrafterModal';
+import { useAuth } from '@/context/AuthContext';
 
 interface ContractMailComposerProps {
     onContractGenerated: (contractData: {
@@ -21,6 +24,8 @@ export default function ContractMailComposer({ onContractGenerated }: ContractMa
     const [variables, setVariables] = useState<Record<string, any>>({});
     const [previewMode, setPreviewMode] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [showAIDrafter, setShowAIDrafter] = useState(false);
+    const { user } = useAuth();
 
     useEffect(() => {
         loadTemplates();
@@ -89,11 +94,19 @@ export default function ContractMailComposer({ onContractGenerated }: ContractMa
 
     return (
         <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900 rounded-lg overflow-hidden">
-            {/* Template Selection */}
             <div className="p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Select Contract Template
-                </label>
+                <div className="flex items-center gap-3 mb-2">
+                    <label className="flex-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Select Contract Template
+                    </label>
+                    <button
+                        onClick={() => setShowAIDrafter(true)}
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                        title="AI Contract Drafter"
+                    >
+                        <ConnektAIIcon className="w-5 h-5" />
+                    </button>
+                </div>
                 <select
                     className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     onChange={(e) => handleTemplateSelect(e.target.value)}
@@ -116,8 +129,8 @@ export default function ContractMailComposer({ onContractGenerated }: ContractMa
                             <button
                                 onClick={() => setPreviewMode(false)}
                                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${!previewMode
-                                        ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
-                                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900'
+                                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900'
                                     }`}
                             >
                                 Edit Details
@@ -125,8 +138,8 @@ export default function ContractMailComposer({ onContractGenerated }: ContractMa
                             <button
                                 onClick={() => setPreviewMode(true)}
                                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${previewMode
-                                        ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
-                                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900'
+                                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900'
                                     }`}
                             >
                                 Preview Contract
@@ -209,6 +222,24 @@ export default function ContractMailComposer({ onContractGenerated }: ContractMa
                         Attach Contract to Mail
                     </button>
                 </div>
+            )}
+
+            {/* AI Contract Drafter Modal */}
+            {showAIDrafter && user && (
+                <AIContractDrafterModal
+                    userId={user.uid}
+                    onClose={() => setShowAIDrafter(false)}
+                    onGenerated={(contract) => {
+                        // Find or create a basic template to populate
+                        setVariables({
+                            contractContent: contract,
+                            projectName: 'AI Generated Contract'
+                        });
+                        setShowAIDrafter(false);
+                        // Switch to preview mode to show the generated contract
+                        setPreviewMode(true);
+                    }}
+                />
             )}
         </div>
     );

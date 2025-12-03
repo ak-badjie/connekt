@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     MapPin, Calendar, Mail, Edit, Briefcase, GraduationCap,
     Star, Github, Linkedin, Twitter, Globe, Camera, Video,
     Award, Users, TrendingUp, Clock, Target, Play, Settings,
-    Plus, Link as LinkIcon, Heart, MessageCircle, GripVertical
+    Plus, Link as LinkIcon, Heart, MessageCircle, GripVertical, Sparkles,
+    FileText, Lightbulb, ChevronDown
 } from 'lucide-react';
 import {
     DndContext,
@@ -34,6 +36,11 @@ import { TrailerVideoSection } from './TrailerVideoSection';
 import { ExperienceForm } from './ExperienceForm';
 import { EducationForm } from './EducationForm';
 import { CustomSectionCreator } from './CustomSectionCreator';
+import { AIResumeParserModal } from './ai/AIResumeParserModal';
+import { AIBioEnhancer } from './ai/AIBioEnhancer';
+import { AISkillSuggester } from './ai/AISkillSuggester';
+import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
+import { useAIAccess } from '@/hooks/useAIAccess';
 
 interface UserProfileProps {
     user: ExtendedUserProfile;
@@ -41,12 +48,21 @@ interface UserProfileProps {
 }
 
 export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
+    const router = useRouter();
     const [user, setUser] = useState(initialUser);
     const [showPrivacySettings, setShowPrivacySettings] = useState(false);
     const [isFollowing, setIsFollowing] = useState(false);
     const [projects, setProjects] = useState<any[]>([]);
     const [tasks, setTasks] = useState<any[]>([]);
     const [activeForm, setActiveForm] = useState<'experience' | 'education' | 'custom' | null>(null);
+    const [showAIResumeParser, setShowAIResumeParser] = useState(false);
+    const [showAIToolsMenu, setShowAIToolsMenu] = useState(false);
+    const [isEditingBio, setIsEditingBio] = useState(false);
+    const [bioText, setBioText] = useState(user.bio || '');
+    const [bioError, setBioError] = useState<string | null>(null);
+
+    // AI Access Hook
+    const aiAccess = useAIAccess();
 
     // Section Order State
     const [sectionOrder, setSectionOrder] = useState<string[]>([]);
@@ -346,7 +362,7 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
                                     {user.photoURL ? (
                                         <Image
                                             src={user.photoURL}
-                                            alt={user.displayName}
+                                            alt={user.displayName || user.username || 'User profile picture'}
                                             fill
                                             className="object-cover"
                                         />
@@ -417,7 +433,7 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
                             <div className="flex items-center gap-3">
                                 {isOwner ? (
                                     <>
-                                        {/* Edit Profile Button Removed as requested - "Edit Mode" is automatic */}
+                                        {/* Privacy Settings Button */}
                                         <motion.button
                                             onClick={() => setShowPrivacySettings(!showPrivacySettings)}
                                             whileHover={{ scale: 1.05 }}
@@ -532,6 +548,24 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
                 />
             )}
 
+            {/* AI Resume Parser Modal */}
+            {showAIResumeParser && (
+                <AIResumeParserModal
+                    userId={user.uid}
+                    onClose={() => setShowAIResumeParser(false)}
+                    onParsed={(profileData) => {
+                        // Apply parsed data to user profile
+                        const updatedUser = { ...user, ...profileData };
+                        setUser(updatedUser);
+
+                        // Save to database
+                        ProfileService.updateUserProfile(user.uid, profileData).catch(error => {
+                            console.error('Failed to save parsed profile data:', error);
+                        });
+                    }}
+                />
+            )}
+
             {/* Main Content - Full Scroll Layout */}
             <div className="max-w-7xl mx-auto px-8 py-12">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -583,17 +617,141 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
                             </div>
                         </div>
 
+                        {/* Parse Resume - At Top of All Sections */}
+                        {isOwner && (
+                            <button
+                                onClick={() => setShowAIResumeParser(true)}
+                                className="mb-6 w-full px-5 py-3 bg-white dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-xl font-semibold hover:border-teal-500 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2"
+                            >
+                                <ConnektAIIcon className="w-5 h-5" />
+                                Parse Resume
+                            </button>
+                        )}
+
+                        {/* AI Tools Quick Actions - REMOVED */}
+                        {false && isOwner && (
+                            <div className="profile-section bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm relative z-[5]">
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                    <ConnektAIIcon className="w-5 h-5" />
+                                    Quick Actions
+                                </h3>
+                                <div className="flex flex-wrap gap-3">
+                                    {/* Parse Resume */}
+                                    <button
+                                        onClick={() => setShowAIResumeParser(true)}
+                                        className="flex items-center gap-2 px-5 py-3 bg-white dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-xl font-semibold hover:border-teal-500 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-all shadow-sm hover:shadow-md"
+                                    >
+                                        <ConnektAIIcon className="w-5 h-5" />
+                                        Parse Resume
+                                    </button>
+
+                                    {/* View All Tools */}
+                                    <button
+                                        onClick={() => router.push('intro/ai/catalog')}
+                                        className="flex items-center gap-2 px-5 py-3 bg-white dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-xl font-semibold hover:border-teal-500 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-all shadow-sm hover:shadow-md"
+                                    >
+                                        <ConnektAIIcon className="w-5 h-5" />
+                                        View All Tools
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
                         {/* About */}
                         <div className="profile-section">
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">About</h3>
-                            <p className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
-                                {user.bio || 'No bio added yet.'}
-                            </p>
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-white">About</h3>
+                                {isOwner && (
+                                    <button
+                                        onClick={() => setIsEditingBio(!isEditingBio)}
+                                        className="px-3 py-1.5 text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"
+                                    >
+                                        <Edit className="w-4 h-4" />
+                                        {isEditingBio ? 'Cancel' : 'Edit'}
+                                    </button>
+                                )}
+                            </div>
+
+                            {isEditingBio ? (
+                                <div>
+                                    {/* AI Bio Enhancer - At Top */}
+                                    {aiAccess.hasAccess && (
+                                        <AIBioEnhancer
+                                            currentBio={bioText}
+                                            skills={user.skills}
+                                            experience={user.experience}
+                                            userId={user.uid}
+                                            onEnhanced={(enhanced) => setBioText(enhanced)}
+                                            onError={(error) => setBioError(error)}
+                                        />
+                                    )}
+
+                                    <textarea
+                                        value={bioText}
+                                        onChange={(e) => setBioText(e.target.value)}
+                                        placeholder="Write a compelling bio about yourself..."
+                                        className="w-full p-4 border border-gray-300 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none resize-none"
+                                        rows={5}
+                                    />
+
+                                    {bioError && (
+                                        <p className="text-sm text-red-600 mt-2">{bioError}</p>
+                                    )}
+
+                                    <div className="flex gap-3 mt-3">
+                                        <button
+                                            onClick={async () => {
+                                                try {
+                                                    await ProfileService.updateUserProfile(user.uid, { bio: bioText });
+                                                    setUser({ ...user, bio: bioText });
+                                                    setIsEditingBio(false);
+                                                    setBioError(null);
+                                                } catch (error: any) {
+                                                    setBioError(error.message || 'Failed to save bio');
+                                                }
+                                            }}
+                                            className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-semibold transition-colors"
+                                        >
+                                            Save Bio
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
+                                    {user.bio || 'No bio added yet.'}
+                                </p>
+                            )}
                         </div>
 
                         {/* Skills */}
                         <div className="profile-section">
                             <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Skills & Expertise</h3>
+
+                            {/* AI Skill Suggester - Only for Profile Owner */}
+                            {isOwner && (
+                                <AISkillSuggester
+                                    currentSkills={user.skills || []}
+                                    bio={user.bio}
+                                    experience={user.experience}
+                                    userId={user.uid}
+                                    onSkillsAdded={async (newSkills) => {
+                                        // Combine existing and new skills, remove duplicates
+                                        const combinedSkills = [...(user.skills || []), ...newSkills];
+                                        const uniqueSkills = Array.from(new Set(combinedSkills));
+
+                                        // Update database
+                                        try {
+                                            await ProfileService.updateUserProfile(user.uid, { skills: uniqueSkills });
+                                            // Update local state
+                                            setUser({ ...user, skills: uniqueSkills });
+                                        } catch (error) {
+                                            console.error('Failed to save skills:', error);
+                                        }
+                                    }}
+                                    onError={(error) => console.error('Skill suggestion error:', error)}
+                                />
+                            )}
+
                             <div className="flex flex-wrap gap-2">
                                 {user.skills?.map((skill, index) => (
                                     <motion.span
