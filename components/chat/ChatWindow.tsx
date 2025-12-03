@@ -12,6 +12,8 @@ import { Loader2, MoreVertical, Phone, Video, Info, ArrowLeft, HandHelping } fro
 import { useRouter } from 'next/navigation';
 import { MeetingService } from '@/lib/services/meeting-service';
 import { useConference } from '@/components/conference/ConferenceProvider';
+import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
+import { AIConversationSummarizerModal } from './ai/AIConversationSummarizerModal';
 
 interface ChatWindowProps {
     conversationId: string;
@@ -25,6 +27,7 @@ export function ChatWindow({ conversationId, onBack }: ChatWindowProps) {
     const [loading, setLoading] = useState(true);
     const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
     const [selectedHelpMessage, setSelectedHelpMessage] = useState<Message | null>(null);
+    const [showSummarizer, setShowSummarizer] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
     const { startMeeting } = useConference();
@@ -164,6 +167,13 @@ export function ChatWindow({ conversationId, onBack }: ChatWindowProps) {
                     >
                         <Video size={20} />
                     </button>
+                    <button
+                        onClick={() => setShowSummarizer(true)}
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
+                        title="AI Conversation Summarizer"
+                    >
+                        <ConnektAIIcon className="w-5 h-5" />
+                    </button>
                     <button className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors">
                         <Info size={20} />
                     </button>
@@ -214,6 +224,16 @@ export function ChatWindow({ conversationId, onBack }: ChatWindowProps) {
                     onClose={() => setSelectedHelpMessage(null)}
                     message={selectedHelpMessage}
                     conversationId={conversationId}
+                />
+            )}
+
+            {/* AI Conversation Summarizer Modal */}
+            {showSummarizer && user && (
+                <AIConversationSummarizerModal
+                    userId={user.uid}
+                    messages={messages}
+                    lastReadIndex={undefined} // Can be calculated from conversation.memberDetails if needed
+                    onClose={() => setShowSummarizer(false)}
                 />
             )}
         </div>

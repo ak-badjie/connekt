@@ -7,6 +7,9 @@ import ContractMailComposer from './ContractMailComposer';
 import { Signature } from '@/lib/services/mail-service';
 import { Attachment, StorageService } from '@/lib/services/storage-service';
 import { motion, AnimatePresence } from 'framer-motion';
+import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
+import { AIEmailComposerModal } from './ai/AIEmailComposerModal';
+import { useAuth } from '@/context/AuthContext';
 
 interface ComposeModalProps {
     isOpen: boolean;
@@ -47,6 +50,8 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
         templateId?: string;
         terms?: any;
     } | null>(null);
+    const [showAIComposer, setShowAIComposer] = useState(false);
+    const { user } = useAuth();
 
     useEffect(() => {
         if (initialData) {
@@ -371,6 +376,13 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                                 >
                                     <LinkIcon size={18} className="text-gray-600 dark:text-gray-400" />
                                 </button>
+                                <button
+                                    onClick={() => setShowAIComposer(true)}
+                                    className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                                    title="AI Email Composer"
+                                >
+                                    <ConnektAIIcon className="w-[18px] h-[18px]" />
+                                </button>
 
                                 {signatures.length > 0 && (
                                     <select
@@ -422,6 +434,19 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                         </div>
                     )}
                 </motion.div>
+
+                {/* AI Email Composer Modal */}
+                {showAIComposer && user && (
+                    <AIEmailComposerModal
+                        userId={user.uid}
+                        onClose={() => setShowAIComposer(false)}
+                        onGenerated={(email) => {
+                            setSubject(email.subject);
+                            setBody(email.body);
+                            setShowAIComposer(false);
+                        }}
+                    />
+                )}
             </div>
         </AnimatePresence>
     );
