@@ -6,8 +6,7 @@ import { EnhancedProjectService } from '@/lib/services/enhanced-project-service'
 import { Project } from '@/lib/types/workspace.types';
 import { Plus, Briefcase, Users, Calendar, DollarSign, ArrowRight, Star } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import LoadingScreen from '@/components/ui/LoadingScreen';
-import { useMinimumLoading } from '@/hooks/useMinimumLoading';
+
 
 export default function ProjectsStartupPage() {
     const { user, userProfile } = useAuth();
@@ -121,11 +120,8 @@ export default function ProjectsStartupPage() {
         </div>
     );
 
-    const shouldShowLoading = useMinimumLoading(loading, 6000); // ConnektTeamLogo animations
+    // Loading check removed as per request
 
-    if (shouldShowLoading) {
-        return <LoadingScreen variant="team" />;
-    }
 
     const allYourProjects = [...yourProjects, ...assignedProjects];
 

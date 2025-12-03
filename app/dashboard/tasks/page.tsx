@@ -6,8 +6,7 @@ import { TaskService } from '@/lib/services/task-service';
 import { Task } from '@/lib/types/workspace.types';
 import { CheckSquare, Clock, AlertCircle, CheckCircle2, Filter } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import LoadingScreen from '@/components/ui/LoadingScreen';
-import { useMinimumLoading } from '@/hooks/useMinimumLoading';
+
 
 export default function TasksStartupPage() {
     const { user, userProfile } = useAuth();
@@ -73,11 +72,8 @@ export default function TasksStartupPage() {
         done: allTasks.filter(t => t.status === 'done').length,
     };
 
-    const shouldShowLoading = useMinimumLoading(loading, 6000); // ConnektTeamLogo animations
+    // Loading check removed
 
-    if (shouldShowLoading) {
-        return <LoadingScreen variant="team" />;
-    }
 
     return (
         <div className="max-w-[1400px] mx-auto space-y-6">

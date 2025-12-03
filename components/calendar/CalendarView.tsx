@@ -33,7 +33,7 @@ interface CalendarEvent {
 
 import { ScheduleMeetingModal } from './ScheduleMeetingModal';
 
-export function CalendarView() {
+export function CalendarView({ agencyId }: { agencyId?: string }) {
     const { user } = useAuth();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(new Date());
@@ -46,8 +46,13 @@ export function CalendarView() {
             if (!user) return;
             setLoading(true);
             try {
-                // Fetch tasks for the user
-                const tasks = await TaskService.getUserTasks(user.uid);
+                // Fetch tasks based on context (Agency or User)
+                let tasks: Task[] = [];
+                if (agencyId) {
+                    tasks = await TaskService.getAgencyTasks(agencyId);
+                } else {
+                    tasks = await TaskService.getUserTasks(user.uid);
+                }
 
                 const mappedEvents: CalendarEvent[] = tasks
                     .filter(t => t.timeline?.dueDate) // Only tasks with due dates
@@ -62,7 +67,8 @@ export function CalendarView() {
                         priority: t.priority
                     }));
 
-                // Fetch meetings for the user
+                // Fetch meetings for the user (meetings are usually user-centric, but could be agency-wide later)
+                // For now, we still fetch user's meetings as they are the viewer
                 const meetings = await MeetingService.getUpcomingMeetings(user.uid);
 
                 const mappedMeetings: CalendarEvent[] = meetings.map(m => ({
@@ -82,7 +88,7 @@ export function CalendarView() {
         };
 
         fetchEvents();
-    }, [user]);
+    }, [user, agencyId]);
 
     const monthStart = startOfMonth(currentDate);
     const monthEnd = endOfMonth(monthStart);

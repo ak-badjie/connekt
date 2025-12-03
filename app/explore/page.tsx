@@ -13,6 +13,7 @@ import { ExploreSidebar } from '@/components/explore/ExploreSidebar';
 import { AdvertisementBanner } from '@/components/explore/AdvertisementBanner';
 import LoadingScreen from '@/components/ui/LoadingScreen';
 import { useMinimumLoading } from '@/hooks/useMinimumLoading';
+import { useAnimation } from '@/context/AnimationContext';
 
 export default function ExplorePage() {
     const { user, userProfile } = useAuth();
@@ -72,9 +73,16 @@ export default function ExplorePage() {
         loadData();
     }, [viewMode, filters, userProfile]);
 
-    const shouldShowLoading = useMinimumLoading(isLoading);
+    const { hasGlobalAnimationRun, setHasGlobalAnimationRun } = useAnimation();
+    const shouldShowLoading = useMinimumLoading(isLoading && !hasGlobalAnimationRun);
 
-    if (shouldShowLoading) {
+    useEffect(() => {
+        if (!shouldShowLoading && !hasGlobalAnimationRun) {
+            setHasGlobalAnimationRun(true);
+        }
+    }, [shouldShowLoading, hasGlobalAnimationRun, setHasGlobalAnimationRun]);
+
+    if (shouldShowLoading && !hasGlobalAnimationRun) {
         return <LoadingScreen variant="default" />;
     }
 

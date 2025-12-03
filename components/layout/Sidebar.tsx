@@ -53,25 +53,26 @@ export function Sidebar({ agency = null }: SidebarProps) {
     }, [user, userProfile, agency]);
 
     const menuItems = agency ? [
-        { icon: LayoutGrid, label: 'Dashboard', href: `/agency/${agency.username}/dashboard` },
-        { icon: FolderKanban, label: 'Workspaces', href: `/agency/${agency.username}/dashboard/workspaces` },
-        { icon: Briefcase, label: 'Projects', href: `/agency/${agency.username}/dashboard/projects` },
-        { icon: CheckSquare, label: 'Tasks', href: `/agency/${agency.username}/dashboard/tasks` },
-        { icon: Users, label: 'Teams', href: `/agency/${agency.username}/dashboard/teams` },
-        { icon: Calendar, label: 'Calendar', href: `/agency/${agency.username}/dashboard/calendar` },
-        { icon: Users, label: 'Team', href: `/agency/${agency.username}/dashboard/team-management` }, // Keeping original Team for now, maybe merge later?
+        { icon: LayoutGrid, label: 'Teams', href: `/agency/${agency.username}/dashboard` },
+        { icon: FolderKanban, label: 'Workspaces', href: `/agency/${agency.username}/dashboard/workspaces`, indent: true },
+        { icon: Briefcase, label: 'Projects', href: `/agency/${agency.username}/dashboard/projects`, indent: true },
+        { icon: CheckSquare, label: 'Tasks', href: `/agency/${agency.username}/dashboard/tasks`, indent: true },
+        { icon: Users, label: 'Team Members', href: `/agency/${agency.username}/dashboard/teams`, indent: true },
+        { icon: Calendar, label: 'Calendar', href: `/agency/${agency.username}/dashboard/calendar`, indent: true },
         { icon: Wallet, label: 'Wallet', href: `/agency/${agency.username}/dashboard/wallet` },
+        { icon: HardDrive, label: 'Storage', href: `/agency/${agency.username}/dashboard/storage` },
         { icon: UserIcon, label: 'Profile', href: `/agency/@${agency.username}` },
     ] : [
-        { icon: LayoutGrid, label: 'Dashboard', href: '/dashboard' },
-        { icon: FolderKanban, label: 'Workspaces', href: '/dashboard/workspaces' },
-        { icon: Briefcase, label: 'Projects', href: '/dashboard/projects' },
-        { icon: CheckSquare, label: 'Tasks', href: '/dashboard/tasks' },
-        { icon: Users, label: 'Teams', href: '/dashboard/teams' },
-        { icon: Calendar, label: 'Calendar', href: '/dashboard/calendar' },
+        { icon: LayoutGrid, label: 'Teams', href: '/dashboard' },
+        { icon: FolderKanban, label: 'Workspaces', href: '/dashboard/workspaces', indent: true },
+        { icon: Briefcase, label: 'Projects', href: '/dashboard/projects', indent: true },
+        { icon: CheckSquare, label: 'Tasks', href: '/dashboard/tasks', indent: true },
+        { icon: Users, label: 'Team Members', href: '/dashboard/teams', indent: true },
+        { icon: Calendar, label: 'Calendar', href: '/dashboard/calendar', indent: true },
         { icon: BarChart2, label: 'Analytics', href: '/analytics' },
 
         { icon: Wallet, label: 'Wallet', href: '/dashboard/wallet' },
+        { icon: HardDrive, label: 'Storage', href: '/dashboard/storage' },
         { icon: UserIcon, label: 'Profile', href: userProfile?.username ? `/@${userProfile.username}` : '#' },
     ];
     const storageUsedGB = storageQuota ? StorageQuotaService.bytesToGB(storageQuota.usedSpace) : 0;
@@ -89,17 +90,42 @@ export function Sidebar({ agency = null }: SidebarProps) {
             <div className="space-y-1 mb-8">
                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 px-3">Menu</h3>
                 {menuItems.map((item) => {
-                    const isActive = pathname.startsWith(item.href);
+                    const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+
+                    // Special highlighting logic for "Teams" (formerly Dashboard)
+                    const isTeamsItem = item.label === 'Teams';
+                    const isSubItem = (item as any).indent;
+                    const isTeamToolsActive = menuItems.some(mi => (mi as any).indent && pathname.startsWith(mi.href));
+                    const isOtherMainItemActive = menuItems.some(mi => !(mi as any).indent && mi.label !== 'Teams' && pathname.startsWith(mi.href));
+
+                    let itemClasses = 'text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5 dark:text-gray-400';
+                    let iconClasses = 'text-gray-400 group-hover:text-[#008080]';
+
+                    if (isActive) {
+                        if (isTeamsItem) {
+                            itemClasses = 'bg-[#008080] text-white shadow-lg shadow-teal-500/20';
+                            iconClasses = 'text-white';
+                        } else if (isSubItem) {
+                            itemClasses = 'bg-[#008080]/10 text-[#008080] font-bold border border-[#008080]/20';
+                            iconClasses = 'text-[#008080]';
+                        } else {
+                            // Other main items (Wallet, Storage, etc)
+                            itemClasses = 'bg-[#008080] text-white shadow-lg shadow-teal-500/20';
+                            iconClasses = 'text-white';
+                        }
+                    } else if (isTeamsItem && isTeamToolsActive && !isOtherMainItemActive) {
+                        // Highlight Teams parent if a sub-item is active, BUT NOT if another main item is active
+                        itemClasses = 'bg-[#008080] text-white shadow-lg shadow-teal-500/20';
+                        iconClasses = 'text-white';
+                    }
+
                     return (
                         <Link
                             key={item.href}
                             href={item.href}
-                            className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group ${isActive
-                                ? 'bg-[#008080] text-white shadow-lg shadow-teal-500/20'
-                                : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5 dark:text-gray-400'
-                                }`}
+                            className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group ${itemClasses} ${(item as any).indent ? 'ml-4 border-l-2 border-gray-100 dark:border-zinc-800 pl-4' : ''}`}
                         >
-                            <item.icon size={20} className={isActive ? 'text-white' : 'text-gray-400 group-hover:text-[#008080]'} />
+                            <item.icon size={20} className={iconClasses} />
                             <span className="font-medium">{item.label}</span>
                         </Link>
                     );
@@ -110,40 +136,7 @@ export function Sidebar({ agency = null }: SidebarProps) {
             <div className="space-y-1 mb-auto">
                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 px-3">General</h3>
 
-                {/* ConnektStorage Card - First Item */}
-                <Link
-                    href={agency ? `/agency/${agency.username}/dashboard/storage` : '/dashboard/storage'}
-                    className="mx-3 mb-3 p-4 rounded-2xl bg-white/50 dark:bg-zinc-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-zinc-700/50 hover:border-[#008080]/30 transition-all cursor-pointer block"
-                >
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                            <HardDrive size={16} className="text-[#008080]" />
-                            <span className="text-xs font-bold text-gray-700 dark:text-gray-300">ConnektStorage</span>
-                        </div>
-                        <div className="flex items-center justify-between text-xs">
-                            <span className="text-gray-500 dark:text-gray-400">
-                                {agency ? 'Agency Storage' : 'Your Storage'}
-                            </span>
-                            <span className="font-bold text-gray-700 dark:text-gray-300">
-                                {storageUsedGB.toFixed(2)}GB / {storageTotalGB.toFixed(1)}GB
-                            </span>
-                        </div>
-                        <div className="h-2 bg-gray-200 dark:bg-zinc-700 rounded-full overflow-hidden">
-                            <div
-                                className={`h-full rounded-full transition-all ${storagePercentage > 90
-                                    ? 'bg-gradient-to-r from-red-500 to-red-600'
-                                    : storagePercentage > 75
-                                        ? 'bg-gradient-to-r from-amber-500 to-orange-500'
-                                        : 'bg-gradient-to-r from-[#008080] to-teal-500'
-                                    }`}
-                                style={{ width: `${Math.min(storagePercentage, 100)}%` }}
-                            ></div>
-                        </div>
-                        {agency && (
-                            <p className="text-[10px] text-gray-500">Shared across all members</p>
-                        )}
-                    </div>
-                </Link>
+                {/* ConnektStorage Card Removed from General - Moved to Main Menu */}
 
                 <Link href="/settings" className="flex items-center gap-3 px-3 py-3 rounded-xl text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
                     <Settings size={20} /> Settings
