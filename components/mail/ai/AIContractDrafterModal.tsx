@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Loader2, FileText, Sparkles, Info } from 'lucide-react';
+import { X, Loader2, FileText, Info } from 'lucide-react';
 import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
 import { ConnectAIService } from '@/lib/services/connect-ai.service';
 import { AIGenerationOverlay } from '@/components/profile/ai/AIGenerationOverlay';
@@ -10,7 +10,7 @@ import { AIGenerationOverlay } from '@/components/profile/ai/AIGenerationOverlay
 interface AIContractDrafterModalProps {
     userId: string;
     onClose: () => void;
-    onGenerated: (contract: string) => void;
+    onGenerated: (contractData: Record<string, any>) => void;
 }
 
 const CONTRACT_TYPES = [
@@ -54,12 +54,12 @@ export function AIContractDrafterModal({ userId, onClose, onGenerated }: AIContr
             };
 
             // Generate contract
-            const contract = await ConnectAIService.draftContract(contractType as any, variables, userId);
+            const contractData = await ConnectAIService.draftContract(contractType as any, variables, userId);
 
             // Track usage
             await ConnectAIService.trackUsage(userId, 'contract_drafter', 1200, 0.0012, true);
 
-            onGenerated(contract);
+            onGenerated(contractData);
             onClose();
         } catch (error: any) {
             console.error('Contract generation error:', error);
@@ -123,8 +123,8 @@ export function AIContractDrafterModal({ userId, onClose, onGenerated }: AIContr
                                         key={type.value}
                                         onClick={() => setContractType(type.value)}
                                         className={`p-4 rounded-xl border-2 transition-all text-left ${contractType === type.value
-                                                ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/20'
-                                                : 'border-gray-200 dark:border-gray-700 hover:border-purple-400'
+                                            ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/20'
+                                            : 'border-gray-200 dark:border-gray-700 hover:border-purple-400'
                                             }`}
                                     >
                                         <div className="flex items-start gap-3">

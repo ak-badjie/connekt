@@ -52,10 +52,6 @@ export default function GambianLegalHeader({
                             style={{ width: itemSize, height: itemSize, objectFit: 'contain' }}
                             className="rounded-lg"
                         />
-                        <div className="hidden sm:block">
-                            <p className="text-sm font-semibold text-gray-900 dark:text-white">Connekt</p>
-                            <p className="text-xs text-gray-600 dark:text-gray-400">Gambia Platform</p>
-                        </div>
                     </div>
                 )}
 
@@ -68,9 +64,6 @@ export default function GambianLegalHeader({
                             style={{ width: itemSize, height: itemSize, objectFit: 'contain' }}
                             className="rounded-lg shadow-lg"
                         />
-                        <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mt-1 hidden sm:block">
-                            Republic of The Gambia
-                        </p>
                     </div>
                 )}
 
@@ -83,21 +76,12 @@ export default function GambianLegalHeader({
                             style={{ width: itemSize * 1.5, height: itemSize, objectFit: 'cover' }}
                             className="border border-gray-300 shadow-md"
                         />
-                        <div className="hidden sm:block">
-                            <p className="text-xs font-medium text-gray-700 dark:text-gray-300">Under</p>
-                            <p className="text-xs font-medium text-gray-700 dark:text-gray-300">Gambian Law</p>
-                        </div>
                     </div>
                 )}
             </div>
 
             {/* Legal Disclaimer Bar */}
-            <div className="bg-gray-200 dark:bg-gray-800 px-8 py-2 print:bg-gray-100">
-                <p className="text-xs text-center text-gray-700 dark:text-gray-300">
-                    This is a legally binding contract registered under the laws of the Republic of The Gambia
-                    {' '}• Enforced by Connekt Platform
-                </p>
-            </div>
+
         </div>
     );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import {
     Bold,
     Italic,
@@ -14,15 +14,9 @@ import {
     Code,
     Link as LinkIcon,
     Image as ImageIcon,
-    AlignLeft,
-    AlignCenter,
-    AlignRight,
     Undo,
-    Redo,
-    Eye,
-    EyeOff
+    Redo
 } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
 
 interface AdvancedRichTextEditorProps {
     value: string;
@@ -37,130 +31,65 @@ export function AdvancedRichTextEditor({
     placeholder = 'Write your message...',
     minHeight = '300px'
 }: AdvancedRichTextEditorProps) {
-    const [showPreview, setShowPreview] = useState(false);
-    const [history, setHistory] = useState<string[]>([value]);
-    const [historyIndex, setHistoryIndex] = useState(0);
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const editorRef = useRef<HTMLDivElement>(null);
+    const [isFocused, setIsFocused] = useState(false);
 
-    // Save to history for undo/redo
-    const saveToHistory = useCallback((newValue: string) => {
-        const newHistory = history.slice(0, historyIndex + 1);
-        newHistory.push(newValue);
-        setHistory(newHistory);
-        setHistoryIndex(newHistory.length - 1);
-    }, [history, historyIndex]);
-
-    // Handle text change
-    const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        const newValue = e.target.value;
-        onChange(newValue);
-        saveToHistory(newValue);
-    };
-
-    // Insert text at cursor position
-    const insertAtCursor = (before: string, after: string = '', placeholder: string = '') => {
-        const textarea = textareaRef.current;
-        if (!textarea) return;
-
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        const selectedText = value.substring(start, end);
-        const textToInsert = selectedText || placeholder;
-
-        const newValue =
-            value.substring(0, start) +
-            before + textToInsert + after +
-            value.substring(end);
-
-        onChange(newValue);
-        saveToHistory(newValue);
-
-        // Set cursor position
-        setTimeout(() => {
-            textarea.focus();
-            const newCursorPos = start + before.length + textToInsert.length;
-            textarea.setSelectionRange(newCursorPos, newCursorPos);
-        }, 0);
-    };
-
-    // Insert text at start of line
-    const insertAtLineStart = (prefix: string) => {
-        const textarea = textareaRef.current;
-        if (!textarea) return;
-
-        const start = textarea.selectionStart;
-        const lines = value.split('\n');
-        let currentPos = 0;
-        let lineIndex = 0;
-
-        // Find which line the cursor is on
-        for (let i = 0; i < lines.length; i++) {
-            currentPos += lines[i].length + 1; // +1 for \n
-            if (currentPos > start) {
-                lineIndex = i;
-                break;
-            }
+    // Initialize editor content
+    useEffect(() => {
+        if (editorRef.current && !isFocused) {
+            // Convert value to HTML (assuming it might be markdown)
+            // For now, just set it as is. In production, you might want to convert markdown to HTML
+            editorRef.current.innerHTML = value || '';
         }
+    }, [value, isFocused]);
 
-        lines[lineIndex] = prefix + lines[lineIndex];
-        const newValue = lines.join('\n');
-        onChange(newValue);
-        saveToHistory(newValue);
-
-        textarea.focus();
+    const handleInput = () => {
+        if (editorRef.current) {
+            const html = editorRef.current.innerHTML;
+            onChange(html);
+        }
     };
 
-    // Formatting functions
-    const formatBold = () => insertAtCursor('**', '**', 'bold text');
-    const formatItalic = () => insertAtCursor('*', '*', 'italic text');
-    const formatUnderline = () => insertAtCursor('<u>', '</u>', 'underlined text');
-    const formatH1 = () => insertAtLineStart('# ');
-    const formatH2 = () => insertAtLineStart('## ');
-    const formatH3 = () => insertAtLineStart('### ');
-    const formatBulletList = () => insertAtLineStart('- ');
-    const formatNumberedList = () => insertAtLineStart('1. ');
-    const formatQuote = () => insertAtLineStart('> ');
-    const formatCode = () => insertAtCursor('`', '`', 'code');
-    const formatCodeBlock = () => insertAtCursor('\n```\n', '\n```\n', 'code block');
+    const execCommand = (command: string, value?: string) => {
+        document.execCommand(command, false, value);
+        editorRef.current?.focus();
+        handleInput();
+    };
+
+    const formatBold = () => execCommand('bold');
+    const formatItalic = () => execCommand('italic');
+    const formatUnderline = () => execCommand('underline');
+    const formatH1 = () => execCommand('formatBlock', '<h1>');
+    const formatH2 = () => execCommand('formatBlock', '<h2>');
+    const formatH3 = () => execCommand('formatBlock', '<h3>');
+    const formatBulletList = () => execCommand('insertUnorderedList');
+    const formatNumberedList = () => execCommand('insertOrderedList');
+    const formatQuote = () => execCommand('formatBlock', '<blockquote>');
 
     const insertLink = () => {
         const url = prompt('Enter URL:');
         if (url) {
-            insertAtCursor('[', `](${url})`, 'link text');
+            execCommand('createLink', url);
         }
     };
 
     const insertImage = () => {
         const url = prompt('Enter image URL:');
         if (url) {
-            insertAtCursor('![', `](${url})`, 'image description');
+            execCommand('insertImage', url);
         }
     };
 
-    // Undo/Redo
-    const undo = () => {
-        if (historyIndex > 0) {
-            const newIndex = historyIndex - 1;
-            setHistoryIndex(newIndex);
-            onChange(history[newIndex]);
-        }
-    };
+    const undo = () => execCommand('undo');
+    const redo = () => execCommand('redo');
 
-    const redo = () => {
-        if (historyIndex < history.length - 1) {
-            const newIndex = historyIndex + 1;
-            setHistoryIndex(newIndex);
-            onChange(history[newIndex]);
-        }
-    };
-
-    const ToolbarButton = ({ onClick, icon: Icon, title, disabled = false }: any) => (
+    const ToolbarButton = ({ onClick, icon: Icon, title }: any) => (
         <button
             type="button"
             onClick={onClick}
-            disabled={disabled}
             title={title}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-700 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-700 rounded-lg transition-colors"
+            onMouseDown={(e) => e.preventDefault()} // Prevent losing focus
         >
             <Icon size={18} className="text-gray-600 dark:text-gray-400" />
         </button>
@@ -174,7 +103,7 @@ export function AdvancedRichTextEditor({
                 <div className="flex items-center gap-0.5 pr-2 border-r border-gray-300 dark:border-zinc-700">
                     <ToolbarButton onClick={formatBold} icon={Bold} title="Bold (Ctrl+B)" />
                     <ToolbarButton onClick={formatItalic} icon={Italic} title="Italic (Ctrl+I)" />
-                    <ToolbarButton onClick={formatUnderline} icon={Underline} title="Underline" />
+                    <ToolbarButton onClick={formatUnderline} icon={Underline} title="Underline (Ctrl+U)" />
                 </div>
 
                 {/* Headings */}
@@ -191,11 +120,6 @@ export function AdvancedRichTextEditor({
                     <ToolbarButton onClick={formatQuote} icon={Quote} title="Quote" />
                 </div>
 
-                {/* Code */}
-                <div className="flex items-center gap-0.5 pr-2 border-r border-gray-300 dark:border-zinc-700">
-                    <ToolbarButton onClick={formatCode} icon={Code} title="Inline Code" />
-                </div>
-
                 {/* Insert */}
                 <div className="flex items-center gap-0.5 pr-2 border-r border-gray-300 dark:border-zinc-700">
                     <ToolbarButton onClick={insertLink} icon={LinkIcon} title="Insert Link" />
@@ -203,91 +127,75 @@ export function AdvancedRichTextEditor({
                 </div>
 
                 {/* Undo/Redo */}
-                <div className="flex items-center gap-0.5 pr-2 border-r border-gray-300 dark:border-zinc-700">
-                    <ToolbarButton
-                        onClick={undo}
-                        icon={Undo}
-                        title="Undo"
-                        disabled={historyIndex === 0}
-                    />
-                    <ToolbarButton
-                        onClick={redo}
-                        icon={Redo}
-                        title="Redo"
-                        disabled={historyIndex === history.length - 1}
-                    />
-                </div>
-
-                {/* Preview Toggle */}
                 <div className="flex items-center gap-0.5">
-                    <button
-                        type="button"
-                        onClick={() => setShowPreview(!showPreview)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${showPreview
-                            ? 'bg-[#008080] text-white'
-                            : 'bg-gray-200 dark:bg-zinc-700 text-gray-600 dark:text-gray-400'
-                            }`}
-                    >
-                        {showPreview ? (
-                            <span className="flex items-center gap-1">
-                                <Eye size={14} /> Preview
-                            </span>
-                        ) : (
-                            <span className="flex items-center gap-1">
-                                <EyeOff size={14} /> Edit
-                            </span>
-                        )}
-                    </button>
+                    <ToolbarButton onClick={undo} icon={Undo} title="Undo (Ctrl+Z)" />
+                    <ToolbarButton onClick={redo} icon={Redo} title="Redo (Ctrl+Y)" />
                 </div>
             </div>
 
-            {/* Editor/Preview Area */}
+            {/* Editor Area */}
             <div className="flex-1 overflow-hidden" style={{ minHeight }}>
-                {showPreview ? (
-                    <div className="h-full overflow-y-auto p-4 prose prose-sm dark:prose-invert max-w-none">
-                        <ReactMarkdown>{value || '*No content to preview*'}</ReactMarkdown>
-                    </div>
-                ) : (
-                    <textarea
-                        ref={textareaRef}
-                        value={value}
-                        onChange={handleChange}
-                        placeholder={placeholder}
-                        className="w-full h-full p-4 bg-transparent outline-none resize-none text-gray-900 dark:text-white placeholder-gray-400"
-                        onKeyDown={(e) => {
-                            // Handle keyboard shortcuts
-                            if (e.ctrlKey || e.metaKey) {
-                                switch (e.key.toLowerCase()) {
-                                    case 'b':
-                                        e.preventDefault();
-                                        formatBold();
-                                        break;
-                                    case 'i':
-                                        e.preventDefault();
-                                        formatItalic();
-                                        break;
-                                    case 'z':
-                                        if (e.shiftKey) {
-                                            e.preventDefault();
-                                            redo();
-                                        } else {
-                                            e.preventDefault();
-                                            undo();
-                                        }
-                                        break;
-                                }
-                            }
-                        }}
-                    />
-                )}
+                <div
+                    ref={editorRef}
+                    contentEditable
+                    onInput={handleInput}
+                    onFocus={() => setIsFocused(true)}
+                    onBlur={() => setIsFocused(false)}
+                    className="w-full h-full p-4 outline-none resize-none text-gray-900 dark:text-white prose prose-sm dark:prose-invert max-w-none overflow-y-auto"
+                    style={{
+                        minHeight: minHeight,
+                        cursor: 'text'
+                    }}
+                    data-placeholder={placeholder}
+                    suppressContentEditableWarning
+                />
             </div>
 
-            {/* Character Count */}
+            {/* Character Count - Count text content, not HTML */}
             <div className="px-4 py-2 border-t border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900">
                 <span className="text-xs text-gray-500">
-                    {value.length} characters
+                    {editorRef.current?.textContent?.length || 0} characters
                 </span>
             </div>
+
+            <style jsx>{`
+                [contenteditable]:empty:before {
+                    content: attr(data-placeholder);
+                    color: #9ca3af;
+                    pointer-events: none;
+                    position: absolute;
+                }
+                [contenteditable] h1 {
+                    font-size: 2em;
+                    font-weight: bold;
+                    margin: 0.67em 0;
+                }
+                [contenteditable] h2 {
+                    font-size: 1.5em;
+                    font-weight: bold;
+                    margin: 0.75em 0;
+                }
+                [contenteditable] h3 {
+                    font-size: 1.17em;
+                    font-weight: bold;
+                    margin: 0.83em 0;
+                }
+                [contenteditable] blockquote {
+                    border-left: 4px solid #d1d5db;
+                    padding-left: 1em;
+                    margin: 1em 0;
+                    font-style: italic;
+                    color: #6b7280;
+                }
+                [contenteditable] ul, [contenteditable] ol {
+                    padding-left: 2em;
+                    margin: 1em 0;
+                }
+                [contenteditable] a {
+                    color: #3b82f6;
+                    text-decoration: underline;
+                }
+            `}</style>
         </div>
     );
 }

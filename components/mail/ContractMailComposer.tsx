@@ -8,6 +8,7 @@ import { SYSTEM_TEMPLATES } from '@/lib/data/contract-templates';
 import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
 import { AIContractDrafterModal } from './ai/AIContractDrafterModal';
 import { useAuth } from '@/context/AuthContext';
+import ReactMarkdown from 'react-markdown';
 
 interface ContractMailComposerProps {
     onContractGenerated: (contractData: {
@@ -22,7 +23,6 @@ export default function ContractMailComposer({ onContractGenerated }: ContractMa
     const [templates, setTemplates] = useState<ContractTemplate[]>([]);
     const [selectedTemplate, setSelectedTemplate] = useState<ContractTemplate | null>(null);
     const [variables, setVariables] = useState<Record<string, any>>({});
-    const [previewMode, setPreviewMode] = useState(false);
     const [loading, setLoading] = useState(true);
     const [showAIDrafter, setShowAIDrafter] = useState(false);
     const { user } = useAuth();
@@ -33,8 +33,6 @@ export default function ContractMailComposer({ onContractGenerated }: ContractMa
 
     const loadTemplates = async () => {
         try {
-            // In a real app, we would await ContractTemplateService.getSystemTemplates();
-            // For now, we use the static system templates directly to ensure they appear immediately
             setTemplates(SYSTEM_TEMPLATES as unknown as ContractTemplate[]);
             setLoading(false);
         } catch (error) {
@@ -48,7 +46,6 @@ export default function ContractMailComposer({ onContractGenerated }: ContractMa
         if (template) {
             setSelectedTemplate(template);
             setVariables({});
-            setPreviewMode(false);
         }
     };
 
@@ -56,6 +53,14 @@ export default function ContractMailComposer({ onContractGenerated }: ContractMa
         setVariables(prev => ({
             ...prev,
             [key]: value
+        }));
+    };
+
+    const handleAIGenerated = (contractData: Record<string, any>) => {
+        // Populate form fields with AI-generated data
+        setVariables(prev => ({
+            ...prev,
+            ...contractData
         }));
     };
 
@@ -94,6 +99,7 @@ export default function ContractMailComposer({ onContractGenerated }: ContractMa
 
     return (
         <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900 rounded-lg overflow-hidden">
+            {/* Header */}
             <div className="p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                 <div className="flex items-center gap-3 mb-2">
                     <label className="flex-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -101,10 +107,11 @@ export default function ContractMailComposer({ onContractGenerated }: ContractMa
                     </label>
                     <button
                         onClick={() => setShowAIDrafter(true)}
-                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                         title="AI Contract Drafter"
                     >
                         <ConnektAIIcon className="w-5 h-5" />
+                        <span className="text-sm font-medium">AI Contract Drafter</span>
                     </button>
                 </div>
                 <select
@@ -122,56 +129,15 @@ export default function ContractMailComposer({ onContractGenerated }: ContractMa
             </div>
 
             {selectedTemplate && (
-                <div className="flex-1 overflow-y-auto p-4">
-                    {/* Mode Toggle */}
-                    <div className="flex justify-end mb-4">
-                        <div className="bg-gray-200 dark:bg-gray-700 rounded-lg p-1 flex">
-                            <button
-                                onClick={() => setPreviewMode(false)}
-                                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${!previewMode
-                                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
-                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900'
-                                    }`}
-                            >
-                                Edit Details
-                            </button>
-                            <button
-                                onClick={() => setPreviewMode(true)}
-                                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${previewMode
-                                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
-                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900'
-                                    }`}
-                            >
-                                Preview Contract
-                            </button>
-                        </div>
-                    </div>
-
-                    {previewMode ? (
-                        <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
-                            <GambianLegalHeader
-                                size="small"
-                                showConnektLogo={selectedTemplate.headerConfig?.showConnektLogo}
-                                showCoatOfArms={selectedTemplate.headerConfig?.showCoatOfArms}
-                                showGambianFlag={selectedTemplate.headerConfig?.showGambianFlag}
-                            />
-                            <div className="p-8 prose dark:prose-invert max-w-none">
-                                <div dangerouslySetInnerHTML={{
-                                    __html: ContractTemplateService.renderTemplate(selectedTemplate.bodyTemplate, variables).replace(/\n/g, '<br/>')
-                                }} />
-
-                                <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-                                    <h3 className="text-lg font-semibold mb-4">Standard Terms</h3>
-                                    <div className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
-                                        {selectedTemplate.defaultTerms}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="flex-1 flex overflow-hidden">
+                    {/* Left Side: Form Fields */}
+                    <div className="w-1/2 p-4 overflow-y-auto border-r border-gray-200 dark:border-gray-700">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                            Contract Details
+                        </h3>
+                        <div className="space-y-4">
                             {selectedTemplate.variables.map((variable) => (
-                                <div key={variable.key} className={variable.type === 'text' && variable.label.includes('Description') ? 'col-span-2' : ''}>
+                                <div key={variable.key}>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                         {variable.label} {variable.required && <span className="text-red-500">*</span>}
                                     </label>
@@ -209,10 +175,42 @@ export default function ContractMailComposer({ onContractGenerated }: ContractMa
                                 </div>
                             ))}
                         </div>
-                    )}
+                    </div>
+
+                    {/* Right Side: Live Preview */}
+                    <div className="w-1/2 p-4 overflow-y-auto bg-white dark:bg-gray-800">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                            Live Preview
+                        </h3>
+                        <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                            <GambianLegalHeader
+                                size="small"
+                                showConnektLogo={selectedTemplate.headerConfig?.showConnektLogo}
+                                showCoatOfArms={selectedTemplate.headerConfig?.showCoatOfArms}
+                                showGambianFlag={selectedTemplate.headerConfig?.showGambianFlag}
+                            />
+                            <div className="p-8 prose dark:prose-invert max-w-none prose-p:my-4 prose-p:leading-relaxed prose-headings:mt-8 prose-headings:mb-4 prose-li:my-2">
+                                <div className="space-y-4">
+                                    <ReactMarkdown>
+                                        {ContractTemplateService.renderTemplate(selectedTemplate.bodyTemplate, variables)}
+                                    </ReactMarkdown>
+                                </div>
+
+                                <div className="mt-12 pt-8 border-t-2 border-gray-200 dark:border-gray-700">
+                                    <h3 className="text-lg font-semibold mb-6">Standard Terms</h3>
+                                    <div className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed space-y-3">
+                                        <ReactMarkdown>
+                                            {selectedTemplate.defaultTerms}
+                                        </ReactMarkdown>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
 
+            {/* Footer */}
             {selectedTemplate && (
                 <div className="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex justify-end">
                     <button
@@ -229,15 +227,9 @@ export default function ContractMailComposer({ onContractGenerated }: ContractMa
                 <AIContractDrafterModal
                     userId={user.uid}
                     onClose={() => setShowAIDrafter(false)}
-                    onGenerated={(contract) => {
-                        // Find or create a basic template to populate
-                        setVariables({
-                            contractContent: contract,
-                            projectName: 'AI Generated Contract'
-                        });
+                    onGenerated={(contractData) => {
+                        handleAIGenerated(contractData);
                         setShowAIDrafter(false);
-                        // Switch to preview mode to show the generated contract
-                        setPreviewMode(true);
                     }}
                 />
             )}

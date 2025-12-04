@@ -85,6 +85,7 @@ export default function CreateAgencyPage() {
             const agency = await AgencyService.createAgency({
                 name: agencyName,
                 username: agencyUsername,
+                agencyType: 'va_collective', // Default to VA collective, can be changed later
                 logoUrl,
                 ownerId: user.uid,
                 ownerAgencyEmail: `${personalHandle}@${agencyUsername}.com`

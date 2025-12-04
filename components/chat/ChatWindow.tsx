@@ -169,10 +169,11 @@ export function ChatWindow({ conversationId, onBack }: ChatWindowProps) {
                     </button>
                     <button
                         onClick={() => setShowSummarizer(true)}
-                        className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
+                        className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
                         title="AI Conversation Summarizer"
                     >
                         <ConnektAIIcon className="w-5 h-5" />
+                        <span className="text-sm font-medium">AI Summarizer</span>
                     </button>
                     <button className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors">
                         <Info size={20} />
