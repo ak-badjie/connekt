@@ -138,19 +138,20 @@ export const MailService = {
             senderName: fromAddress.displayName,
             senderAddress: fromAddress.address,
             senderMailType: fromAddress.type,
-            senderAgencyId: fromAddress.agencyId,
+            ...(fromAddress.agencyId && { senderAgencyId: fromAddress.agencyId }),
             recipientId: recipientId,
             recipientUsername: recipientUsername,
             recipientAddress: toAddress,
             recipientMailType: isAgencyMail ? 'agency' : 'personal',
+            ...(isAgencyMail && { recipientAgencyId: undefined }), // TODO: Get actual agency ID
             subject,
             body,
-            attachments: attachments || [],
+            ...(attachments && attachments.length > 0 && { attachments }),
             isRead: false,
             folder: 'inbox',
-            category,
-            signatureId,
-            contractId,
+            ...(category && { category }),
+            ...(signatureId && { signatureId }),
+            ...(contractId && { contractId }),
             createdAt: serverTimestamp()
         };
 
@@ -194,7 +195,15 @@ export const MailService = {
     /**
      * Original sendMail for backward compatibility
      */
-    async sendMail(senderId: string, senderUsername: string, senderName: string, recipientUsername: string, subject: string, body: string) {
+    async sendMail(
+        senderId: string,
+        senderUsername: string,
+        senderName: string,
+        recipientUsername: string,
+        subject: string,
+        body: string,
+        contractId?: string
+    ) {
         const fromAddress: MailAddress = {
             address: `${senderUsername}@connekt.com`,
             type: 'personal',
@@ -207,7 +216,11 @@ export const MailService = {
             fromAddress,
             `${recipientUsername}@connekt.com`,
             subject,
-            body
+            body,
+            undefined, // attachments
+            undefined, // category
+            undefined, // signatureId
+            contractId // Pass contractId through
         );
     },
 

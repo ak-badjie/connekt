@@ -8,6 +8,18 @@ import { EnhancedProjectService } from '@/lib/services/enhanced-project-service'
 import { Project } from '@/lib/types/workspace.types';
 import { Loader2, CheckSquare, ArrowLeft, Check, Calendar, DollarSign, Clock } from 'lucide-react';
 
+// Add shake animation
+const shakeAnimation = `
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+.animate-shake {
+    animation: shake 0.5s ease-in-out;
+}
+`;
+
 export default function CreateTaskPage() {
     const { user, userProfile } = useAuth();
     const router = useRouter();
@@ -33,6 +45,8 @@ export default function CreateTaskPage() {
         remaining: number;
         currency?: string;
     } | null>(null);
+    const [isOverBudget, setIsOverBudget] = useState(false);
+    const [shakeAmount, setShakeAmount] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -60,6 +74,22 @@ export default function CreateTaskPage() {
                 .catch(console.error);
         }
     }, [formData.projectId]);
+
+    // Real-time budget validation effect
+    useEffect(() => {
+        if (budgetStatus && formData.amount) {
+            const amount = parseFloat(formData.amount);
+            const overBudget = amount > budgetStatus.remaining;
+            setIsOverBudget(overBudget);
+
+            if (overBudget) {
+                setShakeAmount(true);
+                setTimeout(() => setShakeAmount(false), 500);
+            }
+        } else {
+            setIsOverBudget(false);
+        }
+    }, [formData.amount, budgetStatus]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -152,6 +182,7 @@ export default function CreateTaskPage() {
 
     return (
         <div className="max-w-3xl mx-auto">
+            <style jsx>{shakeAnimation}</style>
             <div className="mb-8">
                 <button
                     onClick={() => router.back()}
@@ -180,20 +211,40 @@ export default function CreateTaskPage() {
                         <label htmlFor="projectId" className="block text-sm font-bold text-gray-900 dark:text-white mb-2">
                             Project *
                         </label>
-                        <select
-                            id="projectId"
-                            name="projectId"
-                            value={formData.projectId}
-                            onChange={handleChange}
-                            className={`w-full px-4 py-3 bg-white dark:bg-zinc-800 border ${errors.projectId ? 'border-red-500' : 'border-gray-200 dark:border-zinc-700'
-                                } rounded-xl focus:outline-none focus:ring-2 focus:ring-[#008080]/20`}
-                        >
-                            {projects.map(project => (
-                                <option key={project.id} value={project.id}>
-                                    {project.title}
-                                </option>
-                            ))}
-                        </select>
+                        <div className="flex items-center gap-3">
+                            <select
+                                id="projectId"
+                                name="projectId"
+                                value={formData.projectId}
+                                onChange={handleChange}
+                                className={`flex-1 px-4 py-3 bg-white dark:bg-zinc-800 border ${errors.projectId ? 'border-red-500' : 'border-gray-200 dark:border-zinc-700'
+                                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-[#008080]/20`}
+                            >
+                                {projects.map(project => (
+                                    <option key={project.id} value={project.id}>
+                                        {project.title}
+                                    </option>
+                                ))}
+                            </select>
+                            {budgetStatus && (
+                                <div className={`px-4 py-2 rounded-xl border transition-all ${budgetStatus.remaining <= 0
+                                    ? 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-800'
+                                    : budgetStatus.remaining < budgetStatus.totalBudget * 0.3
+                                        ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-300 dark:border-amber-800'
+                                        : 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-800'
+                                    }`}>
+                                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Remaining</div>
+                                    <div className={`text-sm font-bold ${budgetStatus.remaining <= 0
+                                        ? 'text-red-600 dark:text-red-400'
+                                        : budgetStatus.remaining < budgetStatus.totalBudget * 0.3
+                                            ? 'text-amber-600 dark:text-amber-400'
+                                            : 'text-green-600 dark:text-green-400'
+                                        }`}>
+                                        {budgetStatus.currency || 'GMD'} {budgetStatus.remaining.toFixed(2)}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                         {errors.projectId && <p className="mt-2 text-sm text-red-500">{errors.projectId}</p>}
                     </div>
 
@@ -318,10 +369,10 @@ export default function CreateTaskPage() {
                             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                                 <div
                                     className={`h-2 rounded-full transition-all ${budgetStatus.spent / budgetStatus.totalBudget > 0.9
-                                            ? 'bg-red-500'
-                                            : budgetStatus.spent / budgetStatus.totalBudget > 0.7
-                                                ? 'bg-amber-500'
-                                                : 'bg-green-500'
+                                        ? 'bg-red-500'
+                                        : budgetStatus.spent / budgetStatus.totalBudget > 0.7
+                                            ? 'bg-amber-500'
+                                            : 'bg-green-500'
                                         }`}
                                     style={{ width: `${Math.min((budgetStatus.spent / budgetStatus.totalBudget) * 100, 100)}%` }}
                                 />
@@ -335,6 +386,11 @@ export default function CreateTaskPage() {
                             <label htmlFor="amount" className="block text-sm font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
                                 <DollarSign size={16} className="text-[#008080]" />
                                 Payment Amount *
+                                {isOverBudget && budgetStatus && (
+                                    <span className="text-xs text-red-600 dark:text-red-400 font-normal ml-auto animate-pulse">
+                                        ⚠️ Exceeds remaining by {budgetStatus.currency || 'GMD'} {(parseFloat(formData.amount) - budgetStatus.remaining).toFixed(2)}
+                                    </span>
+                                )}
                             </label>
                             <input
                                 type="number"
@@ -345,8 +401,11 @@ export default function CreateTaskPage() {
                                 min="0"
                                 step="0.01"
                                 placeholder="0.00"
-                                className={`w-full px-4 py-3 bg-white dark:bg-zinc-800 border ${errors.amount ? 'border-red-500' : 'border-gray-200 dark:border-zinc-700'
-                                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-[#008080]/20`}
+                                className={`w-full px-4 py-3 bg-white dark:bg-zinc-800 border transition-all ${errors.amount || isOverBudget
+                                    ? 'border-red-500 ring-2 ring-red-500/30 dark:ring-red-400/30'
+                                    : 'border-gray-200 dark:border-zinc-700'
+                                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-[#008080]/20 ${shakeAmount ? 'animate-shake' : ''
+                                    }`}
                             />
                             {errors.amount && <p className="mt-2 text-sm text-red-500">{errors.amount}</p>}
                         </div>

@@ -32,7 +32,8 @@ export const ContractMailService = {
         title: string,
         description: string,
         terms: ContractTerms,
-        expiresIn?: number // days
+        expiresIn?: number, // days
+        defaultTerms?: string // Standard terms from template
     ): Promise<string> {
         // Create contract
         const contract: Partial<Contract> = {
@@ -46,6 +47,7 @@ export const ContractMailService = {
             toMailAddress,
             title,
             description,
+            defaultTerms, // Store standard terms
             terms,
             createdAt: serverTimestamp(),
             expiresAt: expiresIn ? new Date(Date.now() + expiresIn * 24 * 60 * 60 * 1000) : undefined
@@ -57,15 +59,15 @@ export const ContractMailService = {
         // Send notification mail
         const mailBody = this.generateContractMailBody(type, title, description, terms, contractId);
 
-        // TODO: Implement sendMailFromAddress when mail address structure is ready
-        // For now, use basic sendMail
+        // Send notification mail with contractId attached
         await MailService.sendMail(
             fromUserId,
             fromUsername,
             fromUsername, // displayName
             toUsername,
             title,
-            mailBody
+            mailBody,
+            contractId // Pass contractId so it appears in mail document
         );
 
         return contractId;
@@ -176,6 +178,69 @@ export const ContractMailService = {
             respondedAt: serverTimestamp(),
             rejectionReason: reason
         });
+    },
+
+    /**
+     * Sign a contract with digital signature
+     */
+    async signContract(
+        contractId: string,
+        userId: string,
+        fullName: string,
+        ipAddress?: string,
+        userAgent?: string
+    ): Promise<void> {
+        const contractRef = doc(db, 'contracts', contractId);
+        const contractSnap = await getDoc(contractRef);
+
+        if (!contractSnap.exists()) {
+            throw new Error('Contract not found');
+        }
+
+        const contract = contractSnap.data() as Contract;
+
+        if (contract.toUserId !== userId) {
+            throw new Error('Unauthorized to sign this contract');
+        }
+
+        if (contract.status !== 'pending') {
+            throw new Error('Contract is not in pending state');
+        }
+
+        // Generate signature hash
+        const contractContent = JSON.stringify(contract);
+        const signatureHash = await this.generateHash(contractContent);
+
+        const signature = {
+            userId,
+            username: fullName,
+            signedAt: serverTimestamp(),
+            ipAddress,
+            userAgent,
+            signatureHash
+        };
+
+        // Update contract with signature
+        const currentSignatures = contract.signatures || [];
+        await updateDoc(contractRef, {
+            signatures: [...currentSignatures, signature],
+            status: 'accepted',
+            respondedAt: serverTimestamp()
+        });
+
+        // Execute contract-specific actions
+        await this.executeContractAcceptance(contract);
+    },
+
+    /**
+     * Generate SHA-256 hash for signature
+     */
+    async generateHash(content: string): Promise<string> {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(content);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     },
 
     /**

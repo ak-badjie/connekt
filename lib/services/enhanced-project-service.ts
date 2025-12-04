@@ -278,6 +278,32 @@ export const EnhancedProjectService = {
     },
 
     /**
+     * Remove member from project
+     */
+    async removeMember(projectId: string, userId: string): Promise<void> {
+        const project = await this.getProject(projectId);
+        if (!project) throw new Error('Project not found');
+
+        // Remove from project members array
+        const updatedMembers = project.members.filter(m => m.userId !== userId);
+
+        await updateDoc(doc(db, 'projects', projectId), {
+            members: updatedMembers,
+            updatedAt: serverTimestamp()
+        });
+
+        // Remove from project chat
+        try {
+            const chat = await ChatService.getConversationByContextId(projectId, 'project');
+            if (chat) {
+                await ChatService.removeMember(chat.id, userId);
+            }
+        } catch (error) {
+            console.error('Failed to remove member from project chat:', error);
+        }
+    },
+
+    /**
      * Update project status
      */
     async updateStatus(
