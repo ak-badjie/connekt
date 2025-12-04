@@ -151,7 +151,12 @@ export const AgencyService = {
      */
     async getAgencyByUsername(username: string): Promise<Agency | null> {
         try {
-            const normalizedUsername = username.toLowerCase().trim();
+            let normalizedUsername = username.toLowerCase().trim();
+
+            // Remove @ prefix if present (from URL params)
+            if (normalizedUsername.startsWith('@') || normalizedUsername.startsWith('%40')) {
+                normalizedUsername = normalizedUsername.replace(/^(@|%40)/, '');
+            }
 
             // Get agency ID from username mapping
             const usernameDoc = await getDoc(doc(db, 'agency_usernames', normalizedUsername));

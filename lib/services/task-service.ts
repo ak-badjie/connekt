@@ -30,6 +30,32 @@ export const TaskService = {
         pricing: TaskPricing;
         createdBy: string;
     }): Promise<string> {
+        // Validate budget before creating task
+        try {
+            const { EnhancedProjectService } = await import('./enhanced-project-service');
+            const budgetStatus = await EnhancedProjectService.getProjectBudgetStatus(data.projectId);
+
+            // Check if task amount exceeds remaining budget (only if currencies match or no project currency set)
+            const taskCurrency = data.pricing.currency;
+            const projectCurrency = budgetStatus.currency;
+
+            if (!projectCurrency || taskCurrency === projectCurrency) {
+                if (data.pricing.amount > budgetStatus.remaining) {
+                    throw new Error(
+                        `Task budget (${taskCurrency} ${data.pricing.amount}) exceeds remaining project budget (${projectCurrency || taskCurrency} ${budgetStatus.remaining.toFixed(2)}). ` +
+                        `Total budget: ${budgetStatus.totalBudget.toFixed(2)}, Already allocated: ${budgetStatus.spent.toFixed(2)}`
+                    );
+                }
+            }
+        } catch (error: any) {
+            // If it's a budget validation error, rethrow it
+            if (error.message.includes('exceeds remaining project budget')) {
+                throw error;
+            }
+            // Otherwise, log the error and continue (budget check is not critical)
+            console.warn('Budget validation failed:', error);
+        }
+
         const task: Omit<Task, 'id'> = {
             projectId: data.projectId,
             workspaceId: data.workspaceId,
@@ -378,6 +404,49 @@ export const TaskService = {
         await updateDoc(taskRef, {
             isPublic: false,
             publishedAt: null
+        });
+    },
+
+    /**
+     * Update task budget/pricing
+     */
+    async updateTaskBudget(
+        taskId: string,
+        amount: number,
+        currency: string
+    ): Promise<void> {
+        const task = await this.getTask(taskId);
+        if (!task) throw new Error('Task not found');
+
+        // Validate against project budget
+        try {
+            const { EnhancedProjectService } = await import('./enhanced-project-service');
+            const budgetStatus = await EnhancedProjectService.getProjectBudgetStatus(task.projectId);
+
+            // Calculate what the new total would be if we update this task
+            const currentTaskAmount = task.pricing?.amount || 0;
+            const difference = amount - currentTaskAmount;
+            const newRemaining = budgetStatus.remaining - difference;
+
+            if (budgetStatus.currency && currency !== budgetStatus.currency) {
+                console.warn(`Task currency (${currency}) doesn't match project currency (${budgetStatus.currency})`);
+            } else if (newRemaining < 0) {
+                throw new Error(
+                    `Updated task budget (${currency} ${amount}) would exceed project budget. ` +
+                    `Current remaining: ${budgetStatus.remaining.toFixed(2)}, Difference: ${difference.toFixed(2)}`
+                );
+            }
+        } catch (error: any) {
+            if (error.message.includes('would exceed project budget')) {
+                throw error;
+            }
+            console.warn('Budget validation failed:', error);
+        }
+
+        await updateDoc(doc(db, 'tasks', taskId), {
+            'pricing.amount': amount,
+            'pricing.currency': currency,
+            updatedAt: serverTimestamp()
         });
     }
 };

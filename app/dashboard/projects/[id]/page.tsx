@@ -19,22 +19,29 @@ export default function ProjectDetailPage() {
     const [tasks, setTasks] = useState<Task[]>([]);
     const [isOwner, setIsOwner] = useState(false);
     const [isSupervisor, setIsSupervisor] = useState(false);
+    const [budgetStatus, setBudgetStatus] = useState<{
+        totalBudget: number;
+        spent: number;
+        remaining: number;
+    } | null>(null);
 
     useEffect(() => {
         if (user && projectId) {
             const fetchData = async () => {
                 try {
-                    const [projectData, tasksData, ownerCheck, supervisorCheck] = await Promise.all([
+                    const [projectData, tasksData, ownerCheck, supervisorCheck, budgetData] = await Promise.all([
                         EnhancedProjectService.getProject(projectId),
                         TaskService.getProjectTasks(projectId),
                         EnhancedProjectService.isOwner(projectId, user.uid),
-                        EnhancedProjectService.isSupervisor(projectId, user.uid)
+                        EnhancedProjectService.isSupervisor(projectId, user.uid),
+                        EnhancedProjectService.getProjectBudgetStatus(projectId)
                     ]);
 
                     setProject(projectData);
                     setTasks(tasksData);
                     setIsOwner(ownerCheck);
                     setIsSupervisor(supervisorCheck);
+                    setBudgetStatus(budgetData);
                 } catch (error) {
                     console.error('Error fetching project:', error);
                 } finally {
@@ -137,14 +144,16 @@ export default function ProjectDetailPage() {
                                     }
                                 }}
                                 className={`px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${project.isPublic
-                                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/40'
-                                        : 'bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700'
+                                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/40'
+                                    : 'bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700'
                                     }`}
                             >
                                 {project.isPublic ? <Eye size={16} /> : <Globe size={16} />}
                                 {project.isPublic ? 'Public' : 'Push to Public'}
                             </button>
-                            <button className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors">
+                            <button
+                                onClick={() => router.push(`/dashboard/projects/${projectId}/settings`)}
+                                className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors">
                                 <Settings size={18} />
                             </button>
                         </>
@@ -170,7 +179,16 @@ export default function ProjectDetailPage() {
                         </div>
                         <div>
                             <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Budget</div>
-                            <div className="font-bold text-gray-900 dark:text-white">${project.budget || 0}</div>
+                            <div className="font-bold text-gray-900 dark:text-white">
+                                {budgetStatus ? (
+                                    <span className={budgetStatus.remaining < 0 ? 'text-red-600' : ''}>
+                                        ${budgetStatus.spent.toFixed(0)} / ${budgetStatus.totalBudget.toFixed(0)}
+                                        <span className="text-xs ml-1">({budgetStatus.remaining >= 0 ? `$${budgetStatus.remaining.toFixed(0)} left` : 'Over budget!'})</span>
+                                    </span>
+                                ) : (
+                                    `$${project.budget || 0}`
+                                )}
+                            </div>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">

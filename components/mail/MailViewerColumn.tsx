@@ -1,8 +1,11 @@
 'use client';
 
-import { Reply, Forward, Trash2, MoreHorizontal, Paperclip, Download, ExternalLink } from 'lucide-react';
+import { useState } from 'react';
+import { Reply, Forward, Trash2, MoreHorizontal, Paperclip, Download, ExternalLink, FileText } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import type { MailMessage } from '@/lib/services/mail-service';
+import { ContractViewerModal } from './ContractViewerModal';
+import { useAuth } from '@/context/AuthContext';
 
 interface MailViewerColumnProps {
     mail: MailMessage | null;
@@ -17,6 +20,12 @@ export function MailViewerColumn({
     onForward,
     onDelete
 }: MailViewerColumnProps) {
+    const { user } = useAuth();
+    const [showContractViewer, setShowContractViewer] = useState(false);
+
+    // Check if this mail has a contract
+    const hasContract = (mail as any)?.contractId;
+
     if (!mail) {
         return (
             <div className="flex-1 bg-white dark:bg-zinc-900 flex flex-col items-center justify-center text-gray-400">
@@ -105,13 +114,52 @@ export function MailViewerColumn({
 
             {/* Mail Body */}
             <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-                <div className="prose prose-sm dark:prose-invert max-w-none">
+                <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-3 prose-p:leading-relaxed">
                     <ReactMarkdown>{mail.body}</ReactMarkdown>
                 </div>
+
+                {/* Contract Action Button */}
+                {hasContract && (
+                    <div className="mt-8 p-6 bg-gradient-to-r from-teal-50 to-teal-100 dark:from-teal-900/20 dark:to-teal-800/20 rounded-xl border-2 border-teal-200 dark:border-teal-700">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 bg-teal-600 rounded-lg flex items-center justify-center">
+                                    <FileText className="w-6 h-6 text-white" />
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-gray-900 dark:text-white">Contract Attached</h4>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                                        This email contains a legal contract for your review
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setShowContractViewer(true)}
+                                className="px-6 py-3 bg-gradient-to-r from-teal-600 to-teal-700 text-white font-bold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
+                            >
+                                View Contract
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 {/* Attachments Section (if any) */}
                 {/* TODO: Add attachments display when implemented */}
             </div>
+
+            {/* Contract Viewer Modal */}
+            {hasContract && user && (
+                <ContractViewerModal
+                    contractId={(mail as any).contractId}
+                    userId={user.uid}
+                    isOpen={showContractViewer}
+                    onClose={() => setShowContractViewer(false)}
+                    onSigned={() => {
+                        setShowContractViewer(false);
+                        // Could trigger a reload of the mail here
+                    }}
+                />
+            )}
         </div>
     );
 }

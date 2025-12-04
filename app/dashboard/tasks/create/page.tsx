@@ -27,6 +27,12 @@ export default function CreateTaskPage() {
         currency: 'GMD'
     });
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [budgetStatus, setBudgetStatus] = useState<{
+        totalBudget: number;
+        spent: number;
+        remaining: number;
+        currency?: string;
+    } | null>(null);
 
     useEffect(() => {
         if (user) {
@@ -46,6 +52,15 @@ export default function CreateTaskPage() {
         }
     }, [user, projectIdParam]);
 
+    // Fetch budget status when project changes
+    useEffect(() => {
+        if (formData.projectId) {
+            EnhancedProjectService.getProjectBudgetStatus(formData.projectId)
+                .then(setBudgetStatus)
+                .catch(console.error);
+        }
+    }, [formData.projectId]);
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
@@ -61,6 +76,11 @@ export default function CreateTaskPage() {
         if (!formData.title.trim()) newErrors.title = 'Task title is required';
         if (!formData.description.trim()) newErrors.description = 'Description is required';
         if (!formData.amount || parseFloat(formData.amount) <= 0) newErrors.amount = 'Payment amount must be greater than 0';
+
+        // Budget validation
+        if (budgetStatus && parseFloat(formData.amount) > budgetStatus.remaining) {
+            newErrors.amount = `Amount exceeds remaining budget (${budgetStatus.currency || 'GMD'} ${budgetStatus.remaining.toFixed(2)})`;
+        }
 
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
@@ -90,14 +110,19 @@ export default function CreateTaskPage() {
                 pricing: {
                     amount: parseFloat(formData.amount),
                     currency: formData.currency,
-                    paymentStatus: 'pending'
+                    paymentStatus: 'unpaid'
                 }
             });
 
             router.push(`/dashboard/tasks/${taskId}`);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error creating task:', error);
-            alert('Failed to create task. Please try again.');
+            // Show specific error message
+            if (error.message?.includes('exceeds remaining project budget')) {
+                setErrors({ amount: error.message });
+            } else {
+                alert('Failed to create task. Please try again.');
+            }
         } finally {
             setLoading(false);
         }
@@ -262,6 +287,47 @@ export default function CreateTaskPage() {
                             />
                         </div>
                     </div>
+
+                    {/* Budget Status Display */}
+                    {budgetStatus && (
+                        <div className="bg-gradient-to-r from-blue-50 to-teal-50 dark:from-blue-900/20 dark:to-teal-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+                            <div className="flex items-center gap-2 mb-3">
+                                <DollarSign size={18} className="text-blue-600 dark:text-blue-400" />
+                                <h3 className="font-bold text-gray-900 dark:text-white">Project Budget Status</h3>
+                            </div>
+                            <div className="grid grid-cols-3 gap-4 mb-3">
+                                <div>
+                                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Budget</div>
+                                    <div className="font-bold text-gray-900 dark:text-white">
+                                        {budgetStatus.currency || 'GMD'} {budgetStatus.totalBudget.toFixed(2)}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Allocated</div>
+                                    <div className="font-bold text-amber-600 dark:text-amber-400">
+                                        {budgetStatus.currency || 'GMD'} {budgetStatus.spent.toFixed(2)}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Remaining</div>
+                                    <div className={`font-bold ${budgetStatus.remaining > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                        {budgetStatus.currency || 'GMD'} {budgetStatus.remaining.toFixed(2)}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                <div
+                                    className={`h-2 rounded-full transition-all ${budgetStatus.spent / budgetStatus.totalBudget > 0.9
+                                            ? 'bg-red-500'
+                                            : budgetStatus.spent / budgetStatus.totalBudget > 0.7
+                                                ? 'bg-amber-500'
+                                                : 'bg-green-500'
+                                        }`}
+                                    style={{ width: `${Math.min((budgetStatus.spent / budgetStatus.totalBudget) * 100, 100)}%` }}
+                                />
+                            </div>
+                        </div>
+                    )}
 
                     {/* Payment Info */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

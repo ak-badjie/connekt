@@ -40,7 +40,7 @@ export const WorkspaceService = {
                 username: data.ownerUsername,
                 email: data.ownerEmail,
                 role: 'owner',
-                joinedAt: serverTimestamp()
+                joinedAt: Timestamp.now()
             }],
             isActive: true,
             createdAt: serverTimestamp(),
@@ -138,7 +138,7 @@ export const WorkspaceService = {
     ): Promise<void> {
         const workspaceMember: WorkspaceMember = {
             ...member,
-            joinedAt: serverTimestamp()
+            joinedAt: Timestamp.now()
         };
 
         await updateDoc(doc(db, 'workspaces', workspaceId), {

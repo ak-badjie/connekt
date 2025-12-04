@@ -11,10 +11,12 @@ import {
     serverTimestamp,
     orderBy,
     arrayUnion,
-    arrayRemove
+    arrayRemove,
+    Timestamp
 } from 'firebase/firestore';
-import { Project, ProjectMember } from '@/lib/types/workspace.types';
+import { Project, ProjectMember, Task } from '@/lib/types/workspace.types';
 import { ChatService } from './chat-service';
+import { TaskService } from './task-service';
 
 export const EnhancedProjectService = {
     /**
@@ -39,11 +41,10 @@ export const EnhancedProjectService = {
                     username: data.ownerUsername,
                     email: '',
                     role: 'owner',
-                    assignedAt: serverTimestamp()
+                    assignedAt: Timestamp.now()
                 }
             ],
             recurringType: data.recurringType || 'none',
-            pricing: undefined,
             isPublic: false,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
@@ -72,6 +73,50 @@ export const EnhancedProjectService = {
         }
 
         return docRef.id;
+    },
+
+    /**
+     * Get project budget status
+     */
+    async getProjectBudgetStatus(projectId: string): Promise<{
+        totalBudget: number;
+        spent: number;
+        remaining: number;
+        currency?: string;
+    }> {
+        const project = await this.getProject(projectId);
+        if (!project) {
+            throw new Error('Project not found');
+        }
+
+        const tasks = await TaskService.getProjectTasks(projectId);
+
+        // Calculate spent amount from all tasks
+        const spent = tasks.reduce((sum, task) => {
+            // Only count tasks if they match project budget currency (if project has currency)
+            // Or count all if project has no specific currency
+            if (project.pricing?.currency && task.pricing?.currency !== project.pricing.currency) {
+                return sum;
+            }
+            return sum + (task.pricing?.amount || 0);
+        }, 0);
+
+        return {
+            totalBudget: project.budget || 0,
+            spent,
+            remaining: (project.budget || 0) - spent,
+            currency: project.pricing?.currency
+        };
+    },
+
+    /**
+     * Update project budget
+     */
+    async updateProjectBudget(projectId: string, newBudget: number): Promise<void> {
+        await updateDoc(doc(db, 'projects', projectId), {
+            budget: newBudget,
+            updatedAt: serverTimestamp()
+        });
     },
 
     /**
@@ -209,7 +254,7 @@ export const EnhancedProjectService = {
     ): Promise<void> {
         const projectMember: ProjectMember = {
             ...member,
-            assignedAt: serverTimestamp()
+            assignedAt: Timestamp.now()
         };
 
         await updateDoc(doc(db, 'projects', projectId), {

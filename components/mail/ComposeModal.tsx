@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Send, Paperclip, Image as ImageIcon, Video, FileText, Link as LinkIcon, Loader2 } from 'lucide-react';
+import { X, Send, Paperclip, Image as ImageIcon, Video, FileText, Link as LinkIcon, Loader2, Maximize2, Minimize2 } from 'lucide-react';
 import { AdvancedRichTextEditor } from './AdvancedRichTextEditor';
 import ContractMailComposer from './ContractMailComposer';
 import { Signature } from '@/lib/services/mail-service';
@@ -51,6 +51,7 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
         terms?: any;
     } | null>(null);
     const [showAIComposer, setShowAIComposer] = useState(false);
+    const [isFullScreen, setIsFullScreen] = useState(false);
     const { user } = useAuth();
 
     useEffect(() => {
@@ -209,7 +210,8 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.9, opacity: 0 }}
                     transition={{ duration: 0.2 }}
-                    className="w-full max-w-5xl h-[85vh] bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-200/50 dark:border-zinc-800/50 flex flex-col overflow-hidden"
+                    className={`bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl shadow-2xl border border-gray-200/50 dark:border-zinc-800/50 flex flex-col overflow-hidden ${isFullScreen ? 'w-full h-full rounded-none' : 'w-full max-w-5xl h-[85vh] rounded-3xl'
+                        }`}
                 >
                     {/* Header */}
                     <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200/50 dark:border-zinc-800/50 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl">
@@ -236,12 +238,26 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                                 </button>
                             </div>
                         </div>
-                        <button
-                            onClick={onClose}
-                            className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
-                        >
-                            <X size={20} className="text-gray-500" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setIsFullScreen(!isFullScreen)}
+                                className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                                title={isFullScreen ? "Exit Full Screen" : "Full Screen"}
+                            >
+                                {isFullScreen ? (
+                                    <Minimize2 size={20} className="text-gray-500 dark:text-gray-400" />
+                                ) : (
+                                    <Maximize2 size={20} className="text-gray-500 dark:text-gray-400" />
+                                )}
+                            </button>
+                            <button
+                                onClick={onClose}
+                                className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                                title="Close"
+                            >
+                                <X size={20} className="text-gray-500" />
+                            </button>
+                        </div>
                     </div>
 
                     {/* Form Fields */}

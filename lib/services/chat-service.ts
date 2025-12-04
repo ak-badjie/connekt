@@ -13,11 +13,12 @@ import {
     onSnapshot,
     limit,
     arrayUnion,
+    arrayRemove,
     Timestamp,
     setDoc
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { Conversation, Message, MessageType, MessageAttachment, HelpRequestData, ConversationMember } from '@/lib/types/chat.types';
+import { Conversation, ConversationType, Message, MessageType, MessageAttachment, HelpRequestData, ConversationMember } from '@/lib/types/chat.types';
 
 export const ChatService = {
     /**
@@ -48,20 +49,20 @@ export const ChatService = {
             memberDetails[p.userId] = {
                 userId: p.userId,
                 username: p.username,
-                avatarUrl: p.avatarUrl,
+                ...(p.avatarUrl && { avatarUrl: p.avatarUrl }),
                 role: p.role || 'member',
-                joinedAt: serverTimestamp()
+                joinedAt: Timestamp.now()
             };
         });
 
         const conversation: Omit<Conversation, 'id'> = {
             type: data.type,
-            title: data.title,
-            description: data.description,
-            photoUrl: data.photoUrl,
-            projectId: data.projectId,
-            workspaceId: data.workspaceId,
-            agencyId: data.agencyId,
+            ...(data.title && { title: data.title }),
+            ...(data.description && { description: data.description }),
+            ...(data.photoUrl && { photoUrl: data.photoUrl }),
+            ...(data.projectId && { projectId: data.projectId }),
+            ...(data.workspaceId && { workspaceId: data.workspaceId }),
+            ...(data.agencyId && { agencyId: data.agencyId }),
             members: memberIds,
             memberDetails,
             createdAt: serverTimestamp(),
@@ -226,7 +227,7 @@ export const ChatService = {
         const memberData: ConversationMember = {
             userId: user.userId,
             username: user.username,
-            avatarUrl: user.avatarUrl,
+            ...(user.avatarUrl && { avatarUrl: user.avatarUrl }),
             role: user.role || 'member',
             joinedAt: Timestamp.now()
         };
@@ -251,12 +252,7 @@ export const ChatService = {
 
         // To properly remove from the map, we'd need to read-modify-write or use deleteField().
         // For now, removing from 'members' array is enough to hide it.
-        await updateDoc(conversationRef, {
-            members: arrayUnion(userId) // Wait, arrayRemove
-        });
-
-        // Actually, let's do it right with a transaction if needed, but for now:
-        // We need to import arrayRemove. It is imported.
+        // Remove user from members array
         await updateDoc(conversationRef, {
             members: arrayRemove(userId)
         });

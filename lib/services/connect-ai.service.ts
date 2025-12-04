@@ -554,22 +554,37 @@ Be professional and compelling. Format in markdown.`;
         type: ContractType,
         variables: Record<string, any>,
         userId: string
-    ): Promise<string> {
-        const prompt = `Draft a professional ${type.replace(/_/g, ' ')} contract with the following details:
+    ): Promise<Record<string, any>> {
+        const prompt = `You are a legal expert. Generate the content for a ${type.replace(/_/g, ' ')} contract based on these details:
 
 ${JSON.stringify(variables, null, 2)}
 
-Include:
-- Professional legal language
-- Clear terms and conditions
-- Payment terms
-- Timeline
-- Termination clause
-- Signature section
+Return a JSON object with the following fields to populate a contract template:
+- jobTitle: A professional title for the engagement
+- projectDescription: Detailed scope of work
+- paymentTerms: Clear payment schedule and terms
+- timeline: Project timeline and milestones
+- terminationConditions: Conditions for termination
+- confidentialityTerms: NDA/Confidentiality clauses
+- intellectualProperty: IP ownership terms
 
-Format in professional markdown. Be thorough but concise.`;
+Return ONLY valid JSON. Do not include markdown formatting.`;
 
-        return await this.generateText(prompt, userId, 'contract_drafter');
+        const response = await this.generateText(prompt, userId, 'contract_drafter');
+
+        try {
+            let cleaned = response.trim();
+            if (cleaned.startsWith('```json')) {
+                cleaned = cleaned.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+            } else if (cleaned.startsWith('```')) {
+                cleaned = cleaned.replace(/```\n?/g, '');
+            }
+            return JSON.parse(cleaned);
+        } catch (e) {
+            console.error("Failed to parse contract JSON", e);
+            // Fallback to returning the text as description if parsing fails
+            return { projectDescription: response };
+        }
     },
 
     /**
