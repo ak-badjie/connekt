@@ -6,7 +6,8 @@ import { useAuth } from '@/context/AuthContext';
 import { EnhancedProjectService } from '@/lib/services/enhanced-project-service';
 import { TaskService } from '@/lib/services/task-service';
 import { Project, Task } from '@/lib/types/workspace.types';
-import { Loader2, Briefcase, ArrowLeft, Plus, Users, Calendar, DollarSign, Settings, UserPlus, Clock, CheckCircle2, Circle, AlertCircle, Globe, Eye } from 'lucide-react';
+import { Loader2, Briefcase, ArrowLeft, Plus, Users, Calendar, DollarSign, Settings, UserPlus, Clock, CheckCircle2, Circle, AlertCircle, Globe, Eye, X } from 'lucide-react';
+import SendProjectInviteModal from '@/components/AddMemberModal';
 
 export default function ProjectDetailPage() {
     const params = useParams();
@@ -24,6 +25,7 @@ export default function ProjectDetailPage() {
         spent: number;
         remaining: number;
     } | null>(null);
+    const [showAddMemberModal, setShowAddMemberModal] = useState(false);
 
     useEffect(() => {
         if (user && projectId) {
@@ -55,6 +57,25 @@ export default function ProjectDetailPage() {
     const handleStatusChange = async (taskId: string, newStatus: Task['status']) => {
         setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
         await TaskService.updateTaskStatus(taskId, newStatus);
+    };
+
+    const handleRemoveMember = async (userId: string, username: string) => {
+        if (!confirm(`Are you sure you want to remove @${username} from this project?`)) {
+            return;
+        }
+
+        try {
+            await EnhancedProjectService.removeMember(projectId, userId);
+
+            // Refresh project data
+            const updatedProject = await EnhancedProjectService.getProject(projectId);
+            setProject(updatedProject);
+
+            alert(`Successfully removed @${username} from the project`);
+        } catch (error: any) {
+            console.error('Error removing member:', error);
+            alert(error.message || 'Failed to remove member');
+        }
     };
 
     if (loading) {
@@ -118,7 +139,9 @@ export default function ProjectDetailPage() {
                 <div className="flex items-center gap-3">
                     {canManage && (
                         <>
-                            <button className="px-5 py-2.5 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold text-sm hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors flex items-center gap-2">
+                            <button
+                                onClick={() => setShowAddMemberModal(true)}
+                                className="px-5 py-2.5 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold text-sm hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors flex items-center gap-2">
                                 <UserPlus size={16} />
                                 Add Member
                             </button>
@@ -290,18 +313,40 @@ export default function ProjectDetailPage() {
                                             {member.email}
                                         </p>
                                     </div>
-                                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${member.role === 'owner' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30' :
-                                        member.role === 'supervisor' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' :
-                                            'bg-gray-100 text-gray-600 dark:bg-gray-800'
-                                        }`}>
-                                        {member.role}
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${member.role === 'owner' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30' :
+                                            member.role === 'supervisor' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' :
+                                                'bg-gray-100 text-gray-600 dark:bg-gray-800'
+                                            }`}>
+                                            {member.role}
+                                        </span>
+                                        {/* Only owner can remove members, and cannot remove themselves */}
+                                        {isOwner && member.role !== 'owner' && (
+                                            <button
+                                                onClick={() => handleRemoveMember(member.userId, member.username)}
+                                                className="w-7 h-7 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 hover:text-red-600 transition-colors flex items-center justify-center"
+                                                title="Remove member"
+                                            >
+                                                <X size={16} />
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             ))}
                         </div>
                     </div>
                 </div>
             )}
+
+            {/* Send Project Invitation Modal */}
+            <SendProjectInviteModal
+                isOpen={showAddMemberModal}
+                onClose={() => setShowAddMemberModal(false)}
+                projectId={projectId}
+                projectTitle={project?.title || ''}
+                projectBudget={project?.budget}
+                projectDeadline={project?.deadline}
+            />
         </div>
     );
 }

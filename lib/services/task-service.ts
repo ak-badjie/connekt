@@ -116,20 +116,51 @@ export const TaskService = {
     },
 
     /**
-     * Get tasks assigned to user
+     * Get all tasks for a user (assigned to OR created by them)
      */
     async getUserTasks(userId: string): Promise<Task[]> {
-        const q = query(
+        // Query for tasks assigned to the user
+        const assignedQuery = query(
             collection(db, 'tasks'),
             where('assigneeId', '==', userId),
             orderBy('createdAt', 'desc')
         );
 
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({
+        // Query for tasks created by the user  
+        const createdQuery = query(
+            collection(db, 'tasks'),
+            where('createdBy', '==', userId),
+            orderBy('createdAt', 'desc')
+        );
+
+        const [assignedSnapshot, createdSnapshot] = await Promise.all([
+            getDocs(assignedQuery),
+            getDocs(createdQuery)
+        ]);
+
+        const assignedTasks = assignedSnapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
         } as Task));
+
+        const createdTasks = createdSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        } as Task));
+
+        // Merge and deduplicate (in case user created and assigned to themselves)
+        const taskMap = new Map<string, Task>();
+        [...assignedTasks, ...createdTasks].forEach(task => {
+            if (task.id) {
+                taskMap.set(task.id, task);
+            }
+        });
+
+        return Array.from(taskMap.values()).sort((a, b) => {
+            const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+            const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+            return bTime - aTime; // Most recent first
+        });
     },
 
     /**

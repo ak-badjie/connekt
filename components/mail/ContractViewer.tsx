@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { Contract, ContractSignature } from '@/lib/types/mail.types';
 import GambianLegalHeader from './GambianLegalHeader';
 import { ContractMailService } from '@/lib/services/contract-mail-service';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/context/AuthContext';
+import ReactMarkdown from 'react-markdown';
 
 interface ContractViewerProps {
     contract: Contract;
@@ -24,6 +25,7 @@ export default function ContractViewer({ contract, onSign, onReject }: ContractV
     const [rejecting, setRejecting] = useState(false);
     const [showRejectModal, setShowRejectModal] = useState(false);
     const [rejectReason, setRejectReason] = useState('');
+    const [signatureName, setSignatureName] = useState('');
 
     const isRecipient = user?.uid === contract.toUserId;
     const isSender = user?.uid === contract.fromUserId;
@@ -34,15 +36,27 @@ export default function ContractViewer({ contract, onSign, onReject }: ContractV
     const handleSign = async () => {
         if (!user || !canSign) return;
 
+        // Validate signature
+        if (!signatureName.trim()) {
+            alert('Please type your full legal name to sign the contract');
+            return;
+        }
+
         setSigning(true);
         try {
             await ContractMailService.signContract(
                 contract.id!,
                 user.uid,
-                user.displayName || user.email || 'Unknown',
+                signatureName.trim(), // Use typed name
                 undefined, // IP address - would need server-side
                 navigator.userAgent
             );
+
+            // Redirect to project if applicable
+            if (contract.relatedEntityId && contract.type.includes('project')) {
+                window.location.href = `/projects/${contract.relatedEntityId}`;
+            }
+
             onSign?.();
         } catch (error: any) {
             alert(error.message || 'Failed to sign contract');
@@ -110,18 +124,30 @@ export default function ContractViewer({ contract, onSign, onReject }: ContractV
                     <div>
                         <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">From</h3>
                         <p className="font-medium text-gray-900 dark:text-white">{contract.fromUsername}</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{contract.fromMailAddress}</p>
+                        <p className="text-sm text-teal-600 dark:text-teal-400 font-mono">{contract.fromMailAddress}</p>
                     </div>
                     <div>
                         <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">To</h3>
                         <p className="font-medium text-gray-900 dark:text-white">{contract.toUsername}</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{contract.toMailAddress}</p>
+                        <p className="text-sm text-teal-600 dark:text-teal-400 font-mono">{contract.toMailAddress}</p>
                     </div>
                 </div>
 
                 {/* Contract Description (Markdown) */}
-                <div className="prose dark:prose-invert max-w-none mb-8">
-                    <div dangerouslySetInnerHTML={{ __html: contract.description.replace(/\n/g, '<br/>') }} />
+                <div className="prose dark:prose-invert max-w-none prose-p:my-4 prose-p:leading-relaxed prose-headings:mt-8 prose-headings:mb-4 prose-li:my-2 mb-8">
+                    <div className="space-y-4">
+                        <ReactMarkdown>{contract.description}</ReactMarkdown>
+                    </div>
+
+                    {/* Standard Terms Section */}
+                    {contract.defaultTerms && (
+                        <div className="mt-12 pt-8 border-t-2 border-gray-200 dark:border-gray-700">
+                            <h3 className="text-lg font-semibold mb-6">Standard Terms and Conditions</h3>
+                            <div className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed space-y-3">
+                                <ReactMarkdown>{contract.defaultTerms}</ReactMarkdown>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Contract Terms Summary */}
@@ -186,6 +212,28 @@ export default function ContractViewer({ contract, onSign, onReject }: ContractV
                         <p className="text-gray-600 dark:text-gray-400 italic">No signatures yet</p>
                     )}
                 </div>
+
+                {/* Digital Signature Input */}
+                {canSign && (
+                    <div className="mb-8 p-6 bg-amber-50 dark:bg-amber-900/20 rounded-lg border-2 border-amber-300 dark:border-amber-700">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                            Digital Signature
+                        </h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                            By typing your full legal name below, you electronically sign this contract and agree to all terms and conditions stated herein. This signature is legally binding.
+                        </p>
+                        <input
+                            type="text"
+                            value={signatureName}
+                            onChange={(e) => setSignatureName(e.target.value)}
+                            placeholder="Type your full legal name here"
+                            className="w-full p-4 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-medium text-lg focus:outline-none focus:ring-2 focus:ring-[#008080] focus:border-[#008080]"
+                        />
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                            ⚠️ This serves as your legal signature and cannot be undone.
+                        </p>
+                    </div>
+                )}
 
                 {/* Action Buttons */}
                 {(canSign || canReject) && (

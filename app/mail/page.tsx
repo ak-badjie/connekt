@@ -95,7 +95,7 @@ export default function MailPage() {
         attachments?: any[],
         category?: string,
         signatureId?: string,
-        contractData?: { templateId?: string; terms?: any } | null
+        contractData?: { templateId?: string; terms?: any; defaultTerms?: string } | null
     ) => {
         if (!user) return;
         const userDoc = await getDoc(doc(db, 'users', user.uid));
@@ -125,7 +125,8 @@ export default function MailPage() {
                     subject,
                     body,
                     contractData.terms || {},
-                    30 // 30 days expiration
+                    30, // 30 days expiration
+                    contractData.defaultTerms // Pass defaultTerms
                 );
 
                 console.log('Contract created with ID:', contractId);

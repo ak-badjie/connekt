@@ -210,6 +210,7 @@ export interface Contract {
     // Content
     title: string;
     description: string;
+    defaultTerms?: string; // Standard terms from template (markdown)
     terms: ContractTerms;
 
     // Template

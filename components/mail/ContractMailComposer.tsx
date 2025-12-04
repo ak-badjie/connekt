@@ -14,6 +14,7 @@ interface ContractMailComposerProps {
     onContractGenerated: (contractData: {
         title: string;
         description: string;
+        defaultTerms?: string;
         terms: any;
         templateId?: string;
     }) => void;
@@ -88,6 +89,7 @@ export default function ContractMailComposer({ onContractGenerated }: ContractMa
         onContractGenerated({
             title: variables.jobTitle || variables.projectTitle || variables.proposalTitle || selectedTemplate.name,
             description: contractBody,
+            defaultTerms: selectedTemplate.defaultTerms, // Include standard terms
             terms: terms,
             templateId: selectedTemplate.id
         });

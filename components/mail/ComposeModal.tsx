@@ -21,7 +21,7 @@ interface ComposeModalProps {
         attachments?: Attachment[],
         category?: string,
         signatureId?: string,
-        contractData?: { templateId?: string; terms?: any } | null
+        contractData?: { templateId?: string; terms?: any; defaultTerms?: string } | null
     ) => Promise<void>;
     onSaveDraft?: (recipient: string, subject: string, body: string, attachments?: Attachment[], category?: string) => Promise<void>;
     signatures?: Signature[];

@@ -22,6 +22,7 @@ interface ContractData {
     type: string;
     title: string;
     description: string;
+    defaultTerms?: string;
     terms: any;
     status: 'pending' | 'accepted' | 'rejected' | 'expired';
     createdBy: string;
@@ -30,6 +31,7 @@ interface ContractData {
     acceptedAt?: any;
     rejectedAt?: any;
     expiresAt: any;
+    relatedEntityId?: string;
 }
 
 export function ContractViewerModal({ contractId, userId, isOpen, onClose, onSigned }: ContractViewerModalProps) {
@@ -162,9 +164,9 @@ export function ContractViewerModal({ contractId, userId, isOpen, onClose, onSig
                                     {/* Status Badge */}
                                     <div className="mb-6 flex items-center gap-3">
                                         <span className={`px-4 py-2 rounded-full text-sm font-medium ${contract.status === 'accepted' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                                                contract.status === 'rejected' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                                                    isExpired ? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400' :
-                                                        'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                            contract.status === 'rejected' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                                                isExpired ? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400' :
+                                                    'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
                                             }`}>
                                             {isExpired ? 'Expired' : contract.status.toUpperCase()}
                                         </span>
@@ -192,6 +194,16 @@ export function ContractViewerModal({ contractId, userId, isOpen, onClose, onSig
                                                     {contract.description}
                                                 </ReactMarkdown>
                                             </div>
+
+                                            {/* Standard Terms Section */}
+                                            {contract.defaultTerms && (
+                                                <div className="mt-12 pt-8 border-t-2 border-gray-200 dark:border-gray-700">
+                                                    <h3 className="text-lg font-semibold mb-6">Standard Terms and Conditions</h3>
+                                                    <div className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed space-y-3">
+                                                        <ReactMarkdown>{contract.defaultTerms}</ReactMarkdown>
+                                                    </div>
+                                                </div>
+                                            )}
 
                                             {contract.terms && Object.keys(contract.terms).length > 0 && (
                                                 <div className="mt-8 pt-6 border-t-2 border-gray-200 dark:border-gray-700">
