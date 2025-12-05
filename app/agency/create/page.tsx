@@ -2,21 +2,26 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AgencyService } from '@/lib/services/agency-service';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Building2, Upload, Check, ChevronRight, Loader2, Sparkles } from 'lucide-react';
+import { Building2, Upload, Check, ChevronRight, Loader2, Sparkles, Users } from 'lucide-react';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
 
-type Step = 1 | 2 | 3 | 4;
+type Step = 0 | 1 | 2 | 3 | 4;
 
 export default function CreateAgencyPage() {
     const { user } = useAuth();
     const router = useRouter();
+    const searchParams = useSearchParams();
 
-    const [currentStep, setCurrentStep] = useState<Step>(1);
+    const [currentStep, setCurrentStep] = useState<Step>(0);
     const [loading, setLoading] = useState(false);
+
+    // Get type from URL or default to 'va'
+    const urlType = searchParams.get('type');
+    const [selectedAgencyType, setSelectedAgencyType] = useState<'va' | 'recruiting'>((urlType === 'recruiting' ? 'recruiting' : 'va'));
 
     // Form data
     const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -85,7 +90,7 @@ export default function CreateAgencyPage() {
             const agency = await AgencyService.createAgency({
                 name: agencyName,
                 username: agencyUsername,
-                agencyType: 'va_collective', // Default to VA collective, can be changed later
+                agencyType: selectedAgencyType === 'va' ? 'va_collective' : 'recruiter_collective',
                 logoUrl,
                 ownerId: user.uid,
                 ownerAgencyEmail: `${personalHandle}@${agencyUsername}.com`
@@ -137,7 +142,7 @@ export default function CreateAgencyPage() {
                         Create Your Agency
                     </h1>
                     <p className="text-gray-600 dark:text-gray-400">
-                        Step {currentStep} of 4
+                        Step {currentStep} of 5
                     </p>
                 </div>
 
@@ -153,13 +158,23 @@ export default function CreateAgencyPage() {
                     </div>
                 </div>
 
+
                 {/* Steps */}
                 <AnimatePresence mode="wait">
+                    {currentStep === 0 && (
+                        <Step0
+                            selectedType={selectedAgencyType}
+                            onSelectType={setSelectedAgencyType}
+                            onNext={() => setCurrentStep(1)}
+                        />
+                    )}
+
                     {currentStep === 1 && (
                         <Step1
                             logoPreview={logoPreview}
                             onLogoUpload={handleLogoUpload}
                             onNext={() => setCurrentStep(2)}
+                            onBack={() => setCurrentStep(0)}
                             canProceed={canProceedStep1}
                         />
                     )}
@@ -205,8 +220,77 @@ export default function CreateAgencyPage() {
     );
 }
 
+// Step 0: Agency Type Selection
+function Step0({ selectedType, onSelectType, onNext }: any) {
+    return (
+        <motion.div
+            key="step0"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="space-y-6"
+        >
+            <div className="space-y-2">
+                <label className="text-sm font-medium text-[#008080] uppercase tracking-wider">
+                    What type of agency are you creating?
+                </label>
+                <div className="grid grid-cols-1 gap-4">
+                    <button
+                        onClick={() => onSelectType('va')}
+                        className={`p-6 rounded-2xl border-2 transition-all duration-300 flex flex-col items-start gap-3 ${selectedType === 'va'
+                            ? 'bg-[#008080]/10 border-[#008080] shadow-lg shadow-teal-500/20'
+                            : 'bg-gray-100 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 hover:border-[#008080]/50'
+                            }`}
+                    >
+                        <div className="flex items-center gap-3">
+                            <Users className="w-8 h-8 text-[#008080]" />
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">VA Agency</h3>
+                        </div>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 text-left">
+                            For freelancer teams who want to collaborate on projects together. Perfect for groups of VAs offering complementary skills.
+                        </p>
+                        <ul className="text-xs text-gray-500 dark:text-gray-500 space-y-1">
+                            <li>• Take on projects as a team</li>
+                            <li>• Share tasks among team members</li>
+                            <li>• Showcase collective skills and portfolio</li>
+                        </ul>
+                    </button>
+
+                    <button
+                        onClick={() => onSelectType('recruiting')}
+                        className={`p-6 rounded-2xl border-2 transition-all duration-300 flex flex-col items-start gap-3 ${selectedType === 'recruiting'
+                            ? 'bg-[#008080]/10 border-[#008080] shadow-lg shadow-teal-500/20'
+                            : 'bg-gray-100 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 hover:border-[#008080]/50'
+                            }`}
+                    >
+                        <div className="flex items-center gap-3">
+                            <Building2 className="w-8 h-8 text-[#008080]" />
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Recruiting Agency</h3>
+                        </div>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 text-left">
+                            For companies with recruiting teams who need to outsource work to virtual assistants. Manage your team and projects in one place.
+                        </p>
+                        <ul className="text-xs text-gray-500 dark:text-gray-500 space-y-1">
+                            <li>• Post projects and hire VAs</li>
+                            <li>• Manage your recruiting team</li>
+                            <li>• Track performance and payments</li>
+                        </ul>
+                    </button>
+                </div>
+            </div>
+
+            <button
+                onClick={onNext}
+                className="w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all bg-gradient-to-r from-[#008080] to-teal-600 text-white hover:scale-[1.02] shadow-lg shadow-teal-500/25"
+            >
+                Continue <ChevronRight />
+            </button>
+        </motion.div>
+    );
+}
+
 // Step 1: Logo Upload
-function Step1({ logoPreview, onLogoUpload, onNext, canProceed }: any) {
+function Step1({ logoPreview, onLogoUpload, onNext, onBack, canProceed }: any) {
     return (
         <motion.div
             key="step1"
@@ -242,13 +326,21 @@ function Step1({ logoPreview, onLogoUpload, onNext, canProceed }: any) {
                 </p>
             </div>
 
-            <button
-                onClick={onNext}
-                disabled={!canProceed}
-                className="w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all bg-gradient-to-r from-[#008080] to-teal-600 text-white hover:scale-[1.02] shadow-lg shadow-teal-500/25"
-            >
-                Continue <ChevronRight />
-            </button>
+            <div className="flex gap-3">
+                <button
+                    onClick={onBack}
+                    className="flex-1 py-4 rounded-xl border border-gray-200 dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800 font-medium transition-all"
+                >
+                    Back
+                </button>
+                <button
+                    onClick={onNext}
+                    disabled={!canProceed}
+                    className="flex-1 py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all bg-gradient-to-r from-[#008080] to-teal-600 text-white hover:scale-[1.02] shadow-lg shadow-teal-500/25"
+                >
+                    Continue <ChevronRight />
+                </button>
+            </div>
         </motion.div>
     );
 }

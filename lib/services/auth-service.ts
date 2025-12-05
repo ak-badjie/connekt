@@ -19,7 +19,6 @@ export const AuthService = {
                     email: result.user.email ?? undefined,
                     displayName: result.user.displayName ?? undefined,
                     photoURL: result.user.photoURL ?? undefined,
-                    role: 'va',
                     onboardingCompleted: false
                 });
             }
@@ -34,11 +33,10 @@ export const AuthService = {
         return result.user;
     },
 
-    async registerWithEmail(email: string, pass: string, role?: 'employer' | 'va') {
+    async registerWithEmail(email: string, pass: string) {
         const result = await createUserWithEmailAndPassword(auth, email, pass);
         await FirestoreService.createUserProfile(result.user.uid, {
             email: result.user.email ?? undefined,
-            role: role || 'va',
             onboardingCompleted: false
         });
         return result.user;

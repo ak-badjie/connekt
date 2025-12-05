@@ -16,7 +16,6 @@ export default function AuthPage() {
     const [mode, setMode] = useState<'login' | 'signup'>('login');
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({ email: '', password: '' });
-    const [selectedRole, setSelectedRole] = useState<UserRole>('va');
     const [error, setError] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -28,7 +27,7 @@ export default function AuthPage() {
             if (mode === 'login') {
                 await AuthService.loginWithEmail(formData.email, formData.password);
             } else {
-                await AuthService.registerWithEmail(formData.email, formData.password, selectedRole);
+                await AuthService.registerWithEmail(formData.email, formData.password);
             }
             router.push('/onboarding');
         } catch (err: any) {
@@ -105,8 +104,8 @@ export default function AuthPage() {
                                 <button
                                     onClick={() => setMode('login')}
                                     className={`px-6 py-2 rounded-full font-semibold text-sm transition-all ${mode === 'login'
-                                            ? 'bg-[#008080] text-white shadow-lg'
-                                            : 'text-gray-600 dark:text-gray-400'
+                                        ? 'bg-[#008080] text-white shadow-lg'
+                                        : 'text-gray-600 dark:text-gray-400'
                                         }`}
                                 >
                                     Sign In
@@ -114,8 +113,8 @@ export default function AuthPage() {
                                 <button
                                     onClick={() => setMode('signup')}
                                     className={`px-6 py-2 rounded-full font-semibold text-sm transition-all ${mode === 'signup'
-                                            ? 'bg-[#008080] text-white shadow-lg'
-                                            : 'text-gray-600 dark:text-gray-400'
+                                        ? 'bg-[#008080] text-white shadow-lg'
+                                        : 'text-gray-600 dark:text-gray-400'
                                         }`}
                                 >
                                     Sign Up
@@ -123,48 +122,6 @@ export default function AuthPage() {
                             </div>
                         </div>
 
-                        {/* Role Selection (Sign Up Only) */}
-                        <AnimatePresence>
-                            {mode === 'signup' && (
-                                <motion.div
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: 'auto' }}
-                                    exit={{ opacity: 0, height: 0 }}
-                                    className="mb-6 space-y-3"
-                                >
-                                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                        I am a...
-                                    </label>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        {/* VA Card */}
-                                        <button
-                                            type="button"
-                                            onClick={() => setSelectedRole('va')}
-                                            className={`p-4 rounded-2xl border-2 transition-all backdrop-blur-sm ${selectedRole === 'va'
-                                                    ? 'bg-[#008080]/10 border-[#008080] shadow-lg shadow-teal-500/20'
-                                                    : 'bg-white/30 dark:bg-white/5 border-gray-300 dark:border-zinc-700 hover:border-[#008080]/50'
-                                                }`}
-                                        >
-                                            <User className="mx-auto mb-2" size={28} />
-                                            <div className="text-sm font-semibold">Virtual Assistant</div>
-                                        </button>
-
-                                        {/* Employer Card */}
-                                        <button
-                                            type="button"
-                                            onClick={() => setSelectedRole('employer')}
-                                            className={`p-4 rounded-2xl border-2 transition-all backdrop-blur-sm ${selectedRole === 'employer'
-                                                    ? 'bg-[#008080]/10 border-[#008080] shadow-lg shadow-teal-500/20'
-                                                    : 'bg-white/30 dark:bg-white/5 border-gray-300 dark:border-zinc-700 hover:border-[#008080]/50'
-                                                }`}
-                                        >
-                                            <Briefcase className="mx-auto mb-2" size={28} />
-                                            <div className="text-sm font-semibold">Employer</div>
-                                        </button>
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
 
                         {/* Form */}
                         <form onSubmit={handleSubmit} className="space-y-4">

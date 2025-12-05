@@ -527,3 +527,54 @@ export const AgencyNotificationHelper = {
         }
     }
 };
+
+/**
+ * Contract Notification Helper
+ */
+export const ContractNotificationHelper = {
+    /**
+     * Notify when contract is signed
+     */
+    async sendContractSignedNotification(
+        recipientId: string,
+        recipientUsername: string,
+        signerId: string,
+        signerUsername: string,
+        signerFullName: string,
+        contractTitle: string,
+        contractId: string
+    ): Promise<void> {
+        try {
+            await NotificationService.createNotification(
+                recipientId,
+                'contract',
+                'Contract Signed',
+                `${signerFullName} (@${signerUsername}) signed "${contractTitle}"`,
+                'high',
+                {
+                    type: 'contract',
+                    contractId,
+                    contractTitle,
+                    action: 'signed',
+                    signerId,
+                    signerUsername,
+                    signerFullName
+                },
+                `/mail`, // Link to mail where contract was sent
+                'View Mail'
+            );
+        } catch (error) {
+            console.error('Error creating contract signed notification:', error);
+        }
+    }
+};
+
+// Export unified NotificationHelpers
+export const NotificationHelpers = {
+    sendContractSignedNotification: ContractNotificationHelper.sendContractSignedNotification,
+    ...TaskNotificationHelper,
+    ...ProjectNotificationHelper,
+    ...WorkspaceNotificationHelper,
+    ...AgencyNotificationHelper
+};
+

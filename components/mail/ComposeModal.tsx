@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Send, Paperclip, Image as ImageIcon, Video, FileText, Link as LinkIcon, Loader2, Maximize2, Minimize2 } from 'lucide-react';
+import { X, Send, Paperclip, Image as ImageIcon, Video, FileText, Link as LinkIcon, Loader2, Maximize2, Minimize2, FileSignature } from 'lucide-react';
 import { AdvancedRichTextEditor } from './AdvancedRichTextEditor';
 import ContractMailComposer from './ContractMailComposer';
 import { Signature } from '@/lib/services/mail-service';
@@ -10,6 +10,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
 import { AIEmailComposerModal } from './ai/AIEmailComposerModal';
 import { useAuth } from '@/context/AuthContext';
+import { UnifiedContractViewer } from '@/components/contracts/UnifiedContractViewer';
+import { ContractSigningService } from '@/lib/services/contract-signing-service';
 
 interface ComposeModalProps {
     isOpen: boolean;
@@ -49,9 +51,12 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
     const [contractData, setContractData] = useState<{
         templateId?: string;
         terms?: any;
+        defaultTerms?: string;
+        contractId?: string;
     } | null>(null);
     const [showAIComposer, setShowAIComposer] = useState(false);
     const [isFullScreen, setIsFullScreen] = useState(false);
+    const [viewingContract, setViewingContract] = useState<any | null>(null);
     const { user } = useAuth();
 
     useEffect(() => {
@@ -128,12 +133,14 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
         description: string;
         terms: any;
         templateId?: string;
+        defaultTerms?: string;
     }) => {
         setSubject(data.title);
         setBody(data.description);
         setContractData({
             templateId: data.templateId,
-            terms: data.terms
+            terms: data.terms,
+            defaultTerms: data.defaultTerms
         });
         // Switch back to normal mode to review and send
         setIsContractMode(false);
@@ -338,6 +345,28 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                                     </div>
                                 ))}
                             </div>
+                        </div>
+                    )}
+
+                    {/* Contract Attachment */}
+                    {!isContractMode && contractData && (
+                        <div className="px-6 py-3 border-t border-gray-200/50 dark:border-zinc-800/50">
+                            <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-[#008080]/10 to-teal-600/10 border-2 border-[#008080]/30 rounded-xl">
+                                <FileSignature size={24} className="text-[#008080]" />
+                                <div className="flex-1">
+                                    <p className="text-sm font-bold text-gray-900 dark:text-white">Contract Attached</p>
+                                    <p className="text-xs text-gray-600 dark:text-gray-400">{subject || 'Untitled Contract'}</p>
+                                </div>
+                                <button
+                                    onClick={() => setContractData(null)}
+                                    className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-full transition-colors"
+                                >
+                                    <X size={16} className="text-red-500" />
+                                </button>
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 px-1">
+                                Recipients will be able to view and sign this contract
+                            </p>
                         </div>
                     )}
 

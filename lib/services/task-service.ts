@@ -63,13 +63,13 @@ export const TaskService = {
             description: data.description,
             status: 'todo',
             priority: data.priority,
-            assigneeId: data.assigneeId,
-            assigneeUsername: data.assigneeUsername,
+            ...(data.assigneeId && { assigneeId: data.assigneeId }),
+            ...(data.assigneeUsername && { assigneeUsername: data.assigneeUsername }),
             isReassignable: true,
             timeline: {
-                startDate: data.timeline?.startDate,
-                dueDate: data.timeline?.dueDate,
-                estimatedHours: data.timeline?.estimatedHours,
+                ...(data.timeline?.startDate && { startDate: data.timeline.startDate }),
+                ...(data.timeline?.dueDate && { dueDate: data.timeline.dueDate }),
+                ...(data.timeline?.estimatedHours && { estimatedHours: data.timeline.estimatedHours }),
                 actualHours: 0
             },
             pricing: data.pricing,

@@ -13,6 +13,7 @@ export type NotificationType =
     | 'workspace'
     | 'agency'
     | 'pot'
+    | 'contract'
     | 'job_update'
     | 'system';
 
@@ -56,6 +57,7 @@ export type NotificationMetadata =
     | WorkspaceNotificationMetadata
     | AgencyNotificationMetadata
     | PotNotificationMetadata
+    | ContractNotificationMetadata
     | JobUpdateNotificationMetadata
     | SystemNotificationMetadata;
 
@@ -184,6 +186,21 @@ export interface PotNotificationMetadata {
 }
 
 /**
+ * Contract Notification Metadata
+ */
+export interface ContractNotificationMetadata {
+    type: 'contract';
+    contractId: string;
+    contractTitle: string;
+    action: 'sent' | 'signed' | 'rejected' | 'expired';
+    signerId?: string;
+    signerUsername?: string;
+    signerFullName?: string;
+    senderId?: string;
+    senderUsername?: string;
+}
+
+/**
  * Job Update Notification Metadata
  */
 export interface JobUpdateNotificationMetadata {
@@ -195,6 +212,7 @@ export interface JobUpdateNotificationMetadata {
     postedBy: string;
     postedByUsername: string;
 }
+
 
 /**
  * System/Admin Notification Metadata
