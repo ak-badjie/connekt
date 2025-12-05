@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { X, Send, Paperclip, Image as ImageIcon, Video, FileText, Link as LinkIcon, Loader2, Maximize2, Minimize2, FileSignature } from 'lucide-react';
 import { AdvancedRichTextEditor } from './AdvancedRichTextEditor';
 import ContractMailComposer from './ContractMailComposer';
+import ProposalComposer from './ProposalComposer';
 import { Signature } from '@/lib/services/mail-service';
 import { Attachment, StorageService } from '@/lib/services/storage-service';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -12,6 +13,7 @@ import { AIEmailComposerModal } from './ai/AIEmailComposerModal';
 import { useAuth } from '@/context/AuthContext';
 import { UnifiedContractViewer } from '@/components/contracts/UnifiedContractViewer';
 import { ContractSigningService } from '@/lib/services/contract-signing-service';
+import { Eye } from 'lucide-react';
 
 interface ComposeModalProps {
     isOpen: boolean;
@@ -23,7 +25,7 @@ interface ComposeModalProps {
         attachments?: Attachment[],
         category?: string,
         signatureId?: string,
-        contractData?: { templateId?: string; terms?: any; defaultTerms?: string } | null
+        contractData?: { templateId?: string; terms?: any; defaultTerms?: string; description?: string } | null
     ) => Promise<void>;
     onSaveDraft?: (recipient: string, subject: string, body: string, attachments?: Attachment[], category?: string) => Promise<void>;
     signatures?: Signature[];
@@ -32,9 +34,16 @@ interface ComposeModalProps {
         subject?: string;
         body?: string;
     };
+    autoContractDraftRequest?: {
+        templateId?: string;
+        contractType?: string;
+        brief?: string;
+        variables?: Record<string, any>;
+        autoStart?: boolean;
+    };
 }
 
-export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures = [], initialData }: ComposeModalProps) {
+export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures = [], initialData, autoContractDraftRequest }: ComposeModalProps) {
     const [recipient, setRecipient] = useState(initialData?.recipient || '');
     const [subject, setSubject] = useState(initialData?.subject || '');
     const [body, setBody] = useState(initialData?.body || '');
@@ -46,17 +55,18 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
     const [sending, setSending] = useState(false);
     const [linkUrl, setLinkUrl] = useState('');
     const [showLinkInput, setShowLinkInput] = useState(false);
-
-    const [isContractMode, setIsContractMode] = useState(false);
+    const [mode, setMode] = useState<'email' | 'contract' | 'proposal'>('email');
     const [contractData, setContractData] = useState<{
         templateId?: string;
         terms?: any;
         defaultTerms?: string;
+        description?: string;
         contractId?: string;
     } | null>(null);
     const [showAIComposer, setShowAIComposer] = useState(false);
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [viewingContract, setViewingContract] = useState<any | null>(null);
+    const [showContractPreview, setShowContractPreview] = useState(false);
     const { user } = useAuth();
 
     useEffect(() => {
@@ -66,6 +76,17 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
             setBody(initialData.body || '');
         }
     }, [initialData]);
+
+    // Auto-open contract mode when a deep-link provides contract drafting data
+    useEffect(() => {
+        if (isOpen && autoContractDraftRequest) {
+            if (autoContractDraftRequest.contractType === 'general') {
+                setMode('proposal');
+            } else {
+                setMode('contract');
+            }
+        }
+    }, [autoContractDraftRequest, isOpen]);
 
     // Set default signature
     useEffect(() => {
@@ -135,17 +156,36 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
         templateId?: string;
         defaultTerms?: string;
     }) => {
-        setSubject(data.title);
-        setBody(data.description);
+        if (!subject) setSubject(data.title);
+        // Don't overwrite body
         setContractData({
             templateId: data.templateId,
             terms: data.terms,
-            defaultTerms: data.defaultTerms
+            defaultTerms: data.defaultTerms,
+            description: data.description
         });
         // Switch back to normal mode to review and send
-        setIsContractMode(false);
+        setMode('email');
         // Add a category automatically
         setCategory('Contracts');
+    };
+
+    const handleProposalGenerated = (data: {
+        title: string;
+        description: string;
+        terms: any;
+        templateId?: string;
+        defaultTerms?: string;
+    }) => {
+        if (!subject) setSubject(data.title);
+        setContractData({
+            templateId: data.templateId,
+            terms: data.terms,
+            defaultTerms: data.defaultTerms,
+            description: data.description
+        });
+        setMode('email');
+        setCategory('Proposals');
     };
 
     const handleSend = async () => {
@@ -155,13 +195,13 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
         }
 
         if (!recipient.includes('@') || !recipient.includes('.com')) {
-            alert('Please enter a valid Connekt address (e.g., username@connekt.com)');
+            alert('Please enter a valid Connekt address (e.g., user@connekt.com)');
             return;
         }
 
         setSending(true);
         try {
-            // Pass contract data to onSend handler if available
+            // Pass contract/proposal data to onSend handler if available
             await onSend(
                 recipient,
                 subject,
@@ -177,7 +217,6 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
             setCategory('');
             setAttachments([]);
             setContractData(null);
-            setIsContractMode(false);
             onClose();
         } catch (error: any) {
             alert(error.message || 'Failed to send message');
@@ -192,7 +231,7 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
         }
     };
 
-    const categories = ['Projects', 'Clients', 'Personal', 'Important', 'Contracts'];
+    const categories = ['Projects', 'Clients', 'Personal', 'Important', 'Contracts', 'Proposals'];
 
     const getAttachmentIcon = (attachment: Attachment) => {
         switch (attachment.type) {
@@ -206,6 +245,8 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                 return <FileText size={20} className="text-gray-500" />;
         }
     };
+
+    const isProposalAttachment = !!contractData?.terms?.proposal;
 
     if (!isOpen) return null;
 
@@ -225,24 +266,18 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                         <div className="flex items-center gap-4">
                             <h2 className="text-xl font-bold text-gray-900 dark:text-white">New Message</h2>
                             <div className="flex bg-gray-100 dark:bg-zinc-800 rounded-lg p-1">
-                                <button
-                                    onClick={() => setIsContractMode(false)}
-                                    className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${!isContractMode
-                                        ? 'bg-white dark:bg-zinc-700 text-gray-900 dark:text-white shadow-sm'
-                                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                                        }`}
-                                >
-                                    Email
-                                </button>
-                                <button
-                                    onClick={() => setIsContractMode(true)}
-                                    className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${isContractMode
-                                        ? 'bg-white dark:bg-zinc-700 text-gray-900 dark:text-white shadow-sm'
-                                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                                        }`}
-                                >
-                                    Contract
-                                </button>
+                                {(['email', 'contract', 'proposal'] as const).map(m => (
+                                    <button
+                                        key={m}
+                                        onClick={() => setMode(m)}
+                                        className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${mode === m
+                                            ? 'bg-white dark:bg-zinc-700 text-gray-900 dark:text-white shadow-sm'
+                                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                                            }`}
+                                    >
+                                        {m.charAt(0).toUpperCase() + m.slice(1)}
+                                    </button>
+                                ))}
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -274,13 +309,13 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                                 type="text"
                                 value={recipient}
                                 onChange={(e) => setRecipient(e.target.value)}
-                                placeholder="To: username@connekt.com or username@agencyhandle.com"
+                                placeholder="To: name@connekt.com or name@agencyhandle.com"
                                 className="w-full px-4 py-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#008080]/30 transition-all"
                             />
                             <p className="text-xs text-gray-500 mt-1 px-1">Enter full Connekt mail address</p>
                         </div>
 
-                        {!isContractMode && (
+                        {mode === 'email' && (
                             <div className="flex gap-3">
                                 <input
                                     type="text"
@@ -305,11 +340,23 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
 
                     {/* Editor or Contract Composer */}
                     <div className="flex-1 overflow-hidden p-4">
-                        {isContractMode ? (
+                        {mode === 'contract' && (
                             <div className="h-full overflow-y-auto">
-                                <ContractMailComposer onContractGenerated={handleContractGenerated} />
+                                <ContractMailComposer
+                                    onContractGenerated={handleContractGenerated}
+                                    autoAIRequest={autoContractDraftRequest}
+                                />
                             </div>
-                        ) : (
+                        )}
+                        {mode === 'proposal' && (
+                            <div className="h-full overflow-y-auto">
+                                <ProposalComposer
+                                    onProposalGenerated={handleProposalGenerated}
+                                    autoAIRequest={autoContractDraftRequest}
+                                />
+                            </div>
+                        )}
+                        {mode === 'email' && (
                             <AdvancedRichTextEditor
                                 value={body}
                                 onChange={setBody}
@@ -319,7 +366,7 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                     </div>
 
                     {/* Attachments */}
-                    {!isContractMode && attachments.length > 0 && (
+                    {mode === 'email' && attachments.length > 0 && (
                         <div className="px-6 py-3 border-t border-gray-200/50 dark:border-zinc-800/50 max-h-32 overflow-y-auto">
                             <div className="flex flex-wrap gap-2">
                                 {attachments.map((attachment) => (
@@ -349,14 +396,21 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                     )}
 
                     {/* Contract Attachment */}
-                    {!isContractMode && contractData && (
+                    {mode !== 'contract' && mode !== 'proposal' && contractData && (
                         <div className="px-6 py-3 border-t border-gray-200/50 dark:border-zinc-800/50">
                             <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-[#008080]/10 to-teal-600/10 border-2 border-[#008080]/30 rounded-xl">
                                 <FileSignature size={24} className="text-[#008080]" />
                                 <div className="flex-1">
-                                    <p className="text-sm font-bold text-gray-900 dark:text-white">Contract Attached</p>
-                                    <p className="text-xs text-gray-600 dark:text-gray-400">{subject || 'Untitled Contract'}</p>
+                                    <p className="text-sm font-bold text-gray-900 dark:text-white">{isProposalAttachment ? 'Proposal Attached' : 'Contract Attached'}</p>
+                                    <p className="text-xs text-gray-600 dark:text-gray-400">{subject || (isProposalAttachment ? 'Untitled Proposal' : 'Untitled Contract')}</p>
                                 </div>
+                                <button
+                                    onClick={() => setShowContractPreview(true)}
+                                    className="flex items-center gap-1 px-3 py-1.5 text-sm font-semibold text-[#008080] hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded-lg transition-colors"
+                                >
+                                    <Eye size={16} />
+                                    {isProposalAttachment ? 'View Proposal' : 'View Contract'}
+                                </button>
                                 <button
                                     onClick={() => setContractData(null)}
                                     className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-full transition-colors"
@@ -365,13 +419,13 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                                 </button>
                             </div>
                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 px-1">
-                                Recipients will be able to view and sign this contract
+                                Recipients will be able to view and sign this {isProposalAttachment ? 'proposal' : 'contract'}
                             </p>
                         </div>
                     )}
 
                     {/* Link Input */}
-                    {!isContractMode && showLinkInput && (
+                    {mode === 'email' && showLinkInput && (
                         <div className="px-6 py-3 border-t border-gray-200/50 dark:border-zinc-800/50 flex gap-2">
                             <input
                                 type="url"
@@ -396,7 +450,7 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                     )}
 
                     {/* Footer */}
-                    {!isContractMode && (
+                    {mode === 'email' && (
                         <div className="px-6 py-4 border-t border-gray-200/50 dark:border-zinc-800/50 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <input
@@ -490,6 +544,27 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                             setBody(email.body);
                             setShowAIComposer(false);
                         }}
+                    />
+                )}
+
+                {showContractPreview && contractData && (
+                    <UnifiedContractViewer
+                        contractId={contractData.contractId || 'draft-contract'}
+                        contract={{
+                            type: (contractData.terms?.contractType as string) || 'draft',
+                            title: subject || contractData.terms?.jobTitle || contractData.terms?.projectTitle || 'Draft Contract',
+                            description: contractData.description || '',
+                            terms: contractData.terms || {},
+                            defaultTerms: contractData.defaultTerms,
+                            status: 'pending',
+                            fromUserId: user?.uid || '',
+                            fromUsername: 'You',
+                            toUserId: recipient || 'recipient',
+                            toUsername: recipient || 'Recipient',
+                        }}
+                        isOpen={showContractPreview}
+                        onClose={() => setShowContractPreview(false)}
+                        canSign={false}
                     />
                 )}
             </div>

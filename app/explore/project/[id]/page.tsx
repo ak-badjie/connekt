@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { motion } from 'framer-motion';
 import { Briefcase, DollarSign, Calendar, Users, MapPin, Clock, ArrowLeft, Send } from 'lucide-react';
 import Link from 'next/link';
+import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
 
 export default function PublicProjectPage() {
     const params = useParams();
@@ -18,6 +19,8 @@ export default function PublicProjectPage() {
     const [project, setProject] = useState<Project | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [showProposalModal, setShowProposalModal] = useState(false);
+    const [sending, setSending] = useState(false);
+    const [sendMode, setSendMode] = useState<'email' | 'contract' | 'proposal'>('proposal');
 
     useEffect(() => {
         const loadProject = async () => {
@@ -230,26 +233,149 @@ export default function PublicProjectPage() {
                     </motion.button>
                 </motion.div>
 
-                {/* Proposal Modal Placeholder */}
-                {showProposalModal && (
+                {/* Proposal Modal */}
+                {showProposalModal && project && (
                     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-6">
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="bg-white dark:bg-zinc-900 rounded-3xl p-8 max-w-2xl w-full"
+                            className="bg-white dark:bg-zinc-900 rounded-3xl p-8 max-w-2xl w-full space-y-4"
                         >
-                            <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-4">
+                            <h2 className="text-2xl font-black text-gray-900 dark:text-white">
                                 Send Proposal
                             </h2>
-                            <p className="text-gray-600 dark:text-gray-400 mb-6">
-                                Use ConnektMail to send a contract proposal to the project owner.
+                            <p className="text-gray-600 dark:text-gray-400">
+                                Reach out to @{project.ownerUsername} with email, contract, or proposal. Use ConnektAI for instant drafting or send manually.
                             </p>
-                            <div className="flex gap-3">
-                                <Link href="/mail" className="flex-1">
-                                    <button className="w-full px-6 py-3 rounded-xl bg-[#008080] hover:bg-teal-600 text-white font-bold transition-colors">
-                                        Open ConnektMail
+
+                            {/* Mode toggle */}
+                            <div className="grid grid-cols-3 gap-2">
+                                {(['email', 'contract', 'proposal'] as const).map(mode => (
+                                    <button
+                                        key={mode}
+                                        onClick={() => setSendMode(mode)}
+                                        className={`p-3 rounded-xl border text-sm font-semibold transition-all flex flex-col items-center gap-1 ${sendMode === mode
+                                            ? 'border-[#008080] bg-teal-50 dark:bg-teal-900/20 text-[#008080]'
+                                            : 'border-gray-200 dark:border-zinc-800 text-gray-500'}`}
+                                    >
+                                        <span className="capitalize">{mode}</span>
+                                        <span className="text-[11px] text-gray-400">{mode === 'email' ? 'Simple email' : mode === 'contract' ? 'Attach contract' : 'Business proposal'}</span>
                                     </button>
-                                </Link>
+                                ))}
+                            </div>
+
+                            {/* Action buttons */}
+                            <div className="space-y-2">
+                                <button
+                                    disabled={sending}
+                                    onClick={() => {
+                                        if (!project) return;
+                                        const toAddress = `${project.ownerUsername}@connekt.com`;
+                                        const params = new URLSearchParams({
+                                            compose: '1',
+                                            to: toAddress,
+                                            subject: sendMode === 'proposal' ? `Proposal for ${project.title}` : `Regarding ${project.title}`,
+                                            body: project.description || '',
+                                            autoStart: '0'
+                                        });
+
+                                        if (sendMode === 'contract') {
+                                            params.set('templateId', 'Project-Based Job Contract');
+                                            params.set('contractType', 'project_assignment');
+                                            params.set('brief', `Project: ${project.title}\nBudget: ${project.budget}\nDeadline: ${project.deadline ? new Date(project.deadline).toDateString() : 'N/A'}\nDescription: ${project.description || ''}`);
+                                            const variables = {
+                                                contractDate: new Date().toISOString().slice(0, 10),
+                                                clientName: project.ownerUsername,
+                                                contractorName: project.title,
+                                                projectTitle: project.title,
+                                                projectDescription: project.description || 'Project proposal',
+                                                deliverables: project.description || 'Deliverables to be defined',
+                                                startDate: new Date().toISOString().slice(0, 10),
+                                                endDate: project.deadline ? new Date(project.deadline).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+                                                duration: 30,
+                                                durationUnit: 'days',
+                                                paymentAmount: project.budget || 0,
+                                                paymentCurrency: 'USD',
+                                                paymentType: 'fixed',
+                                                paymentMilestones: 'Milestones to be agreed',
+                                                reviewPeriod: 5,
+                                                revisionRounds: 2,
+                                                noticePeriod: 7,
+                                                terminationConditions: 'Either party may terminate with notice via Connekt.'
+                                            } as Record<string, any>;
+                                            params.set('variables', JSON.stringify(variables));
+                                        }
+
+                                        if (sendMode === 'proposal') {
+                                            params.set('templateId', 'General Business Proposal');
+                                            params.set('contractType', 'general');
+                                            params.set('brief', `Proposal for ${project.title} from @${project.ownerUsername}`);
+                                            const todayStr = new Date().toISOString().slice(0, 10);
+                                            const validUntil = project.deadline ? new Date(project.deadline).toISOString().slice(0, 10) : todayStr;
+                                            const variables = {
+                                                proposalTitle: `Proposal: ${project.title}`,
+                                                date: todayStr,
+                                                recipientName: project.ownerUsername,
+                                                senderName: user?.displayName || user?.email || 'Sender',
+                                                executiveSummary: project.description || 'Project proposal',
+                                                solutionDetails: project.description || 'Proposed delivery plan',
+                                                timeline: project.deadline ? `Complete by ${new Date(project.deadline).toDateString()}` : 'Timeline to be agreed',
+                                                totalCost: project.budget || 0,
+                                                currency: 'USD',
+                                                paymentTerms: 'Fixed payment upon completion.',
+                                                validUntil
+                                            } as Record<string, any>;
+                                            params.set('variables', JSON.stringify(variables));
+                                        }
+
+                                        setSending(true);
+                                        router.push(`/mail?${params.toString()}`);
+                                        setSending(false);
+                                        setShowProposalModal(false);
+                                    }}
+                                    className="w-full px-6 py-3 rounded-xl bg-[#008080] hover:bg-teal-600 text-white font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {sending ? 'Opening...' : sendMode === 'email' ? 'Send Email' : sendMode === 'contract' ? 'Send Contract' : 'Send Proposal'}
+                                </button>
+
+                                <button
+                                    disabled={sending}
+                                    onClick={() => {
+                                        if (!project) return;
+                                        const toAddress = `${project.ownerUsername}@connekt.com`;
+                                        const params = new URLSearchParams({
+                                            compose: '1',
+                                            to: toAddress,
+                                            subject: sendMode === 'proposal' ? `Proposal for ${project.title}` : `Regarding ${project.title}`,
+                                            body: project.description || '',
+                                            autoStart: '1'
+                                        });
+
+                                        if (sendMode === 'contract') {
+                                            params.set('templateId', 'Project-Based Job Contract');
+                                            params.set('contractType', 'project_assignment');
+                                            params.set('brief', `Project: ${project.title}\nBudget: ${project.budget}\nDeadline: ${project.deadline ? new Date(project.deadline).toDateString() : 'N/A'}\nDescription: ${project.description || ''}`);
+                                        }
+
+                                        if (sendMode === 'proposal') {
+                                            params.set('templateId', 'General Business Proposal');
+                                            params.set('contractType', 'general');
+                                            params.set('brief', `Proposal for ${project.title} from @${project.ownerUsername}`);
+                                        }
+
+                                        setSending(true);
+                                        router.push(`/mail?${params.toString()}`);
+                                        setSending(false);
+                                        setShowProposalModal(false);
+                                    }}
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <span>Draft with</span>
+                                    <ConnektAIIcon className="w-4 h-4" />
+                                </button>
+                            </div>
+
+                            <div className="flex justify-end">
                                 <button
                                     onClick={() => setShowProposalModal(false)}
                                     className="px-6 py-3 rounded-xl bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 font-bold transition-colors"

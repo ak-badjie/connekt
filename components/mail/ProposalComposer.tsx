@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { ContractTemplate, ContractVariable } from '@/lib/types/mail.types';
+import { useEffect, useState } from 'react';
+import { ContractTemplate } from '@/lib/types/mail.types';
 import { ContractTemplateService } from '@/lib/services/contract-template-service';
 import GambianLegalHeader from './GambianLegalHeader';
 import { SYSTEM_TEMPLATES } from '@/lib/data/contract-templates';
@@ -10,8 +10,8 @@ import { AIContractDrafterModal } from './ai/AIContractDrafterModal';
 import { useAuth } from '@/context/AuthContext';
 import ReactMarkdown from 'react-markdown';
 
-interface ContractMailComposerProps {
-    onContractGenerated: (contractData: {
+interface ProposalComposerProps {
+    onProposalGenerated: (proposalData: {
         title: string;
         description: string;
         defaultTerms?: string;
@@ -27,7 +27,7 @@ interface ContractMailComposerProps {
     };
 }
 
-export default function ContractMailComposer({ onContractGenerated, autoAIRequest }: ContractMailComposerProps) {
+export default function ProposalComposer({ onProposalGenerated, autoAIRequest }: ProposalComposerProps) {
     const [templates, setTemplates] = useState<ContractTemplate[]>([]);
     const [selectedTemplate, setSelectedTemplate] = useState<ContractTemplate | null>(null);
     const [variables, setVariables] = useState<Record<string, any>>({});
@@ -40,7 +40,6 @@ export default function ContractMailComposer({ onContractGenerated, autoAIReques
         loadTemplates();
     }, []);
 
-    // Pre-select template and auto-open AI drafter when provided
     useEffect(() => {
         if (!autoAIRequest || !templates.length) return;
 
@@ -61,12 +60,15 @@ export default function ContractMailComposer({ onContractGenerated, autoAIReques
         }
     }, [autoAIRequest, templates, autoTriggered]);
 
-    const loadTemplates = async () => {
+    const loadTemplates = () => {
         try {
-            setTemplates(SYSTEM_TEMPLATES as unknown as ContractTemplate[]);
+            const proposalTemplates = (SYSTEM_TEMPLATES as unknown as ContractTemplate[]).filter(t =>
+                t.name.toLowerCase().includes('proposal') || t.type === 'general'
+            );
+            setTemplates(proposalTemplates);
             setLoading(false);
         } catch (error) {
-            console.error('Failed to load templates', error);
+            console.error('Failed to load proposal templates', error);
             setLoading(false);
         }
     };
@@ -86,25 +88,23 @@ export default function ContractMailComposer({ onContractGenerated, autoAIReques
         }));
     };
 
-    const handleAIGenerated = (contractData: { templateId?: string; variables: Record<string, any> }) => {
-        if (contractData.templateId) {
-            const template = templates.find(t => t.id === contractData.templateId || t.name === contractData.templateId);
+    const handleAIGenerated = (proposalData: { templateId?: string; variables: Record<string, any> }) => {
+        if (proposalData.templateId) {
+            const template = templates.find(t => t.id === proposalData.templateId || t.name === proposalData.templateId);
             if (template) {
                 setSelectedTemplate(template);
             }
         }
 
-        // Populate form fields with AI-generated data so the user can review before attaching
         setVariables(prev => ({
             ...prev,
-            ...contractData.variables
+            ...proposalData.variables
         }));
     };
 
     const handleGenerate = () => {
         if (!selectedTemplate) return;
 
-        // Validate required variables
         const missingVars = selectedTemplate.variables
             .filter(v => v.required && !variables[v.key])
             .map(v => v.label);
@@ -114,25 +114,24 @@ export default function ContractMailComposer({ onContractGenerated, autoAIReques
             return;
         }
 
-        const contractBody = ContractTemplateService.renderTemplate(selectedTemplate.bodyTemplate, variables);
-
-        // Extract terms for the contract object
+        const proposalBody = ContractTemplateService.renderTemplate(selectedTemplate.bodyTemplate, variables);
         const terms = {
             ...variables,
-            contractType: selectedTemplate.type
+            contractType: selectedTemplate.type || 'general',
+            proposal: true
         };
 
-        onContractGenerated({
-            title: variables.jobTitle || variables.projectTitle || variables.proposalTitle || selectedTemplate.name,
-            description: contractBody,
-            defaultTerms: selectedTemplate.defaultTerms, // Include standard terms
-            terms: terms,
+        onProposalGenerated({
+            title: variables.proposalTitle || variables.projectTitle || selectedTemplate.name,
+            description: proposalBody,
+            defaultTerms: selectedTemplate.defaultTerms,
+            terms,
             templateId: selectedTemplate.id
         });
     };
 
     if (loading) {
-        return <div className="p-4 text-center">Loading templates...</div>;
+        return <div className="p-4 text-center">Loading proposal templates...</div>;
     }
 
     return (
@@ -141,15 +140,15 @@ export default function ContractMailComposer({ onContractGenerated, autoAIReques
             <div className="p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                 <div className="flex items-center gap-3 mb-2">
                     <label className="flex-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Select Contract Template
+                        Select Proposal Template
                     </label>
                     <button
                         onClick={() => setShowAIDrafter(true)}
                         className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                        title="AI Contract Drafter"
+                        title="AI Proposal Drafter"
                     >
                         <ConnektAIIcon className="w-5 h-5" />
-                        <span className="text-sm font-medium">AI Contract Drafter</span>
+                        <span className="text-sm font-medium">AI Proposal Drafter</span>
                     </button>
                 </div>
                 <select
@@ -160,7 +159,7 @@ export default function ContractMailComposer({ onContractGenerated, autoAIReques
                     <option value="">-- Choose a Template --</option>
                     {templates.map((template, index) => (
                         <option key={template.id || index} value={template.id || template.name}>
-                            {template.name} ({template.type.replace(/_/g, ' ')})
+                            {template.name}
                         </option>
                     ))}
                 </select>
@@ -168,10 +167,10 @@ export default function ContractMailComposer({ onContractGenerated, autoAIReques
 
             {selectedTemplate && (
                 <div className="flex-1 flex overflow-hidden">
-                    {/* Left Side: Form Fields */}
+                    {/* Left: Form Fields */}
                     <div className="w-1/2 p-4 overflow-y-auto border-r border-gray-200 dark:border-gray-700">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                            Contract Details
+                            Proposal Details
                         </h3>
                         <div className="space-y-4">
                             {selectedTemplate.variables.map((variable) => (
@@ -195,7 +194,7 @@ export default function ContractMailComposer({ onContractGenerated, autoAIReques
                                             onChange={(e) => handleVariableChange(variable.key, e.target.value)}
                                             placeholder={variable.type === 'currency' ? '0.00' : ''}
                                         />
-                                    ) : variable.label.includes('Description') || variable.label.includes('List') || variable.label.includes('Terms') ? (
+                                    ) : variable.label.toLowerCase().includes('summary') || variable.label.toLowerCase().includes('details') || variable.label.toLowerCase().includes('terms') ? (
                                         <textarea
                                             rows={4}
                                             className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
@@ -215,7 +214,7 @@ export default function ContractMailComposer({ onContractGenerated, autoAIReques
                         </div>
                     </div>
 
-                    {/* Right Side: Live Preview */}
+                    {/* Right: Preview */}
                     <div className="w-1/2 p-4 overflow-y-auto bg-white dark:bg-gray-800">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                             Live Preview
@@ -248,19 +247,17 @@ export default function ContractMailComposer({ onContractGenerated, autoAIReques
                 </div>
             )}
 
-            {/* Footer */}
             {selectedTemplate && (
                 <div className="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex justify-end">
                     <button
                         onClick={handleGenerate}
                         className="bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
                     >
-                        Attach Contract to Mail
+                        Attach Proposal to Mail
                     </button>
                 </div>
             )}
 
-            {/* AI Contract Drafter Modal */}
             {showAIDrafter && user && (
                 <AIContractDrafterModal
                     userId={user.uid}
@@ -272,8 +269,8 @@ export default function ContractMailComposer({ onContractGenerated, autoAIReques
                         brief: autoAIRequest.brief,
                         autoStart: autoAIRequest.autoStart,
                     } : undefined}
-                    onGenerated={(contractData) => {
-                        handleAIGenerated(contractData);
+                    onGenerated={(proposalData) => {
+                        handleAIGenerated(proposalData);
                         setShowAIDrafter(false);
                     }}
                 />

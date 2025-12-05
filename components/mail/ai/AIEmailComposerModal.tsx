@@ -15,7 +15,6 @@ interface AIEmailComposerModalProps {
 
 export function AIEmailComposerModal({ userId, onClose, onGenerated }: AIEmailComposerModalProps) {
     const [description, setDescription] = useState('');
-    const [tone, setTone] = useState<'formal' | 'casual' | 'persuasive'>('formal');
     const [isGenerating, setIsGenerating] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -29,17 +28,8 @@ export function AIEmailComposerModal({ userId, onClose, onGenerated }: AIEmailCo
             setIsGenerating(true);
             setError(null);
 
-            // Check quota
-            const { allowed } = await ConnectAIService.checkQuota(userId);
-            if (!allowed) {
-                throw new Error('AI quota exceeded. Please upgrade your plan or wait until next month.');
-            }
-
             // Generate email
-            const email = await ConnectAIService.draftEmail(description, tone, userId);
-
-            // Track usage
-            await ConnectAIService.trackUsage(userId, 'email_composer', 800, 0.0008, true);
+            const email = await ConnectAIService.draftEmail(description, 'formal', userId);
 
             onGenerated(email);
             onClose();
@@ -106,36 +96,6 @@ export function AIEmailComposerModal({ userId, onClose, onGenerated }: AIEmailCo
                                 className="w-full p-4 border border-gray-300 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none resize-none"
                                 rows={4}
                             />
-                        </div>
-
-                        {/* Tone Selection */}
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                                Select Tone
-                            </label>
-                            <div className="grid grid-cols-3 gap-3">
-                                {(['formal', 'casual', 'persuasive'] as const).map((toneOption) => (
-                                    <button
-                                        key={toneOption}
-                                        onClick={() => setTone(toneOption)}
-                                        className={`p-4 rounded-xl border-2 transition-all ${tone === toneOption
-                                            ? 'border-teal-600 bg-teal-50 dark:bg-teal-900/20'
-                                            : 'border-gray-200 dark:border-gray-700 hover:border-teal-400'
-                                            }`}
-                                    >
-                                        <div className="text-center">
-                                            <div className="text-2xl mb-1">
-                                                {toneOption === 'formal' && '🎩'}
-                                                {toneOption === 'casual' && '😊'}
-                                                {toneOption === 'persuasive' && '🎯'}
-                                            </div>
-                                            <div className="text-sm font-semibold text-gray-900 dark:text-white capitalize">
-                                                {toneOption}
-                                            </div>
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
                         </div>
 
                         {/* Error Message */}

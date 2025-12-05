@@ -250,11 +250,23 @@ export default function PublicTaskPage() {
                                 Use ConnektMail to send a contract proposal for this task.
                             </p>
                             <div className="flex gap-3">
-                                <Link href="/mail" className="flex-1">
-                                    <button className="w-full px-6 py-3 rounded-xl bg-[#008080] hover:bg-teal-600 text-white font-bold transition-colors">
-                                        Open ConnektMail
-                                    </button>
-                                </Link>
+                                <button
+                                    className="flex-1 px-6 py-3 rounded-xl bg-[#008080] hover:bg-teal-600 text-white font-bold transition-colors"
+                                    onClick={() => {
+                                        const params = new URLSearchParams({
+                                            compose: '1',
+                                            to: `${task.ownerUsername}@connekt.com`,
+                                            subject: `Proposal for task: ${task.title}`,
+                                            body: task.description || '',
+                                            contractType: 'task_assignment',
+                                            brief: `Task: ${task.title}\nBudget: ${task.budget || 'N/A'}\nDeadline: ${task.dueDate ? new Date(task.dueDate).toDateString() : 'N/A'}\nDescription: ${task.description || ''}`
+                                        });
+                                        router.push(`/mail?${params.toString()}`);
+                                        setShowProposalModal(false);
+                                    }}
+                                >
+                                    Open ConnektMail
+                                </button>
                                 <button
                                     onClick={() => setShowProposalModal(false)}
                                     className="px-6 py-3 rounded-xl bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 font-bold transition-colors"

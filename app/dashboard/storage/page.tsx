@@ -3,22 +3,26 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { StorageQuotaService, StorageQuota } from '@/lib/services/storage-quota-service';
-import { HardDrive, File, Mail, FileText } from 'lucide-react';
+import { HardDrive, File, Mail, FileText, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import LoadingScreen from '@/components/ui/LoadingScreen';
 import { useMinimumLoading } from '@/hooks/useMinimumLoading';
+import { SubscriptionService } from '@/lib/services/subscription.service';
+import { TIER_FEATURES } from '@/lib/types/subscription-tiers.types';
 
 export default function StoragePage() {
     const { user, userProfile } = useAuth();
     const [storageQuota, setStorageQuota] = useState<StorageQuota | null>(null);
     const [loading, setLoading] = useState(true);
     const [activeMailAddress, setActiveMailAddress] = useState('');
+    const [aiQuota, setAiQuota] = useState<{ tierName: string; quota: number; used: number } | null>(null);
 
     useEffect(() => {
         if (user && userProfile?.username) {
             const mailAddress = `${userProfile.username}@connekt.com`;
             setActiveMailAddress(mailAddress);
             loadStorageData(mailAddress);
+            loadAiQuota(user.uid);
         }
     }, [user, userProfile]);
 
@@ -31,6 +35,18 @@ export default function StoragePage() {
             console.error('Error loading storage:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadAiQuota = async (uid: string) => {
+        try {
+            const tier = await SubscriptionService.getUserTier(uid);
+            const features = TIER_FEATURES[tier];
+            const quota = features.aiRequestsPerMonth ?? 0;
+            // Usage tracking not yet wired; placeholder 0 used.
+            setAiQuota({ tierName: tier, quota, used: 0 });
+        } catch (error) {
+            console.error('Error loading AI quota:', error);
         }
     };
 
@@ -104,6 +120,38 @@ export default function StoragePage() {
 
             {/* Storage Breakdown */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* AI Quota */}
+                <div className="bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl rounded-2xl border border-gray-200/50 dark:border-zinc-800/50 p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center">
+                            <Sparkles size={24} className="text-amber-500" />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-gray-900 dark:text-white">ConnektAI Requests</h3>
+                            <p className="text-xs text-gray-500">Monthly quota</p>
+                        </div>
+                    </div>
+                    {aiQuota ? (
+                        <>
+                            <div className="flex items-baseline gap-2">
+                                <p className="text-3xl font-black text-gray-900 dark:text-white">{aiQuota.quota}</p>
+                                <span className="text-sm text-gray-500">requests/month</span>
+                            </div>
+                            <p className="text-sm text-gray-500 mt-1">Used this month: {aiQuota.used}</p>
+                            <div className="mt-3 h-2 bg-gray-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-gradient-to-r from-[#008080] to-teal-500"
+                                    style={{ width: `${Math.min((aiQuota.used / Math.max(aiQuota.quota || 1, 1)) * 100, 100)}%` }}
+                                />
+                            </div>
+                            <p className="text-xs text-gray-500 mt-2">Tier: {aiQuota.tierName}</p>
+                        </>
+                    ) : (
+                        <p className="text-sm text-gray-500">Loading AI quota...</p>
+                    )}
+                    <p className="text-xs text-amber-600 mt-3">Detailed AI usage coming soon.</p>
+                </div>
+
                 {/* Mail Attachments */}
                 <div className="bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl rounded-2xl border border-gray-200/50 dark:border-zinc-800/50 p-6">
                     <div className="flex items-center gap-3 mb-4">

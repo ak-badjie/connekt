@@ -8,28 +8,28 @@ import type { MailCategory } from '@/lib/types/mail.types';
 
 interface MailPrimarySidebarProps {
     activeFolder: 'inbox' | 'sent' | 'drafts' | 'trash';
-    activeCategory?: MailCategory;
+    activeCategories: Array<MailCategory | 'All'>;
     unreadCounts?: {
         inbox: number;
         drafts: number;
     };
-    categories?: MailCategory[];
+    categories?: Array<MailCategory | 'All'>;
     storageUsedGB?: number;
     storageTotalGB?: number;
     onFolderChange: (folder: 'inbox' | 'sent' | 'drafts' | 'trash') => void;
-    onCategoryChange?: (category: MailCategory) => void;
+    onCategoriesChange?: (categories: Array<MailCategory | 'All'>) => void;
     onCompose: () => void;
 }
 
 export function MailPrimarySidebar({
     activeFolder,
-    activeCategory,
+    activeCategories,
     unreadCounts = { inbox: 0, drafts: 0 },
-    categories = ['Projects', 'Clients', 'Personal', 'Important'],
-    storageUsedGB = 0.24,
+    categories = ['All', 'Projects', 'Clients', 'Personal', 'Important', 'Contracts'],
+    storageUsedGB = 0,
     storageTotalGB = 1.0,
     onFolderChange,
-    onCategoryChange,
+    onCategoriesChange,
     onCompose
 }: MailPrimarySidebarProps) {
     const [categoriesExpanded, setCategoriesExpanded] = useState(true);
@@ -41,7 +41,26 @@ export function MailPrimarySidebar({
         { id: 'trash' as const, label: 'Trash', icon: Trash2 }
     ];
 
-    const storagePercentage = (storageUsedGB / storageTotalGB) * 100;
+    const storagePercentage = storageTotalGB > 0 ? (storageUsedGB / storageTotalGB) * 100 : 0;
+
+    const isCategoryActive = (category: MailCategory | 'All') => {
+        return activeCategories.includes(category);
+    };
+
+    const handleCategoryToggle = (category: MailCategory | 'All') => {
+        if (!onCategoriesChange) return;
+
+        if (category === 'All') {
+            onCategoriesChange(['All']);
+            return;
+        }
+
+        const withoutAll = activeCategories.filter(cat => cat !== 'All');
+        const exists = withoutAll.includes(category);
+        const next = exists ? withoutAll.filter(cat => cat !== category) : [...withoutAll, category];
+
+        onCategoriesChange(next.length === 0 ? ['All'] : next);
+    };
 
     return (
         <div className="w-64 h-full bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl border-r border-gray-200/50 dark:border-zinc-800/50 flex flex-col relative">
@@ -113,12 +132,12 @@ export function MailPrimarySidebar({
                                 className="space-y-1 overflow-hidden"
                             >
                                 {categories.map((category) => {
-                                    const isActive = activeCategory === category;
+                                    const isActive = isCategoryActive(category);
 
                                     return (
                                         <button
                                             key={category}
-                                            onClick={() => onCategoryChange?.(category)}
+                                            onClick={() => handleCategoryToggle(category)}
                                             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${isActive
                                                 ? 'bg-teal-500/10 text-teal-600 dark:text-teal-500 border border-teal-500/20'
                                                 : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100/80 dark:hover:bg-zinc-800/80'

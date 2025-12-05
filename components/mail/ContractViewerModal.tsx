@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, FileText, CheckCircle, XCircle } from 'lucide-react';
+import { X, FileText, CheckCircle, XCircle, Printer } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import ReactMarkdown from 'react-markdown';
@@ -14,7 +14,7 @@ interface ContractViewerModalProps {
     userId: string;
     isOpen: boolean;
     onClose: () => void;
-    onSigned?: () => void;
+    onSigned?: (contract: ContractData) => void;
 }
 
 interface ContractData {
@@ -32,6 +32,14 @@ interface ContractData {
     rejectedAt?: any;
     expiresAt: any;
     relatedEntityId?: string;
+    signatures?: any[];
+    signatureFullName?: string;
+    signedAt?: any;
+    signedBy?: string;
+    fromUserId?: string;
+    fromUsername?: string;
+    toUserId?: string;
+    toUsername?: string;
 }
 
 export function ContractViewerModal({ contractId, userId, isOpen, onClose, onSigned }: ContractViewerModalProps) {
@@ -39,6 +47,7 @@ export function ContractViewerModal({ contractId, userId, isOpen, onClose, onSig
     const [loading, setLoading] = useState(true);
     const [signing, setSigning] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [fullName, setFullName] = useState('');
 
     useEffect(() => {
         if (isOpen && contractId) {
@@ -68,13 +77,17 @@ export function ContractViewerModal({ contractId, userId, isOpen, onClose, onSig
 
     const handleAccept = async () => {
         if (!contract) return;
+        if (!fullName.trim()) {
+            setError('Please enter your full legal name to sign.');
+            return;
+        }
         setSigning(true);
         setError(null);
 
         try {
-            await ContractMailService.acceptContract(contract.id, userId);
+            await ContractMailService.signContract(contract.id, userId, fullName.trim());
             await loadContract(); // Reload to show updated status
-            if (onSigned) onSigned();
+            if (onSigned) onSigned(contract);
         } catch (err: any) {
             console.error('Error accepting contract:', err);
             setError(err.message || 'Failed to accept contract');
@@ -103,7 +116,8 @@ export function ContractViewerModal({ contractId, userId, isOpen, onClose, onSig
     };
 
     const isExpired = contract && contract.expiresAt && contract.expiresAt.toDate() < new Date();
-    const canSign = contract && contract.status === 'pending' && !isExpired && contract.createdFor === userId;
+    const contractRecipientId = contract?.createdFor || (contract as any)?.toUserId;
+    const canSign = contract && contract.status === 'pending' && !isExpired && contractRecipientId === userId;
 
     return (
         <AnimatePresence>
@@ -133,13 +147,22 @@ export function ContractViewerModal({ contractId, userId, isOpen, onClose, onSig
                                     )}
                                 </div>
                             </div>
-                            <button
-                                onClick={onClose}
-                                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-                                title="Close"
-                            >
-                                <X className="w-5 h-5 text-white" />
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => window.print()}
+                                    className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                                    title="Print / Save as PDF"
+                                >
+                                    <Printer className="w-5 h-5 text-white" />
+                                </button>
+                                <button
+                                    onClick={onClose}
+                                    className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                                    title="Close"
+                                >
+                                    <X className="w-5 h-5 text-white" />
+                                </button>
+                            </div>
                         </div>
 
                         {/* Content */}
@@ -218,6 +241,26 @@ export function ContractViewerModal({ contractId, userId, isOpen, onClose, onSig
                                                     </div>
                                                 </div>
                                             )}
+
+                                            {/* Signatures */}
+                                            <div className="mt-10 pt-6 border-t-2 border-gray-200 dark:border-gray-700 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                <div className="p-4 rounded-lg bg-teal-50 dark:bg-teal-900/20 border border-teal-100 dark:border-teal-800">
+                                                    <p className="text-xs uppercase tracking-wide text-teal-700 dark:text-teal-300 font-semibold mb-1">Contractor</p>
+                                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{contract.terms?.fromName || contract.fromUsername || 'Contractor'}</p>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Signed by: {contract.signatureFullName || (contract.signatures || []).find(s => s.userId === contract.fromUserId)?.username || '—'}</p>
+                                                    {contract.signedAt?.toDate && (
+                                                        <p className="text-xs text-gray-500">On: {contract.signedAt.toDate().toLocaleString()}</p>
+                                                    )}
+                                                </div>
+                                                <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700">
+                                                    <p className="text-xs uppercase tracking-wide text-gray-700 dark:text-gray-300 font-semibold mb-1">Contractee</p>
+                                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{contract.terms?.clientName || contract.toUsername || 'Contractee'}</p>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Signed by: {(contract.signatures || []).find(s => s.userId === contract.toUserId)?.username || 'Pending'}</p>
+                                                    {contract.signatures && (contract.signatures as any[]).find(s => s.userId === contract.toUserId)?.signedAt?.toDate && (
+                                                        <p className="text-xs text-gray-500">On: {(contract.signatures as any[]).find(s => s.userId === contract.toUserId)?.signedAt?.toDate().toLocaleString()}</p>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -226,7 +269,17 @@ export function ContractViewerModal({ contractId, userId, isOpen, onClose, onSig
 
                         {/* Footer Actions */}
                         {contract && canSign && !loading && (
-                            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex justify-end gap-3">
+                            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex flex-col gap-3 md:flex-row md:items-center md:justify-end">
+                                <div className="flex-1 md:max-w-sm">
+                                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Full legal name (signature)</label>
+                                    <input
+                                        type="text"
+                                        value={fullName}
+                                        onChange={(e) => setFullName(e.target.value)}
+                                        placeholder="Type your full name to sign"
+                                        className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500"
+                                    />
+                                </div>
                                 <button
                                     onClick={handleReject}
                                     disabled={signing}

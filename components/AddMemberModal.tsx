@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, Search, UserPlus, Loader2, FileText } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { FirestoreService, UserProfile } from '@/lib/services/firestore-service';
-import { ContractMailService } from '@/lib/services/contract-mail-service';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import type { ContractTerms } from '@/lib/types/mail.types';
+import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
 
 interface SendProjectInviteModalProps {
     isOpen: boolean;
@@ -24,6 +25,8 @@ export default function SendProjectInviteModal({
     projectBudget,
     projectDeadline
 }: SendProjectInviteModalProps) {
+    const [isMounted, setIsMounted] = useState(false);
+    const router = useRouter();
     const { user, userProfile } = useAuth();
     const [searchQuery, setSearchQuery] = useState('');
     const [searching, setSearching] = useState(false);
@@ -52,42 +55,93 @@ export default function SendProjectInviteModal({
         }
     };
 
-    const handleSendContract = async () => {
+    const buildContractVariables = () => {
+        const today = new Date();
+        const todayStr = today.toISOString().slice(0, 10);
+
+        let deadlineStr = projectDeadline || todayStr;
+        let durationDays = 7;
+        try {
+            const startMs = Date.parse(todayStr);
+            const endMs = Date.parse(projectDeadline || todayStr);
+            if (!Number.isNaN(startMs) && !Number.isNaN(endMs) && endMs >= startMs) {
+                durationDays = Math.max(1, Math.ceil((endMs - startMs) / (1000 * 60 * 60 * 24)));
+                deadlineStr = new Date(endMs).toISOString().slice(0, 10);
+            }
+        } catch (_) {
+            // Keep defaults if parsing fails
+        }
+
+        const recruiterName = userProfile?.displayName || userProfile?.username || 'Recruiter';
+        const recipientName = selectedUser?.displayName || selectedUser?.username || 'Recipient';
+
+        return {
+            contractDate: todayStr,
+            clientName: recruiterName,
+            contractorName: recipientName,
+            projectTitle: projectTitle || 'Project',
+            projectDescription: `Project invitation for ${projectTitle || 'project'} as ${selectedRole}`,
+            deliverables: 'Deliverables to be detailed with the assignee.',
+            startDate: todayStr,
+            endDate: deadlineStr,
+            duration: durationDays,
+            durationUnit: 'days',
+            paymentAmount: projectBudget || 0,
+            paymentCurrency: 'GMD',
+            paymentType: 'fixed',
+            paymentMilestones: 'Milestones will be outlined in the project plan.',
+            reviewPeriod: 3,
+            revisionRounds: 2,
+            noticePeriod: 7,
+            terminationConditions: 'Either party may terminate with notice via Connekt.',
+        } as Record<string, any>;
+    };
+
+    const openMailWithContract = async (options: { autoStartAI: boolean }) => {
         if (!selectedUser || !user || !userProfile) return;
 
         setSending(true);
         setError('');
         try {
-            // Prepare contract terms
-            const terms: ContractTerms = {
-                projectId,
-                projectTitle,
-                projectRole: selectedRole,
-                projectBudget,
-                projectDeadline,
-            };
+            const recruiterName = userProfile.displayName || userProfile.username || 'Recruiter';
+            const recipientName = selectedUser.displayName || selectedUser.username || 'Recipient';
+            const fromAddress = `${userProfile.username}@connekt.com`;
+            const toAddress = `${selectedUser.username}@connekt.com`;
 
-            // Create and send contract
-            await ContractMailService.createContract(
-                user.uid,
-                userProfile.username,
-                `${userProfile.username}@connekt.gm`,
-                selectedUser.uid,
-                selectedUser.username || '',
-                `${selectedUser.username}@connekt.gm`,
-                'project_assignment',
-                `Project Invitation: ${projectTitle}`,
-                `You've been invited to join "${projectTitle}" as a ${selectedRole}.`,
-                terms,
-                7 // expires in 7 days
-            );
+            const subject = `Project Invitation: ${projectTitle}`;
+            const briefLines = [
+                `Project: ${projectTitle || ''}`,
+                `Role: ${selectedRole}`,
+                projectBudget ? `Budget: ${projectBudget}` : '',
+                projectDeadline ? `Deadline: ${projectDeadline}` : '',
+                `Recruiter: ${recruiterName} (${fromAddress})`,
+                `Recipient: ${recipientName} (${toAddress})`
+            ].filter(Boolean);
+
+            const body = `Hi ${recipientName},\n\nYou've been invited to join "${projectTitle}" as a ${selectedRole}. Please review the attached contract.\n\nThank you,\n${recruiterName}`;
+
+            const variables = buildContractVariables();
+
+            const params = new URLSearchParams({
+                compose: '1',
+                to: toAddress,
+                subject,
+                body,
+                templateId: 'Project-Based Job Contract',
+                contractType: 'project_assignment',
+                brief: briefLines.join('\n'),
+                autoStart: options.autoStartAI ? '1' : '0',
+                variables: JSON.stringify(variables)
+            });
+
+            const url = `/mail?${params.toString()}`;
+            window.open(url, '_blank', 'noopener,noreferrer');
 
             // Reset and close
             setSearchQuery('');
             setSearchResults([]);
             setSelectedUser(null);
             setSelectedRole('member');
-            alert(`Contract invitation sent to @${selectedUser.username}`);
             onClose();
         } catch (err: any) {
             console.error('Send contract error:', err);
@@ -106,10 +160,14 @@ export default function SendProjectInviteModal({
         onClose();
     };
 
-    if (!isOpen) return null;
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
-    return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    if (!isMounted || !isOpen) return null;
+
+    return createPortal(
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-lg flex items-center justify-center z-[12000] p-4">
             <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-zinc-800">
@@ -279,32 +337,54 @@ export default function SendProjectInviteModal({
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 border-t border-gray-200 dark:border-zinc-800 flex gap-3">
+                <div className="p-6 border-t border-gray-200 dark:border-zinc-800 flex flex-col gap-3">
                     <button
-                        onClick={handleClose}
-                        className="flex-1 px-6 py-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={handleSendContract}
+                        onClick={() => openMailWithContract({ autoStartAI: false })}
                         disabled={!selectedUser || sending}
-                        className="flex-1 px-6 py-3 bg-gradient-to-r from-[#008080] to-teal-600 hover:from-teal-600 hover:to-[#008080] text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-teal-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full px-6 py-3 bg-gradient-to-r from-[#008080] to-teal-600 hover:from-teal-600 hover:to-[#008080] text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-teal-500/30 hover:shadow-teal-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {sending ? (
                             <>
                                 <Loader2 className="animate-spin" size={20} />
-                                Sending Contract...
+                                Sending...
                             </>
                         ) : (
                             <>
                                 <FileText size={20} />
-                                Send Contract Invitation
+                                Send Contract
                             </>
                         )}
                     </button>
+
+                    <button
+                        onClick={() => openMailWithContract({ autoStartAI: true })}
+                        disabled={!selectedUser || sending}
+                        className="inline-flex items-center gap-2 self-center px-4 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {sending ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Drafting...
+                            </>
+                        ) : (
+                            <>
+                                <span>Draft contract with</span>
+                                <ConnektAIIcon className="w-4 h-4" />
+                            </>
+                        )}
+                    </button>
+
+                    <div className="flex justify-end">
+                        <button
+                            onClick={handleClose}
+                            className="px-6 py-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
+                        >
+                            Cancel
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

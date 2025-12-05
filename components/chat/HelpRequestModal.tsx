@@ -6,8 +6,9 @@ import { useAuth } from '@/context/AuthContext';
 import { TaskService } from '@/lib/services/task-service';
 import { ContractMailService } from '@/lib/services/contract-mail-service';
 import { Task } from '@/lib/types/workspace.types';
-import { Loader2, Briefcase, DollarSign, Clock } from 'lucide-react';
+import { Loader2, Briefcase, DollarSign, Clock, Sparkles } from 'lucide-react';
 import { ChatService } from '@/lib/services/chat-service';
+import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
 
 interface HelpRequestModalProps {
     isOpen: boolean;
@@ -26,6 +27,7 @@ export function HelpRequestModal({ isOpen, onClose, conversationId, recipientId,
     const [budget, setBudget] = useState('');
     const [message, setMessage] = useState('');
     const [sending, setSending] = useState(false);
+    const [sendMode, setSendMode] = useState<'email' | 'contract' | 'proposal'>('email');
 
     useEffect(() => {
         if (isOpen && user) {
@@ -47,35 +49,111 @@ export function HelpRequestModal({ isOpen, onClose, conversationId, recipientId,
         }
     };
 
+    const buildContractVariables = () => {
+        if (!selectedTask) return {};
+
+        const today = new Date();
+        const todayStr = today.toISOString().slice(0, 10);
+        const due = selectedTask.timeline?.dueDate ? new Date(selectedTask.timeline.dueDate as any) : null;
+        const endStr = due ? due.toISOString().slice(0, 10) : todayStr;
+        const durationDays = due ? Math.max(1, Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))) : 7;
+
+        return {
+            contractDate: todayStr,
+            clientName: userProfile?.displayName || userProfile?.username || 'Client',
+            contractorName: recipientUsername || 'Recipient',
+            projectTitle: selectedTask.title,
+            projectDescription: message || selectedTask.description || 'Help request',
+            deliverables: selectedTask.description || 'Task assistance',
+            startDate: todayStr,
+            endDate: endStr,
+            duration: durationDays,
+            durationUnit: 'days',
+            paymentAmount: offerType === 'paid' ? Number(budget || 0) : 0,
+            paymentCurrency: 'USD',
+            paymentType: offerType === 'paid' ? 'fixed' : 'none',
+            paymentMilestones: 'Milestones will be defined in the task plan.',
+            reviewPeriod: 3,
+            revisionRounds: 1,
+            noticePeriod: 7,
+            terminationConditions: 'Either party may terminate with notice via Connekt.'
+        } as Record<string, any>;
+    };
+
+    const buildProposalVariables = () => {
+        if (!selectedTask) return {};
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const due = selectedTask.timeline?.dueDate ? new Date(selectedTask.timeline.dueDate as any) : null;
+        const validUntil = due ? due.toISOString().slice(0, 10) : todayStr;
+
+        return {
+            proposalTitle: `Proposal: ${selectedTask.title}`,
+            date: todayStr,
+            recipientName: recipientUsername || 'Recipient',
+            senderName: userProfile?.displayName || userProfile?.username || 'Sender',
+            executiveSummary: message || 'Assistance proposal for your task.',
+            solutionDetails: selectedTask.description || 'I will help complete this task.',
+            timeline: due ? `Complete by ${due.toDateString()}` : 'Timeline to be agreed',
+            totalCost: offerType === 'paid' ? Number(budget || 0) : 0,
+            currency: 'USD',
+            paymentTerms: offerType === 'paid' ? 'Fixed payment upon completion.' : 'No payment required.',
+            validUntil
+        } as Record<string, any>;
+    };
+
+    const openMailCompose = (autoStartAI: boolean) => {
+        if (!selectedTask || !recipientUsername) return;
+
+        const toAddress = `${recipientUsername}@connekt.com`;
+        const subjectBase = `Help Request: ${selectedTask.title}`;
+        const baseBody = `Hi ${recipientUsername},\n\nI need help with "${selectedTask.title}".${message ? `\n\nDetails: ${message}` : ''}\n\nThanks,\n${userProfile?.displayName || userProfile?.username || 'A teammate'}`;
+
+        const params = new URLSearchParams({
+            compose: '1',
+            to: toAddress,
+            subject: subjectBase,
+            body: baseBody,
+            autoStart: autoStartAI ? '1' : '0'
+        });
+
+        let templateId: string | undefined;
+        let contractType: string | undefined;
+        let variables: Record<string, any> | undefined;
+        let brief: string | undefined;
+
+        if (sendMode === 'contract') {
+            templateId = 'Project-Based Job Contract';
+            contractType = 'task_assignment';
+            variables = buildContractVariables();
+            brief = `Task: ${selectedTask.title}\nOffer: ${offerType === 'paid' ? `$${budget}` : 'Free'}\nFrom: ${userProfile?.username}\nTo: ${recipientUsername}`;
+        } else if (sendMode === 'proposal') {
+            templateId = 'General Business Proposal';
+            contractType = 'general';
+            variables = buildProposalVariables();
+            brief = `Proposal for ${selectedTask.title} from @${userProfile?.username} to @${recipientUsername}`;
+        }
+
+        if (templateId) params.set('templateId', templateId);
+        if (contractType) params.set('contractType', contractType);
+        if (brief) params.set('brief', brief);
+        if (variables) params.set('variables', JSON.stringify(variables));
+
+        const url = `/mail?${params.toString()}`;
+        window.open(url, '_blank', 'noopener,noreferrer');
+    };
+
     const handleSubmit = async () => {
         if (!user || !userProfile || !selectedTask) return;
 
+        // For contract/proposal, we primarily deep-link to mail; still drop a chat marker so teammates see context.
+        if (sendMode === 'contract' || sendMode === 'proposal') {
+            if (!recipientUsername) return;
+            openMailCompose(false);
+        }
+
         setSending(true);
         try {
-            let contractId: string | undefined;
-
-            // If paid and we have a recipient (direct chat), create a contract first
-            if (offerType === 'paid' && recipientId && recipientUsername) {
-                contractId = await ContractMailService.createContract(
-                    user.uid,
-                    userProfile?.username || 'Unknown',
-                    `${userProfile?.username || 'user'}@connekt.com`, // Mock email
-                    recipientId,
-                    recipientUsername || 'Unknown',
-                    `${recipientUsername || 'user'}@connekt.com`, // Mock email
-                    'task_assignment',
-                    `Help Request: ${selectedTask.title}`,
-                    `Requesting help for task: ${selectedTask.title}. \n\nMessage: ${message}`,
-                    {
-                        taskId: selectedTask.id,
-                        taskTitle: selectedTask.title,
-                        taskPayment: Number(budget),
-                        taskDeadline: selectedTask.timeline?.dueDate ? new Date(selectedTask.timeline.dueDate as any).toLocaleDateString() : 'No deadline'
-                    }
-                );
-            }
-
-            // Send Help Request Message
+            // Send Help Request Message to chat regardless, so thread has context
             await ChatService.sendMessage({
                 conversationId,
                 senderId: user.uid,
@@ -88,8 +166,7 @@ export function HelpRequestModal({ isOpen, onClose, conversationId, recipientId,
                     taskTitle: selectedTask.title,
                     projectId: selectedTask.projectId,
                     budget: offerType === 'paid' ? Number(budget) : 0,
-                    status: 'open',
-                    contractId
+                    status: 'open'
                 }
             });
 
@@ -109,6 +186,21 @@ export function HelpRequestModal({ isOpen, onClose, conversationId, recipientId,
                 </DialogHeader>
 
                 <div className="space-y-4 py-4">
+                    {/* Send Mode Toggle */}
+                    <div className="grid grid-cols-3 gap-2">
+                        {(['email', 'contract', 'proposal'] as const).map(mode => (
+                            <button
+                                key={mode}
+                                onClick={() => setSendMode(mode)}
+                                className={`p-3 rounded-xl border text-sm font-semibold transition-all flex flex-col items-center gap-1 ${sendMode === mode
+                                    ? 'border-[#008080] bg-teal-50 dark:bg-teal-900/20 text-[#008080]'
+                                    : 'border-gray-200 dark:border-zinc-800 text-gray-500'}`}
+                            >
+                                <span className="capitalize">{mode}</span>
+                                <span className="text-[11px] text-gray-400">{mode === 'email' ? 'Chat + mail' : mode === 'contract' ? 'Attach contract' : 'Send proposal'}</span>
+                            </button>
+                        ))}
+                    </div>
                     {/* Task Selection */}
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Select Task</label>
@@ -182,13 +274,37 @@ export function HelpRequestModal({ isOpen, onClose, conversationId, recipientId,
                         />
                     </div>
 
-                    <button
-                        onClick={handleSubmit}
-                        disabled={!selectedTask || (offerType === 'paid' && !budget) || sending}
-                        className="w-full py-3 bg-[#008080] text-white rounded-xl font-bold hover:bg-teal-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                        {sending ? <Loader2 size={18} className="animate-spin" /> : 'Send Request'}
-                    </button>
+                    {/* Actions */}
+                    <div className="space-y-2">
+                        <button
+                            onClick={handleSubmit}
+                            disabled={!selectedTask || (offerType === 'paid' && !budget) || sending || (!recipientUsername && sendMode !== 'email')}
+                            className="w-full py-3 bg-[#008080] text-white rounded-xl font-bold hover:bg-teal-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                            {sending ? <Loader2 size={18} className="animate-spin" /> : sendMode === 'email' ? 'Send Request' : sendMode === 'contract' ? 'Send Contract' : 'Send Proposal'}
+                        </button>
+
+                        <button
+                            onClick={() => openMailCompose(true)}
+                            disabled={!selectedTask || !recipientUsername || sending || sendMode === 'email'}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed self-center"
+                        >
+                            {sending ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Drafting...
+                                </>
+                            ) : (
+                                <>
+                                    <span>Draft {sendMode === 'proposal' ? 'proposal' : 'contract'} with</span>
+                                    <ConnektAIIcon className="w-4 h-4" />
+                                </>
+                            )}
+                        </button>
+                        {sendMode !== 'email' && !recipientUsername && (
+                            <p className="text-xs text-amber-600 text-center">Direct recipient required to send {sendMode} via mail.</p>
+                        )}
+                    </div>
                 </div>
             </DialogContent>
         </Dialog>

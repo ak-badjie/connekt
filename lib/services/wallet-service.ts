@@ -94,6 +94,52 @@ export const WalletService = {
     },
 
     /**
+     * Partially release escrow funds for a contract (e.g., per milestone)
+     */
+    async releaseEscrowPartial(contractId: string, amount: number): Promise<void> {
+        if (amount <= 0) throw new Error('Invalid release amount');
+
+        const escrowId = `escrow_${contractId}`;
+        const escrowRef = doc(db, 'escrow_holds', escrowId);
+        const escrowSnap = await getDoc(escrowRef);
+
+        if (!escrowSnap.exists()) {
+            throw new Error('Escrow hold not found');
+        }
+
+        const escrow = escrowSnap.data() as EscrowHold;
+
+        if (escrow.status !== 'held' && escrow.status !== 'partially_released') {
+            throw new Error('Escrow is not available for release');
+        }
+
+        if (amount > escrow.amount) {
+            throw new Error('Release amount exceeds escrow balance');
+        }
+
+        // Add to recipient's wallet
+        await this.updateBalance(escrow.toWalletId, amount);
+        await this.addTransaction(escrow.toWalletId, {
+            type: 'escrow_release',
+            walletId: escrow.toWalletId,
+            currency: escrow.currency || 'GMD',
+            amount,
+            description: `Partial escrow release for contract ${contractId}`,
+            relatedEntityId: contractId,
+            relatedEntityType: 'contract',
+            status: 'completed'
+        });
+
+        // Update escrow record
+        const remaining = escrow.amount - amount;
+        await updateDoc(escrowRef, {
+            amount: remaining,
+            status: remaining > 0 ? 'partially_released' : 'released',
+            updatedAt: serverTimestamp()
+        });
+    },
+
+    /**
      * Add transaction to wallet
      */
     async addTransaction(

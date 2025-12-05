@@ -164,6 +164,7 @@ export interface ExtendedAgencyProfile {
     description?: string;
 
     // Agency info
+    agencyType?: 'va_collective' | 'recruiter_collective'; // Type of agency
     industry?: string;
     size?: string; // e.g., "1-10", "11-50"
     location?: string;

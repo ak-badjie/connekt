@@ -26,6 +26,7 @@ import type {
     ContractType,
     ContractTerms
 } from '@/lib/types/mail.types';
+import { FirestoreService } from './firestore-service';
 
 export interface MailMessage {
     id?: string;
@@ -34,11 +35,17 @@ export interface MailMessage {
     senderId: string;
     senderUsername: string;
     senderName: string;
+    senderAddress?: string;
+    senderPhotoURL?: string;
     recipientUsername: string;
+    recipientAddress?: string;
+    recipientName?: string;
+    recipientPhotoURL?: string;
     subject: string;
     body: string;
     isRead: boolean;
-    folder: 'inbox' | 'sent' | 'trash';
+    folder: 'inbox' | 'sent' | 'trash' | 'drafts';
+    category?: MailCategory;
     createdAt: any;
 }
 
@@ -106,7 +113,8 @@ export const MailService = {
         attachments?: any[],
         category?: MailCategory,
         signatureId?: string,
-        contractId?: string
+        contractId?: string,
+        senderUserId?: string // ensure sent mail ownerId is the actual uid
     ): Promise<void> {
         // Parse recipient address
         const [recipientUsername, recipientDomain] = toAddress.split('@');
@@ -121,10 +129,23 @@ export const MailService = {
 
         const recipientId = recipientSnap.data().uid;
 
-        // Get recipient profile for name
+        // Get recipient profile for name/photo
         const recipientProfileRef = doc(db, 'users', recipientId);
         const recipientProfileSnap = await getDoc(recipientProfileRef);
-        const recipientName = recipientProfileSnap.data()?.displayName || recipientUsername;
+        const recipientProfile = recipientProfileSnap.data();
+        const recipientName = recipientProfile?.displayName || recipientUsername;
+        const recipientPhotoURL = recipientProfile?.photoURL;
+
+        // Get sender profile for name/photo
+        let senderDisplayName = fromAddress.displayName;
+        let senderPhotoURL: string | undefined;
+        if (senderUserId) {
+            const senderProfile = await FirestoreService.getUserProfile(senderUserId);
+            if (senderProfile) {
+                senderDisplayName = senderProfile.displayName || senderDisplayName;
+                senderPhotoURL = senderProfile.photoURL;
+            }
+        }
 
         // Determine recipient mail type
         const isAgencyMail = recipientDomain && recipientDomain !== 'connekt.com';
@@ -133,15 +154,18 @@ export const MailService = {
         const inboxMail: Partial<ExtendedMailMessage> = {
             ownerId: recipientId,
             type: 'received',
-            senderId: fromAddress.username,
+            senderId: senderUserId || fromAddress.username,
             senderUsername: fromAddress.username,
-            senderName: fromAddress.displayName,
+            senderName: senderDisplayName,
             senderAddress: fromAddress.address,
+            ...(senderPhotoURL && { senderPhotoURL }),
             senderMailType: fromAddress.type,
             ...(fromAddress.agencyId && { senderAgencyId: fromAddress.agencyId }),
             recipientId: recipientId,
             recipientUsername: recipientUsername,
             recipientAddress: toAddress,
+            recipientName,
+            ...(recipientPhotoURL && { recipientPhotoURL }),
             recipientMailType: isAgencyMail ? 'agency' : 'personal',
             ...(isAgencyMail && { recipientAgencyId: undefined }), // TODO: Get actual agency ID
             subject,
@@ -168,9 +192,9 @@ export const MailService = {
                 {
                     type: 'mail',
                     mailId: inboxDocRef.id,
-                    senderId: fromAddress.username,
+                    senderId: senderUserId || fromAddress.username,
                     senderUsername: fromAddress.username,
-                    senderName: fromAddress.displayName,
+                    senderName: senderDisplayName,
                     subject
                 },
                 '/mail',
@@ -183,7 +207,7 @@ export const MailService = {
         // Create sent copy for sender
         const sentMail: Partial<ExtendedMailMessage> = {
             ...inboxMail,
-            ownerId: fromAddress.username, // This should be userId but we don't have it
+            ownerId: senderUserId || fromAddress.username,
             type: 'sent',
             isRead: true,
             folder: 'sent'
@@ -220,7 +244,8 @@ export const MailService = {
             undefined, // attachments
             undefined, // category
             undefined, // signatureId
-            contractId // Pass contractId through
+            contractId, // Pass contractId through
+            senderId
         );
     },
 

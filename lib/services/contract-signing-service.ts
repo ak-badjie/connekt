@@ -8,6 +8,10 @@ import {
     addDoc
 } from 'firebase/firestore';
 import { NotificationHelpers } from './notification-helpers';
+import { ChatService } from './chat-service';
+import { EnhancedProjectService } from './enhanced-project-service';
+import { WorkspaceService } from './workspace-service';
+import { WalletService } from './wallet-service';
 
 export const ContractSigningService = {
     /**
@@ -29,6 +33,9 @@ export const ContractSigningService = {
 
         const contract = contractSnap.data();
 
+        // Enforce funding before marking signed (escrow/hold) if payment amount is specified
+        await this.ensureEscrowHold(contractId, contract);
+
         // Verify user is the recipient
         if (contract.toUserId !== userId) {
             throw new Error('You are not authorized to sign this contract');
@@ -47,8 +54,9 @@ export const ContractSigningService = {
             signedAt: serverTimestamp()
         });
 
-        // Grant access based on contract terms
+        // Grant access based on contract terms and sync collaboration surfaces
         await this.grantContractAccess(contractId, userId, contract);
+        await this.syncCollaboration(contractId, userId, username, contract);
 
         // Send notification to contract creator
         await NotificationHelpers.sendContractSignedNotification(
@@ -87,6 +95,20 @@ export const ContractSigningService = {
                         members: [...members, userId]
                     });
                 }
+
+                // Ensure project chat membership
+                try {
+                    const chat = await ChatService.getConversationByContextId(terms.projectId, 'project');
+                    if (chat) {
+                        await ChatService.addMember(chat.id, {
+                            userId,
+                            username: contract.toUsername || 'recipient',
+                            role: 'member'
+                        });
+                    }
+                } catch (err) {
+                    console.error('Failed to sync project chat membership for contract', contractId, err);
+                }
             }
         }
 
@@ -104,6 +126,20 @@ export const ContractSigningService = {
                         members: [...members, userId]
                     });
                 }
+
+                // Ensure workspace chat membership
+                try {
+                    const chat = await ChatService.getConversationByContextId(terms.workspaceId, 'workspace');
+                    if (chat) {
+                        await ChatService.addMember(chat.id, {
+                            userId,
+                            username: contract.toUsername || 'recipient',
+                            role: 'member'
+                        });
+                    }
+                } catch (err) {
+                    console.error('Failed to sync workspace chat membership for contract', contractId, err);
+                }
             }
         }
 
@@ -117,6 +153,76 @@ export const ContractSigningService = {
                 status: 'active'
             }
         });
+    },
+
+    /**
+     * Add collaboration hooks (project membership, chat, calendar stubs)
+     */
+    async syncCollaboration(contractId: string, userId: string, username: string, contract: any): Promise<void> {
+        const terms = contract.terms || {};
+
+        // Project membership via enhanced service (idempotent)
+        if (terms.projectId) {
+            try {
+                const project = await EnhancedProjectService.getProject(terms.projectId);
+                if (project && !project.members?.some((m: any) => m.userId === userId)) {
+                    await EnhancedProjectService.addMember(terms.projectId, {
+                        userId,
+                        username,
+                        email: contract.toUserEmail || '',
+                        role: 'member'
+                    } as any);
+                }
+            } catch (err) {
+                console.error('Failed to sync project membership for contract', contractId, err);
+            }
+        }
+
+        // Workspace membership via service (already handles chat join)
+        if (terms.workspaceId) {
+            try {
+                await WorkspaceService.addMember(terms.workspaceId, {
+                    userId,
+                    username,
+                    email: contract.toUserEmail || '',
+                    role: 'member'
+                });
+            } catch (err) {
+                console.error('Failed to sync workspace membership for contract', contractId, err);
+            }
+        }
+
+        // TODO: Calendar/meetings sync can be hooked here when calendar service is available
+    },
+
+    /**
+     * Ensure escrow funds are held before completing signature (idempotent on escrow record)
+     */
+    async ensureEscrowHold(contractId: string, contract: any): Promise<void> {
+        const terms = contract?.terms || {};
+        const amount = terms.paymentAmount || terms.totalCost || terms.budgetAmount;
+        if (!amount || amount <= 0) return;
+
+        const escrowRef = doc(db, 'escrow_holds', `escrow_${contractId}`);
+        const escrowSnap = await getDoc(escrowRef);
+        if (escrowSnap.exists()) return; // already held
+
+        const payerWalletId = `user_${contract.fromUserId}`;
+        const payeeWalletId = `user_${contract.toUserId}`;
+
+        try {
+            await WalletService.holdInEscrow(
+                contractId,
+                payerWalletId,
+                payeeWalletId,
+                contract.fromUserId,
+                contract.toUserId,
+                amount
+            );
+        } catch (err: any) {
+            console.error('Escrow hold failed', err);
+            throw new Error(err?.message || 'Unable to place funds in escrow for this contract');
+        }
     },
 
     /**
