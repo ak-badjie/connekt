@@ -18,7 +18,7 @@ export default function OnboardingPage() {
     // Form States
     const [username, setUsername] = useState('');
     const [isUsernameValid, setIsUsernameValid] = useState(false);
-    const [role, setRole] = useState<'employer' | 'va'>('va');
+    const [role, setRole] = useState<'va' | 'recruiter'>('va');
     const [bio, setBio] = useState('');
     const [skills, setSkills] = useState<string[]>([]);
     const [currentSkill, setCurrentSkill] = useState('');
@@ -41,26 +41,34 @@ export default function OnboardingPage() {
             const connectMail = `${username.toLowerCase()}@connekt.com`;
 
             const userRef = doc(db, 'users', user.uid);
-            await setDoc(userRef, {
+
+            // Base user data
+            const userData: any = {
                 username: username.toLowerCase(),
-                connectMail: connectMail, // Store full Connekt mail address
+                connectMail: connectMail,
                 role,
-                bio,
-                skills,
                 onboardingCompleted: true,
                 updatedAt: serverTimestamp(),
                 email: user.email,
                 displayName: user.displayName,
                 photoURL: user.photoURL,
-                introSeen: false // Force them to see the intro flow
-            }, { merge: true });
+                introSeen: false
+            };
+
+            // Only add bio/skills for VAs
+            if (role === 'va') {
+                userData.bio = bio;
+                userData.skills = skills;
+            }
+
+            await setDoc(userRef, userData, { merge: true });
 
             // Create username mapping
             await setDoc(doc(db, 'usernames', username.toLowerCase()), {
                 uid: user.uid
             });
 
-            router.push('/intro/ai'); // Go to Connekt AI Intro
+            router.push('/intro/ai');
         } catch (error) {
             console.error('Error saving profile:', error);
         } finally {
@@ -113,15 +121,7 @@ export default function OnboardingPage() {
                         <label className="text-sm font-medium text-[#008080] uppercase tracking-wider">I am a...</label>
                         <div className="grid grid-cols-2 gap-4">
                             <button
-                                onClick={() => setRole('employer')}
-                                className={`p-4 rounded-xl border transition-all duration-300 flex items-center justify-center gap-2 ${role === 'employer'
-                                    ? 'bg-[#008080]/10 border-[#008080] text-[#008080] shadow-lg shadow-teal-500/20'
-                                    : 'bg-gray-100 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-zinc-700'
-                                    }`}
-                            >
-                                Employer
-                            </button>
-                            <button
+                                type="button"
                                 onClick={() => setRole('va')}
                                 className={`p-4 rounded-xl border transition-all duration-300 flex items-center justify-center gap-2 ${role === 'va'
                                     ? 'bg-[#008080]/10 border-[#008080] text-[#008080] shadow-lg shadow-teal-500/20'
@@ -130,37 +130,82 @@ export default function OnboardingPage() {
                             >
                                 Virtual Assistant
                             </button>
+                            <button
+                                type="button"
+                                onClick={() => setRole('recruiter')}
+                                className={`p-4 rounded-xl border transition-all duration-300 flex items-center justify-center gap-2 ${role === 'recruiter'
+                                    ? 'bg-[#008080]/10 border-[#008080] text-[#008080] shadow-lg shadow-teal-500/20'
+                                    : 'bg-gray-100 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-zinc-700'
+                                    }`}
+                            >
+                                Recruiter
+                            </button>
                         </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-2">
+                            Want to create an agency? Complete your profile first.
+                        </p>
                     </div>
 
-                    {/* Skills Input */}
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-[#008080] uppercase tracking-wider">Skills & Expertise</label>
-                        <div className="bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl p-2 flex flex-wrap gap-2 focus-within:border-[#008080] transition-colors">
-                            {skills.map(skill => (
-                                <span key={skill} className="bg-[#008080]/20 text-[#008080] px-3 py-1 rounded-full text-sm flex items-center gap-1 border border-[#008080]/20">
-                                    {skill}
-                                    <button onClick={() => setSkills(skills.filter(s => s !== skill))} className="hover:text-teal-700 dark:hover:text-teal-300">×</button>
-                                </span>
-                            ))}
-                            <input
-                                type="text"
-                                value={currentSkill}
-                                onChange={(e) => setCurrentSkill(e.target.value)}
-                                onKeyDown={handleAddSkill}
-                                placeholder="Type a skill and hit Enter..."
-                                className="bg-transparent border-none outline-none text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 flex-1 min-w-[150px] p-1"
-                            />
-                        </div>
-                    </div>
+                    {/* Conditional Fields Based on Role */}
+                    {role === 'va' && (
+                        <>
+                            {/* Skills Input */}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-[#008080] uppercase tracking-wider">Skills & Expertise</label>
+                                <div className="bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl p-2 flex flex-wrap gap-2 focus-within:border-[#008080] transition-colors">
+                                    {skills.map(skill => (
+                                        <span key={skill} className="bg-[#008080]/20 text-[#008080] px-3 py-1 rounded-full text-sm flex items-center gap-1 border border-[#008080]/20">
+                                            {skill}
+                                            <button onClick={() => setSkills(skills.filter(s => s !== skill))} className="hover:text-teal-700 dark:hover:text-teal-300">×</button>
+                                        </span>
+                                    ))}
+                                    <input
+                                        type="text"
+                                        value={currentSkill}
+                                        onChange={(e) => setCurrentSkill(e.target.value)}
+                                        onKeyDown={handleAddSkill}
+                                        placeholder="Type a skill and hit Enter..."
+                                        className="bg-transparent border-none outline-none text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 flex-1 min-w-[150px] p-1"
+                                    />
+                                </div>
+                            </div>
 
-                    {/* Bio Editor */}
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-[#008080] uppercase tracking-wider">Professional Bio</label>
-                        <div className="prose dark:prose-invert max-w-none">
-                            <MarkdownEditor value={bio} onChange={setBio} />
+                            {/* Bio Editor */}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-[#008080] uppercase tracking-wider">Professional Bio</label>
+                                <div className="prose dark:prose-invert max-w-none">
+                                    <MarkdownEditor value={bio} onChange={setBio} />
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    {role === 'recruiter' && (
+                        <div className="p-6 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                            <h3 className="font-bold text-lg text-blue-900 dark:text-blue-100 mb-3">Welcome, Recruiter! 🎯</h3>
+                            <p className="text-sm text-blue-800 dark:text-blue-200 mb-4">
+                                As a recruiter on Connekt, you'll have access to powerful tools to find and hire top talent:
+                            </p>
+                            <ul className="space-y-2 text-sm text-blue-800 dark:text-blue-200">
+                                <li className="flex items-start gap-2">
+                                    <span className="text-teal-600 dark:text-teal-400">✓</span>
+                                    <span>Browse thousands of verified Virtual Assistants</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="text-teal-600 dark:text-teal-400">✓</span>
+                                    <span>Post projects and tasks with custom requirements</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="text-teal-600 dark:text-teal-400">✓</span>
+                                    <span>Send and manage contracts directly on the platform</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="text-teal-600 dark:text-teal-400">✓</span>
+                                    <span>Track project progress and team performance</span>
+                                </li>
+                            </ul>
                         </div>
-                    </div>
+                    )}
 
                     <button
                         onClick={handleComplete}

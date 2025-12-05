@@ -47,10 +47,10 @@ export const ContractMailService = {
             toMailAddress,
             title,
             description,
-            defaultTerms, // Store standard terms
+            ...(defaultTerms && { defaultTerms }), // Only include if provided
             terms,
             createdAt: serverTimestamp(),
-            expiresAt: expiresIn ? new Date(Date.now() + expiresIn * 24 * 60 * 60 * 1000) : undefined
+            ...(expiresIn && { expiresAt: new Date(Date.now() + expiresIn * 24 * 60 * 60 * 1000) })
         };
 
         const contractRef = await addDoc(collection(db, 'contracts'), contract);

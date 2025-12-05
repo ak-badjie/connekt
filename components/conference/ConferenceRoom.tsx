@@ -72,7 +72,7 @@ export function ConferenceRoom({ meetingId, onLeave, isMinimized = false, onTogg
             <motion.div
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="fixed bottom-20 right-4 w-64 h-48 bg-gray-900 rounded-xl shadow-2xl overflow-hidden border border-gray-700 z-50"
+                className="fixed bottom-20 right-4 w-64 h-48 bg-gray-900 rounded-xl shadow-2xl overflow-hidden border border-gray-700 z-[115]"
             >
                 <div className="relative w-full h-full">
                     {/* Preview of active speaker or local video */}
@@ -100,7 +100,7 @@ export function ConferenceRoom({ meetingId, onLeave, isMinimized = false, onTogg
     }
 
     return (
-        <div className="fixed inset-0 bg-gray-900 z-50 flex flex-col">
+        <div className="fixed inset-0 bg-gray-900 z-[120] flex flex-col">
             {/* Header */}
             <div className="h-16 px-6 flex items-center justify-between bg-gray-900/90 backdrop-blur border-b border-gray-800">
                 <div className="flex items-center gap-3">
