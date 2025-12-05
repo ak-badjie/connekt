@@ -76,9 +76,9 @@ export function MailContractAttachment({ contractId, mailId }: MailContractAttac
                             {contract.type.replace(/_/g, ' ').toUpperCase()} Contract
                         </p>
                         <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mb-3">
-                            <span>From: <span className="font-medium text-[#008080]">@{contract.fromUsername}</span></span>
+                            <span>From: <span className="font-medium text-[#008080]">{contract.fromMailAddress || contract.fromUsername}</span></span>
                             <span>•</span>
-                            <span>To: <span className="font-medium text-[#008080]">@{contract.toUsername}</span></span>
+                            <span>To: <span className="font-medium text-[#008080]">{contract.toMailAddress || contract.toUsername}</span></span>
                         </div>
 
                         {isSigned ? (

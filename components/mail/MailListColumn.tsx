@@ -1,6 +1,7 @@
 'use client';
 
 import { Search, Filter, Clock, User as UserIcon } from 'lucide-react';
+import Image from 'next/image';
 import { useState } from 'react';
 import type { MailMessage } from '@/lib/services/mail-service';
 
@@ -11,6 +12,8 @@ interface MailListColumnProps {
     loading?: boolean;
     searchQuery?: string;
     onSearchChange?: (query: string) => void;
+    showUnreadOnly?: boolean;
+    onToggleUnreadOnly?: (next: boolean) => void;
 }
 
 export function MailListColumn({
@@ -19,7 +22,9 @@ export function MailListColumn({
     onMailSelect,
     loading = false,
     searchQuery = '',
-    onSearchChange
+    onSearchChange,
+    showUnreadOnly = false,
+    onToggleUnreadOnly
 }: MailListColumnProps) {
     const [sortBy, setSortBy] = useState<'date' | 'sender'>('date');
 
@@ -55,6 +60,15 @@ export function MailListColumn({
 
                 {/* Filters */}
                 <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => onToggleUnreadOnly?.(!showUnreadOnly)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${showUnreadOnly
+                                ? 'bg-[#008080] text-white'
+                                : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400'
+                            }`}
+                    >
+                        Unread Only
+                    </button>
                     <button
                         onClick={() => setSortBy('date')}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${sortBy === 'date'
@@ -106,15 +120,44 @@ export function MailListColumn({
                                 {/* Sender & Time */}
                                 <div className="flex justify-between items-start mb-1">
                                     <div className="flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#008080] to-teal-600 flex items-center justify-center text-white font-bold text-xs">
-                                            {mail.senderName[0]?.toUpperCase()}
+                                        {mail.type === 'received' ? (
+                                            mail.senderPhotoURL ? (
+                                                <Image
+                                                    src={mail.senderPhotoURL}
+                                                    alt={mail.senderName}
+                                                    width={32}
+                                                    height={32}
+                                                    className="rounded-full object-cover"
+                                                />
+                                            ) : (
+                                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#008080] to-teal-600 flex items-center justify-center text-white font-bold text-xs">
+                                                    {mail.senderName[0]?.toUpperCase()}
+                                                </div>
+                                            )
+                                        ) : mail.recipientPhotoURL ? (
+                                            <Image
+                                                src={mail.recipientPhotoURL}
+                                                alt={mail.recipientName || mail.recipientAddress}
+                                                width={32}
+                                                height={32}
+                                                className="rounded-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#008080] to-teal-600 flex items-center justify-center text-white font-bold text-xs">
+                                                {(mail.recipientName || mail.recipientAddress || 'R')[0]?.toUpperCase()}
+                                            </div>
+                                        )}
+                                        <div className="flex flex-col">
+                                            <h4 className={`text-sm ${!mail.isRead
+                                                    ? 'font-bold text-gray-900 dark:text-white'
+                                                    : 'font-medium text-gray-700 dark:text-gray-300'
+                                                }`}>
+                                                {mail.type === 'received' ? mail.senderName : `To: ${mail.recipientAddress}`}
+                                            </h4>
+                                            <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                                                {mail.type === 'received' ? mail.senderAddress : mail.recipientAddress}
+                                            </span>
                                         </div>
-                                        <h4 className={`text-sm ${!mail.isRead
-                                                ? 'font-bold text-gray-900 dark:text-white'
-                                                : 'font-medium text-gray-700 dark:text-gray-300'
-                                            }`}>
-                                            {mail.type === 'received' ? mail.senderName : `To: @${mail.recipientUsername}`}
-                                        </h4>
                                     </div>
                                     <span className="text-[10px] text-gray-400 whitespace-nowrap ml-2">
                                         {formatTime(mail.createdAt)}

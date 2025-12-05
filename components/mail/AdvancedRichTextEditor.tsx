@@ -52,19 +52,21 @@ export function AdvancedRichTextEditor({
 
     const execCommand = (command: string, value?: string) => {
         document.execCommand(command, false, value);
-        editorRef.current?.focus();
+        if (editorRef.current) {
+            editorRef.current.focus();
+        }
         handleInput();
     };
 
     const formatBold = () => execCommand('bold');
     const formatItalic = () => execCommand('italic');
     const formatUnderline = () => execCommand('underline');
-    const formatH1 = () => execCommand('formatBlock', '<h1>');
-    const formatH2 = () => execCommand('formatBlock', '<h2>');
-    const formatH3 = () => execCommand('formatBlock', '<h3>');
+    const formatH1 = () => execCommand('formatBlock', 'H1');
+    const formatH2 = () => execCommand('formatBlock', 'H2');
+    const formatH3 = () => execCommand('formatBlock', 'H3');
     const formatBulletList = () => execCommand('insertUnorderedList');
     const formatNumberedList = () => execCommand('insertOrderedList');
-    const formatQuote = () => execCommand('formatBlock', '<blockquote>');
+    const formatQuote = () => execCommand('formatBlock', 'BLOCKQUOTE');
 
     const insertLink = () => {
         const url = prompt('Enter URL:');
@@ -169,16 +171,19 @@ export function AdvancedRichTextEditor({
                     font-size: 2em;
                     font-weight: bold;
                     margin: 0.67em 0;
+                    line-height: 1.2;
                 }
                 [contenteditable] h2 {
                     font-size: 1.5em;
                     font-weight: bold;
                     margin: 0.75em 0;
+                    line-height: 1.3;
                 }
                 [contenteditable] h3 {
                     font-size: 1.17em;
                     font-weight: bold;
                     margin: 0.83em 0;
+                    line-height: 1.4;
                 }
                 [contenteditable] blockquote {
                     border-left: 4px solid #d1d5db;
@@ -187,9 +192,18 @@ export function AdvancedRichTextEditor({
                     font-style: italic;
                     color: #6b7280;
                 }
-                [contenteditable] ul, [contenteditable] ol {
-                    padding-left: 2em;
+                [contenteditable] ul {
+                    list-style-type: disc !important;
+                    padding-left: 2em !important;
                     margin: 1em 0;
+                }
+                [contenteditable] ol {
+                    list-style-type: decimal !important;
+                    padding-left: 2em !important;
+                    margin: 1em 0;
+                }
+                [contenteditable] li {
+                    display: list-item;
                 }
                 [contenteditable] a {
                     color: #3b82f6;

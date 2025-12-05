@@ -1,37 +1,82 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { X, Loader2, FileText, Info } from 'lucide-react';
-import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
-import { ConnectAIService } from '@/lib/services/connect-ai.service';
-import { AIGenerationOverlay } from '@/components/profile/ai/AIGenerationOverlay';
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { X, Loader2, Info, FileText as FileTextIcon, FileText } from "lucide-react";
+import ConnektAIIcon from "@/components/branding/ConnektAIIcon";
+import { ConnectAIService } from "@/lib/services/connect-ai.service";
+import { AIGenerationOverlay } from "@/components/profile/ai/AIGenerationOverlay";
+
+interface TemplateVariable {
+    key: string;
+    label?: string;
+    type?: string;
+    required?: boolean;
+}
+
+interface TemplateOption {
+    id?: string;
+    name: string;
+    type: string;
+    variables?: TemplateVariable[];
+}
 
 interface AIContractDrafterModalProps {
     userId: string;
+    templates: TemplateOption[];
     onClose: () => void;
-    onGenerated: (contractData: Record<string, any>) => void;
+    onGenerated: (contractData: { templateId?: string; variables: Record<string, any> }) => void;
+    initialData?: {
+        templateId?: string;
+        contractType?: string;
+        brief?: string;
+        autoStart?: boolean;
+    };
 }
 
 const CONTRACT_TYPES = [
-    { value: 'gig', label: 'Gig Contract', icon: '⚡', description: 'One-time project work' },
-    { value: 'freelance', label: 'Freelance Agreement', icon: '📝', description: 'Ongoing freelance service' },
-    { value: 'nda', label: 'NDA', icon: '🔒', description: 'Non-disclosure agreement' },
-    { value: 'service', label: 'Service Agreement', icon: '🤝', description: 'Professional services' },
-] as const;
+    { value: "job_short_term", label: "Short Term Engagement" },
+    { value: "job_long_term", label: "Long Term Engagement" },
+    { value: "job_project_based", label: "Project Based" },
+    { value: "freelance", label: "Freelance Agreement" },
+    { value: "service", label: "Service Agreement" },
+    { value: "nda", label: "NDA" },
+    { value: "general", label: "General Contract" },
+];
 
-export function AIContractDrafterModal({ userId, onClose, onGenerated }: AIContractDrafterModalProps) {
-    const [contractType, setContractType] = useState<string>('gig');
-    const [projectName, setProjectName] = useState('');
-    const [clientName, setClientName] = useState('');
-    const [deliverables, setDeliverables] = useState('');
-    const [duration, setDuration] = useState('');
+export function AIContractDrafterModal({ userId, templates, onClose, onGenerated, initialData }: AIContractDrafterModalProps) {
+    const [contractType, setContractType] = useState<string>(initialData?.contractType || "job_short_term");
+    const [templateId, setTemplateId] = useState<string>(initialData?.templateId || "");
+    const [brief, setBrief] = useState<string>(initialData?.brief || "");
     const [isGenerating, setIsGenerating] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [autoRan, setAutoRan] = useState(false);
+
+    // Sync state when initial data changes
+    useEffect(() => {
+        if (initialData?.contractType) setContractType(initialData.contractType);
+        if (initialData?.templateId) setTemplateId(initialData.templateId);
+        if (initialData?.brief) setBrief(initialData.brief);
+    }, [initialData]);
+
+    // Auto-run generation when requested and fields are present
+    useEffect(() => {
+        if (!initialData?.autoStart) return;
+        if (autoRan) return;
+        if (!templateId || !brief.trim()) return;
+
+        setAutoRan(true);
+        handleGenerate();
+    }, [initialData, templateId, brief, autoRan]);
 
     const handleGenerate = async () => {
-        if (!projectName.trim() || !clientName.trim()) {
-            setError('Please fill in at least the project name and client name');
+        if (!templateId) {
+            setError("Please choose a contract template");
+            return;
+        }
+
+        if (!brief.trim()) {
+            setError("Please describe the contract you want generated");
             return;
         }
 
@@ -39,31 +84,114 @@ export function AIContractDrafterModal({ userId, onClose, onGenerated }: AIContr
             setIsGenerating(true);
             setError(null);
 
-            // Check quota
             const { allowed } = await ConnectAIService.checkQuota(userId);
             if (!allowed) {
-                throw new Error('AI quota exceeded. Please upgrade your plan or wait until next month.');
+                throw new Error("AI quota exceeded. Please upgrade your plan or wait until next month.");
             }
 
-            // Build variables object
+            const selectedTemplate = templates.find((t) => (t.id || t.name) === templateId);
+            const templateName = selectedTemplate?.name || "Contract";
+
             const variables = {
-                projectName,
-                clientName,
-                deliverables: deliverables || 'To be defined',
-                duration: duration || 'To be defined',
+                templateName,
+                contractType,
+                description: brief,
             };
 
-            // Generate contract
             const contractData = await ConnectAIService.draftContract(contractType as any, variables, userId);
 
-            // Track usage
-            await ConnectAIService.trackUsage(userId, 'contract_drafter', 1200, 0.0012, true);
+            const today = new Date();
+            const toISODate = (d: Date) => d.toISOString().split("T")[0];
+            const plusDays = (d: Date, days: number) => {
+                const next = new Date(d);
+                next.setDate(next.getDate() + days);
+                return next;
+            };
 
-            onGenerated(contractData);
+            const base: Record<string, any> = {
+                jobTitle: contractData.jobTitle || templateName,
+                projectTitle: contractData.jobTitle || templateName,
+                proposalTitle: contractData.jobTitle || templateName,
+                projectDescription: contractData.projectDescription || brief,
+                scopeOfWork: contractData.projectDescription || brief,
+                description: contractData.projectDescription || brief,
+                paymentTerms: contractData.paymentTerms || "Payment terms to be confirmed",
+                timeline: contractData.timeline || "Timeline to be confirmed",
+                terminationConditions: contractData.terminationConditions || "Standard termination with notice",
+                confidentialityTerms: contractData.confidentialityTerms || "Mutual confidentiality applies",
+                intellectualProperty: contractData.intellectualProperty || "IP remains with client upon full payment",
+                contractType,
+            };
+
+            // Prefill template-specific fields so the form isn't empty after AI generate
+            const defaultsByKey: Record<string, any> = {
+                contractDate: toISODate(today),
+                date: toISODate(today),
+                startDate: toISODate(today),
+                endDate: toISODate(plusDays(today, 30)),
+                validUntil: toISODate(plusDays(today, 30)),
+                duration: 30,
+                durationUnit: "days",
+                noticePeriod: 30,
+                paymentAmount: "0",
+                paymentCurrency: "USD",
+                paymentSchedule: "Monthly",
+                paymentType: "fixed",
+                paymentMilestones: contractData.paymentTerms || "Milestones to be defined",
+                reviewPeriod: 5,
+                revisionRounds: 2,
+                feeAmount: "0",
+                feePeriod: "month",
+                fee: "0",
+                currency: "USD",
+                totalCost: "0",
+                serviceName: templateName,
+                serviceDescription: contractData.projectDescription || brief,
+                providerName: "Provider",
+                clientName: "Client",
+                contractorName: "Contractor",
+                employerName: "Employer",
+                employeeName: "Employee",
+                senderName: "Sender",
+                recipientName: "Recipient",
+                proposalTitle: templateName,
+                executiveSummary: contractData.projectDescription || brief,
+                solutionDetails: contractData.projectDescription || brief,
+                deliverables: contractData.projectDescription || "Deliverables to be defined",
+                paymentTerms: contractData.paymentTerms || "Payment terms to be confirmed",
+                terminationClause: contractData.terminationConditions || "Either party may terminate with notice",
+                jobDescription: contractData.projectDescription || brief,
+                jobRequirements: contractData.projectDescription || "Responsibilities to be defined",
+                workLocation: "Remote",
+                hoursPerWeek: 40,
+                benefits: "Standard benefits",
+                reviewPeriodDays: 5,
+                proposalDescription: contractData.projectDescription || brief,
+                paymentTypeDetails: contractData.paymentTerms || "Fixed",
+            };
+
+            if (selectedTemplate?.variables?.length) {
+                selectedTemplate.variables.forEach((variable) => {
+                    if (base[variable.key] === undefined) {
+                        const fallback = defaultsByKey[variable.key];
+                        if (fallback !== undefined) {
+                            base[variable.key] = fallback;
+                        } else {
+                            base[variable.key] = contractData[variable.key] || brief || templateName;
+                        }
+                    }
+                });
+            }
+
+            const mapped = base;
+
+            await ConnectAIService.trackUsage(userId, "contract_drafter", 1200, 0.0012, true);
+
+            onGenerated({ templateId, variables: mapped });
             onClose();
-        } catch (error: any) {
-            console.error('Contract generation error:', error);
-            setError(error.message || 'Failed to generate contract');
+        } catch (err: any) {
+            console.error("Contract generation error:", err);
+            setError(err.message || "Failed to generate contract");
         } finally {
             setIsGenerating(false);
         }
@@ -87,19 +215,14 @@ export function AIContractDrafterModal({ userId, onClose, onGenerated }: AIContr
                     onClick={(e) => e.stopPropagation()}
                     className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
                 >
-                    {/* Header */}
                     <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 p-6 flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
-                                <ConnektAIIcon className="w-6 h-6" />
+                            <div className="p-2 bg-teal-100 dark:bg-teal-900/30 rounded-xl">
+                                <ConnektAIIcon className="w-6 h-6 text-teal-600" />
                             </div>
                             <div>
-                                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                                    AI Contract Drafter
-                                </h2>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    Generate professional contracts instantly
-                                </p>
+                                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">AI Contract Drafter</h2>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">Choose a template, describe the contract, and we will prefill it.</p>
                             </div>
                         </div>
                         <button
@@ -110,95 +233,56 @@ export function AIContractDrafterModal({ userId, onClose, onGenerated }: AIContr
                         </button>
                     </div>
 
-                    {/* Content */}
                     <div className="p-6 space-y-6">
-                        {/* Contract Type Selection */}
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                                Contract Type
-                            </label>
-                            <div className="grid grid-cols-2 gap-3">
-                                {CONTRACT_TYPES.map((type) => (
-                                    <button
-                                        key={type.value}
-                                        onClick={() => setContractType(type.value)}
-                                        className={`p-4 rounded-xl border-2 transition-all text-left ${contractType === type.value
-                                            ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/20'
-                                            : 'border-gray-200 dark:border-gray-700 hover:border-purple-400'
-                                            }`}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">Template *</label>
+                                <div className="relative">
+                                    <select
+                                        value={templateId}
+                                        onChange={(e) => setTemplateId(e.target.value)}
+                                        className="w-full appearance-none p-3 pr-10 border border-gray-300 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
                                     >
-                                        <div className="flex items-start gap-3">
-                                            <div className="text-2xl">{type.icon}</div>
-                                            <div className="flex-1">
-                                                <div className="font-semibold text-gray-900 dark:text-white">
-                                                    {type.label}
-                                                </div>
-                                                <div className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
-                                                    {type.description}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </button>
-                                ))}
+                                        <option value="">Select a template</option>
+                                        {templates.map((t) => (
+                                            <option key={t.id || t.name} value={t.id || t.name}>
+                                                {t.name} ({t.type.replace(/_/g, " ")})
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <FileTextIcon className="w-4 h-4 text-gray-500 absolute right-3 top-1/2 -translate-y-1/2" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">Contract Type</label>
+                                <div className="relative">
+                                    <select
+                                        value={contractType}
+                                        onChange={(e) => setContractType(e.target.value)}
+                                        className="w-full appearance-none p-3 pr-10 border border-gray-300 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
+                                    >
+                                        {CONTRACT_TYPES.map((type) => (
+                                            <option key={type.value} value={type.value}>
+                                                {type.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <FileTextIcon className="w-4 h-4 text-gray-500 absolute right-3 top-1/2 -translate-y-1/2" />
+                                </div>
                             </div>
                         </div>
 
-                        {/* Input Fields */}
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">
-                                    Project/Service Name *
-                                </label>
-                                <input
-                                    type="text"
-                                    value={projectName}
-                                    onChange={(e) => setProjectName(e.target.value)}
-                                    placeholder="e.g., Website Redesign Project"
-                                    className="w-full p-3 border border-gray-300 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">
-                                    Client Name *
-                                </label>
-                                <input
-                                    type="text"
-                                    value={clientName}
-                                    onChange={(e) => setClientName(e.target.value)}
-                                    placeholder="e.g., Acme Corporation"
-                                    className="w-full p-3 border border-gray-300 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">
-                                    Deliverables (Optional)
-                                </label>
-                                <textarea
-                                    value={deliverables}
-                                    onChange={(e) => setDeliverables(e.target.value)}
-                                    placeholder="e.g., Homepage design, 5 landing pages, responsive mobile design"
-                                    className="w-full p-3 border border-gray-300 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none resize-none"
-                                    rows={3}
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">
-                                    Duration (Optional)
-                                </label>
-                                <input
-                                    type="text"
-                                    value={duration}
-                                    onChange={(e) => setDuration(e.target.value)}
-                                    placeholder="e.g., 3 months, 2 weeks, 6 days"
-                                    className="w-full p-3 border border-gray-300 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
-                                />
-                            </div>
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">Describe the contract *</label>
+                            <textarea
+                                value={brief}
+                                onChange={(e) => setBrief(e.target.value)}
+                                placeholder="Describe parties, scope, payment, timelines, deliverables, and any special clauses."
+                                className="w-full p-3 border border-gray-300 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none resize-none"
+                                rows={6}
+                            />
                         </div>
 
-                        {/* Error Message */}
                         {error && (
                             <motion.div
                                 initial={{ opacity: 0, y: -10 }}
@@ -210,19 +294,17 @@ export function AIContractDrafterModal({ userId, onClose, onGenerated }: AIContr
                             </motion.div>
                         )}
 
-                        {/* Info Box */}
                         <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
                             <div className="flex items-start gap-3">
                                 <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                                 <div className="text-sm text-amber-700 dark:text-amber-400">
                                     <p className="font-semibold mb-1">Important:</p>
-                                    <p>AI-generated contracts should always be reviewed by a legal professional before use. This is a starting template only.</p>
+                                    <p>AI-generated contracts should be reviewed by a legal professional before use. This is a starting template only.</p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Footer */}
                     <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-6 flex gap-3">
                         <button
                             onClick={onClose}
@@ -232,8 +314,8 @@ export function AIContractDrafterModal({ userId, onClose, onGenerated }: AIContr
                         </button>
                         <button
                             onClick={handleGenerate}
-                            disabled={!projectName.trim() || !clientName.trim() || isGenerating}
-                            className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            disabled={!templateId || !brief.trim() || isGenerating}
+                            className="flex-1 px-6 py-3 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             {isGenerating ? (
                                 <>
@@ -243,7 +325,7 @@ export function AIContractDrafterModal({ userId, onClose, onGenerated }: AIContr
                             ) : (
                                 <>
                                     <ConnektAIIcon className="w-5 h-5" />
-                                    Generate Contract
+                                    Generate
                                 </>
                             )}
                         </button>

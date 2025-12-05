@@ -16,7 +16,7 @@ export interface MailAddress {
 /**
  * Mail Categories
  */
-export type MailCategory = 'Projects' | 'Clients' | 'Personal' | 'Important';
+export type MailCategory = 'Projects' | 'Clients' | 'Personal' | 'Important' | 'Contracts';
 
 /**
  * Mail Signature
@@ -40,10 +40,11 @@ export interface ExtendedMailMessage {
     type: 'received' | 'sent';
 
     // Sender Details
-    senderId: string;
+    senderId: string; // Prefer UID when available
     senderUsername: string;
-    senderName: string;
+    senderName: string; // Display name
     senderAddress: string; // Full email address with domain
+    senderPhotoURL?: string;
     senderMailType: 'personal' | 'agency';
     senderAgencyId?: string;
 
@@ -51,6 +52,8 @@ export interface ExtendedMailMessage {
     recipientId: string;
     recipientUsername: string;
     recipientAddress: string; // Full email address with domain
+    recipientName?: string;
+    recipientPhotoURL?: string;
     recipientMailType: 'personal' | 'agency';
     recipientAgencyId?: string;
 
@@ -221,6 +224,7 @@ export interface Contract {
 
     // Enforcement
     enforcement?: ContractEnforcement;
+    escrowId?: string;
 
     // Violations
     violations?: ContractViolation[];
@@ -236,6 +240,11 @@ export interface Contract {
 }
 
 export interface ContractTerms {
+    // Linking
+    linkedProjectId?: string;
+    linkedWorkspaceId?: string;
+    linkedChatId?: string;
+
     // Task Assignment Terms
     taskId?: string;
     taskTitle?: string;
@@ -272,6 +281,23 @@ export interface ContractTerms {
     paymentRangeMax?: number;     // For range-based
     paymentCurrency?: string;     // Default: GMD
     paymentSchedule?: string;     // e.g., "Monthly on 1st", "Upon completion"
+
+    // Funding / Enforcement
+    requireWalletFunding?: boolean;
+    totalAmount?: number;
+    totalCurrency?: string;
+    paymentMode?: 'full_on_complete' | 'per_milestone';
+
+    // Milestones
+    milestones?: Array<{
+        id: string;
+        title: string;
+        amount: number;
+        currency?: string;
+        dueAt?: string;
+        deliverableRef?: string;
+        status?: 'pending' | 'submitted' | 'approved' | 'paid';
+    }>;
 
     // Timeline
     startDate?: string;

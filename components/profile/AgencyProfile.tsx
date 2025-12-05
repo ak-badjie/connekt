@@ -6,7 +6,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     MapPin, Mail, Edit, Briefcase, Users, Star, Globe, Linkedin,
     Twitter, Camera, Award, TrendingUp, Clock, Target, Settings,
-    Plus, Building2, Phone, Calendar, ExternalLink, CheckCircle2
+    Plus, Building2, Phone, Calendar, ExternalLink, CheckCircle2,
+    User
 } from 'lucide-react';
 import {
     DndContext,
@@ -272,9 +273,15 @@ export function AgencyProfile({ agency: initialAgency, isOwner }: AgencyProfileP
                                         </h1>
                                         <div className="flex items-center gap-2">
                                             <CheckCircle2 className="w-8 h-8 text-blue-400 fill-blue-400" />
-                                            <span className="px-4 py-1.5 bg-gradient-to-r from-blue-500 to-teal-500 text-white text-sm font-bold rounded-full shadow-lg">
-                                                VERIFIED
-                                            </span>
+                                            {agency.agencyType === 'va_collective' ? (
+                                                <span className="px-4 py-1.5 bg-gradient-to-r from-teal-500 to-cyan-500 text-white text-sm font-bold rounded-full shadow-lg">
+                                                    VA COLLECTIVE
+                                                </span>
+                                            ) : (
+                                                <span className="px-4 py-1.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm font-bold rounded-full shadow-lg">
+                                                    RECRUITING AGENCY
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                     <p className="text-xl text-white/90 font-medium drop-shadow mb-3">
@@ -451,7 +458,9 @@ export function AgencyProfile({ agency: initialAgency, isOwner }: AgencyProfileP
 
                         {/* Services */}
                         <div className="profile-section">
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Our Services</h3>
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+                                {agency.agencyType === 'va_collective' ? 'Collective Services' : 'Our Services'}
+                            </h3>
                             <div className="flex flex-wrap gap-2">
                                 {agency.services?.map((service, index) => (
                                     <motion.span
@@ -466,6 +475,46 @@ export function AgencyProfile({ agency: initialAgency, isOwner }: AgencyProfileP
                                 ))}
                                 {(!agency.services || agency.services.length === 0) && (
                                     <span className="text-gray-500 text-sm italic">No services listed</span>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Team Members */}
+                        <div className="profile-section">
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                <Users className="w-5 h-5 text-blue-600" />
+                                Team Members
+                            </h3>
+                            <div className="space-y-3">
+                                {agency.members?.map((member: any, index: number) => (
+                                    <motion.div
+                                        key={member.userId}
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: index * 0.05 }}
+                                        className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer"
+                                        onClick={() => {
+                                            // Navigate to member profile - extract username from email
+                                            const username = member.agencyEmail.split('@')[0];
+                                            window.location.href = `/${username}`;
+                                        }}
+                                    >
+                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center text-white font-semibold">
+                                            <User className="w-5 h-5" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="font-medium text-gray-900 dark:text-white">
+                                                {member.agencyEmail.split('@')[0]}
+                                            </p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
+                                                {member.role}
+                                            </p>
+                                        </div>
+                                        <ExternalLink className="w-4 h-4 text-gray-400" />
+                                    </motion.div>
+                                ))}
+                                {(!agency.members || agency.members.length === 0) && (
+                                    <p className="text-gray-500 text-sm italic">No team members listed</p>
                                 )}
                             </div>
                         </div>

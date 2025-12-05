@@ -5,6 +5,7 @@ import { X, FileText, Download, CheckCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '@/context/AuthContext';
+import GambianLegalHeader from '@/components/mail/GambianLegalHeader';
 
 interface UnifiedContractViewerProps {
     contractId: string;
@@ -79,6 +80,7 @@ export function UnifiedContractViewer({
 
     const isSigned = contract.status === 'signed';
     const isRecipient = user?.uid === contract.toUserId;
+    const isProposal = !!contract?.terms?.proposal;
 
     return (
         <AnimatePresence>
@@ -94,9 +96,9 @@ export function UnifiedContractViewer({
                         <div className="flex items-center gap-3">
                             <FileText className="text-[#008080]" size={24} />
                             <div>
-                                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Contract Viewer</h2>
+                                <h2 className="text-xl font-bold text-gray-900 dark:text-white">{isProposal ? 'Proposal Viewer' : 'Contract Viewer'}</h2>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                                    {contract.type.replace(/_/g, ' ').toUpperCase()}
+                                    {(isProposal ? 'PROPOSAL' : contract.type.replace(/_/g, ' ').toUpperCase())}
                                 </p>
                             </div>
                         </div>
@@ -128,35 +130,13 @@ export function UnifiedContractViewer({
                     <div className="flex-1 overflow-y-auto p-8" id="contract-content">
                         {/* Gambian Legal Header */}
                         <div className="mb-8 pb-6 border-b-2 border-gray-300 dark:border-zinc-700">
-                            <div className="flex items-center justify-between mb-4">
-                                {/* Connekt Logo */}
-                                <div className="flex items-center gap-2">
-                                    <div className="w-12 h-12 bg-gradient-to-br from-[#008080] to-teal-600 rounded-lg flex items-center justify-center">
-                                        <span className="text-white font-bold text-xl">C</span>
-                                    </div>
-                                    <div>
-                                        <div className="font-bold text-lg text-[#008080] tracking-wider">CONNEKT</div>
-                                        <div className="text-xs text-gray-500">Africa</div>
-                                    </div>
-                                </div>
-
-                                {/* Gambian Symbols */}
-                                <div className="flex items-center gap-4">
-                                    <div className="text-center">
-                                        <div className="text-3xl">🇬🇲</div>
-                                        <div className="text-xs text-gray-500 mt-1">The Gambia</div>
-                                    </div>
-                                    <div className="text-center">
-                                        <div className="text-3xl">⚖️</div>
-                                        <div className="text-xs text-gray-500 mt-1">Legal Document</div>
-                                    </div>
-                                </div>
+                            <GambianLegalHeader size="medium" showConnektLogo showCoatOfArms showGambianFlag />
+                            <div className="mt-6 text-center space-y-1">
+                                <p className="text-xs uppercase tracking-[0.2em] text-gray-500">{isProposal ? 'Proposal' : 'Contract'} Document</p>
+                                <h1 className="text-2xl font-bold text-center text-gray-900 dark:text-white">
+                                    {contract.title}
+                                </h1>
                             </div>
-
-                            {/* Contract Title */}
-                            <h1 className="text-2xl font-bold text-center text-gray-900 dark:text-white mt-6">
-                                {contract.title}
-                            </h1>
                         </div>
 
                         {/* Contract Body */}

@@ -2,25 +2,30 @@
 
 import { useState } from 'react';
 import { Reply, Forward, Trash2, MoreHorizontal, Paperclip, Download, ExternalLink, FileText } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import type { MailMessage } from '@/lib/services/mail-service';
+import Image from 'next/image';
 import { ContractViewerModal } from './ContractViewerModal';
 import { useAuth } from '@/context/AuthContext';
 
 interface MailViewerColumnProps {
     mail: MailMessage | null;
-    onReply?: () => void;
-    onForward?: () => void;
+    onReply?: (prefill: { recipient?: string; subject?: string; body?: string; contractId?: string }) => void;
+    onForward?: (prefill: { recipient?: string; subject?: string; body?: string; contractId?: string }) => void;
     onDelete?: () => void;
+    onMarkUnread?: () => void;
 }
 
 export function MailViewerColumn({
     mail,
     onReply,
     onForward,
-    onDelete
+    onDelete,
+    onMarkUnread
 }: MailViewerColumnProps) {
     const { user } = useAuth();
+    const router = useRouter();
     const [showContractViewer, setShowContractViewer] = useState(false);
 
     // Check if this mail has a contract
@@ -57,14 +62,29 @@ export function MailViewerColumn({
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
                         <button
-                            onClick={onReply}
+                            onClick={() => {
+                                if (!mail) return;
+                                onReply?.({
+                                    recipient: mail.senderAddress,
+                                    subject: mail.subject ? `Re: ${mail.subject}` : 'Re:',
+                                    body: `\n\n--- Original message ---\n${mail.body || ''}`,
+                                    contractId: (mail as any).contractId
+                                });
+                            }}
                             className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
                             title="Reply"
                         >
                             <Reply size={18} className="text-gray-600 dark:text-gray-400" />
                         </button>
                         <button
-                            onClick={onForward}
+                            onClick={() => {
+                                if (!mail) return;
+                                onForward?.({
+                                    subject: mail.subject ? `Fwd: ${mail.subject}` : 'Fwd:',
+                                    body: `\n\n--- Forwarded message ---\nFrom: ${mail.senderName} <${mail.senderAddress}>\nTo: ${mail.recipientAddress}\n\n${mail.body || ''}`,
+                                    contractId: (mail as any).contractId
+                                });
+                            }}
                             className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
                             title="Forward"
                         >
@@ -79,9 +99,15 @@ export function MailViewerColumn({
                             <Trash2 size={18} className="text-red-500" />
                         </button>
                     </div>
-                    <button className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
-                        <MoreHorizontal size={18} className="text-gray-600 dark:text-gray-400" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={onMarkUnread}
+                            className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                            title="Mark as unread"
+                        >
+                            <MoreHorizontal size={18} className="text-gray-600 dark:text-gray-400" />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Subject */}
@@ -92,15 +118,25 @@ export function MailViewerColumn({
                 {/* Sender Info */}
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#f97316] to-orange-600 flex items-center justify-center text-white font-bold text-lg">
-                            {mail.senderName[0]?.toUpperCase()}
-                        </div>
+                        {mail.senderPhotoURL ? (
+                            <Image
+                                src={mail.senderPhotoURL}
+                                alt={mail.senderName}
+                                width={48}
+                                height={48}
+                                className="rounded-full object-cover"
+                            />
+                        ) : (
+                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#f97316] to-orange-600 flex items-center justify-center text-white font-bold text-lg">
+                                {mail.senderName[0]?.toUpperCase()}
+                            </div>
+                        )}
                         <div>
                             <p className="text-sm font-bold text-gray-900 dark:text-white">
                                 {mail.senderName}
                             </p>
                             <p className="text-xs text-gray-500 dark:text-gray-400">
-                                @{mail.senderUsername}
+                                {mail.senderAddress}
                             </p>
                         </div>
                     </div>
@@ -154,9 +190,13 @@ export function MailViewerColumn({
                     userId={user.uid}
                     isOpen={showContractViewer}
                     onClose={() => setShowContractViewer(false)}
-                    onSigned={() => {
+                    onSigned={(contract) => {
                         setShowContractViewer(false);
-                        // Could trigger a reload of the mail here
+                        if (contract.type === 'task_assignment' && contract.terms.taskId) {
+                            router.push(`/dashboard/tasks?taskId=${contract.terms.taskId}`);
+                        } else if (contract.type === 'project_assignment' && contract.terms.projectId) {
+                            router.push(`/projects/${contract.terms.projectId}`);
+                        }
                     }}
                 />
             )}

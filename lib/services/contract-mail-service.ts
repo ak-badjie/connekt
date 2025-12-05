@@ -19,6 +19,45 @@ import { MailService } from './mail-service';
  */
 export const ContractMailService = {
     /**
+     * Create a contract document without sending notification
+     */
+    async createContractDocument(
+        fromUserId: string,
+        fromUsername: string,
+        fromMailAddress: string,
+        toUserId: string,
+        toUsername: string,
+        toMailAddress: string,
+        type: ContractType,
+        title: string,
+        description: string,
+        terms: ContractTerms,
+        expiresIn?: number, // days
+        defaultTerms?: string // Standard terms from template
+    ): Promise<string> {
+        // Create contract
+        const contract: Partial<Contract> = {
+            type,
+            status: 'pending',
+            fromUserId,
+            fromUsername,
+            fromMailAddress,
+            toUserId,
+            toUsername,
+            toMailAddress,
+            title,
+            description,
+            ...(defaultTerms && { defaultTerms }),
+            terms,
+            createdAt: serverTimestamp(),
+            ...(expiresIn && { expiresAt: new Date(Date.now() + expiresIn * 24 * 60 * 60 * 1000) })
+        };
+
+        const contractRef = await addDoc(collection(db, 'contracts'), contract);
+        return contractRef.id;
+    },
+
+    /**
      * Create a contract and send notification mail
      */
     async createContract(
@@ -125,7 +164,7 @@ export const ContractMailService = {
     /**
      * Accept a contract
      */
-    async acceptContract(contractId: string, acceptedByUserId: string): Promise<void> {
+    async acceptContract(contractId: string, acceptedByUserId: string, fullName?: string): Promise<void> {
         const contractRef = doc(db, 'contracts', contractId);
         const contractSnap = await getDoc(contractRef);
 
@@ -145,8 +184,12 @@ export const ContractMailService = {
 
         await updateDoc(contractRef, {
             status: 'accepted',
-            respondedAt: serverTimestamp()
+            respondedAt: serverTimestamp(),
+            ...(fullName ? { signatureFullName: fullName, signedAt: serverTimestamp(), signedBy: acceptedByUserId } : {})
         });
+
+        // Hold funds in escrow if required
+        await this.ensureEscrow(contractId, contract);
 
         // Execute contract-specific actions
         await this.executeContractAcceptance(contract);
@@ -211,12 +254,14 @@ export const ContractMailService = {
         const contractContent = JSON.stringify(contract);
         const signatureHash = await this.generateHash(contractContent);
 
+        const safeFullName = fullName || 'Signed User';
         const signature = {
             userId,
-            username: fullName,
-            signedAt: serverTimestamp(),
-            ipAddress,
-            userAgent,
+            username: safeFullName,
+            // Firestore forbids serverTimestamp inside arrays; store client timestamp instead.
+            signedAt: new Date(),
+            ...(ipAddress ? { ipAddress } : {}),
+            ...(userAgent ? { userAgent } : {}),
             signatureHash
         };
 
@@ -225,11 +270,51 @@ export const ContractMailService = {
         await updateDoc(contractRef, {
             signatures: [...currentSignatures, signature],
             status: 'accepted',
-            respondedAt: serverTimestamp()
+            respondedAt: serverTimestamp(),
+            signatureFullName: safeFullName,
+            signedAt: serverTimestamp(),
+            signedBy: userId
         });
+
+        // Hold funds in escrow if required
+        await this.ensureEscrow(contractId, contract);
 
         // Execute contract-specific actions
         await this.executeContractAcceptance(contract);
+    },
+
+    /**
+     * Ensure wallet has funds and hold in escrow when contract terms require it
+     */
+    async ensureEscrow(contractId: string, contract: Contract): Promise<void> {
+        const terms = contract.terms || {};
+        const amount = terms.totalAmount || terms.paymentAmount || terms.projectBudget || terms.taskPayment;
+        if (!terms.requireWalletFunding || !amount || amount <= 0) return;
+
+        const escrowId = `escrow_${contractId}`;
+        const escrowSnap = await getDoc(doc(db, 'escrow_holds', escrowId));
+        if (escrowSnap.exists()) return; // already held
+
+        const payerWalletId = `user_${contract.fromUserId}`;
+        const payeeWalletId = `user_${contract.toUserId}`;
+
+        const hasFunds = await WalletService.hasSufficientFunds(payerWalletId, amount);
+        if (!hasFunds) {
+            throw new Error('Insufficient wallet balance to fund this contract. Please top up.');
+        }
+
+        await WalletService.holdInEscrow(
+            contractId,
+            payerWalletId,
+            payeeWalletId,
+            contract.fromUserId,
+            contract.toUserId,
+            amount
+        );
+
+        await updateDoc(doc(db, 'contracts', contractId), {
+            escrowId
+        });
     },
 
     /**

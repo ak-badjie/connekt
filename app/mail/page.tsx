@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { MailService, type MailMessage } from '@/lib/services/mail-service';
 import { ContractMailService } from '@/lib/services/contract-mail-service';
+import { StorageQuotaService } from '@/lib/services/storage-quota-service';
 import { ComposeModal } from '@/components/mail/ComposeModal';
 import { MailHeader } from '@/components/mail/MailHeader';
 import { MailPrimarySidebar } from '@/components/mail/MailPrimarySidebar';
@@ -19,15 +21,27 @@ import { useMinimumLoading } from '@/hooks/useMinimumLoading';
 
 export default function MailPage() {
     const { user } = useAuth();
+    const searchParams = useSearchParams();
     const [loading, setLoading] = useState(true);
     const [mails, setMails] = useState<MailMessage[]>([]);
     const [selectedMail, setSelectedMail] = useState<MailMessage | null>(null);
     const [isComposing, setIsComposing] = useState(false);
     const [activeFolder, setActiveFolder] = useState<'inbox' | 'sent' | 'drafts' | 'trash'>('inbox');
-    const [activeCategory, setActiveCategory] = useState<MailCategory | undefined>();
+    const [activeCategories, setActiveCategories] = useState<Array<MailCategory | 'All'>>(['All']);
     const [mailAddresses, setMailAddresses] = useState<MailAddress[]>([]);
     const [selectedAddress, setSelectedAddress] = useState<MailAddress | undefined>();
     const [searchQuery, setSearchQuery] = useState('');
+    const [showUnreadOnly, setShowUnreadOnly] = useState(false);
+    const [storageUsedGB, setStorageUsedGB] = useState(0);
+    const [storageTotalGB, setStorageTotalGB] = useState(1.0);
+    const [composePrefill, setComposePrefill] = useState<{ recipient?: string; subject?: string; body?: string }>();
+    const [autoContractDraftRequest, setAutoContractDraftRequest] = useState<{
+        templateId?: string;
+        contractType?: string;
+        brief?: string;
+        variables?: Record<string, any>;
+        autoStart?: boolean;
+    }>();
 
     // Onboarding state
     const [showIntro, setShowIntro] = useState(false);
@@ -38,8 +52,41 @@ export default function MailPage() {
             checkOnboarding();
             loadMailAddresses();
             loadMails();
+            loadStorageQuota();
         }
     }, [user, activeFolder]);
+
+        // Handle deep-links from projects/tasks/workspaces to auto-open composer with contract AI or template prefills
+        useEffect(() => {
+            if (!searchParams) return;
+
+            const shouldCompose = searchParams.get('compose') === '1';
+            if (!shouldCompose) return;
+
+            const to = searchParams.get('to') || undefined;
+            const subject = searchParams.get('subject') || undefined;
+            const body = searchParams.get('body') || undefined;
+            const templateId = searchParams.get('templateId') || undefined;
+            const contractType = searchParams.get('contractType') || undefined;
+            const brief = searchParams.get('brief') || undefined;
+            const autoStartParam = searchParams.get('autoStart');
+            const autoStart = autoStartParam === null ? true : autoStartParam !== '0';
+
+            let variables: Record<string, any> | undefined;
+            const rawVars = searchParams.get('variables');
+            if (rawVars) {
+                try {
+                    variables = JSON.parse(rawVars);
+                } catch (err) {
+                    console.warn('Failed to parse contract variables from URL', err);
+                }
+            }
+
+            setComposePrefill({ recipient: to, subject, body });
+            setActiveCategories(['Contracts']);
+            setAutoContractDraftRequest({ templateId, contractType, brief, variables, autoStart });
+            setIsComposing(true);
+        }, [searchParams]);
 
     const checkOnboarding = async () => {
         if (!user) return;
@@ -78,13 +125,42 @@ export default function MailPage() {
                 fetchedMails = await MailService.getInbox(user.uid);
             } else if (activeFolder === 'sent') {
                 fetchedMails = await MailService.getSent(user.uid);
+            } else if (activeFolder === 'drafts') {
+                const drafts = await MailService.getDrafts(user.uid);
+                // Convert drafts to MailMessage format for display
+                fetchedMails = drafts.map(draft => ({
+                    ...draft,
+                    id: draft.id,
+                    ownerId: draft.userId,
+                    type: 'sent' as const,
+                    isRead: true,
+                    folder: 'drafts' as const
+                } as unknown as MailMessage));
             }
-            // TODO: Add drafts and trash when implemented
+            // TODO: Add trash when implemented
             setMails(fetchedMails);
         } catch (error) {
             console.error('Error loading mails:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadStorageQuota = async () => {
+        if (!user) return;
+        try {
+            const userDoc = await getDoc(doc(db, 'users', user.uid));
+            const userData = userDoc.data();
+            const username = userData?.username || 'user';
+            const mailAddress = `${username}@connekt.com`;
+            
+            const quota = await StorageQuotaService.getStorageQuota(mailAddress);
+            if (quota) {
+                setStorageUsedGB(StorageQuotaService.bytesToGB(quota.usedSpace));
+                setStorageTotalGB(StorageQuotaService.bytesToGB(quota.totalQuota));
+            }
+        } catch (error) {
+            console.error('Error loading storage quota:', error);
         }
     };
 
@@ -95,7 +171,7 @@ export default function MailPage() {
         attachments?: any[],
         category?: string,
         signatureId?: string,
-        contractData?: { templateId?: string; terms?: any; defaultTerms?: string } | null
+        contractData?: { templateId?: string; terms?: any; defaultTerms?: string; description?: string } | null
     ) => {
         if (!user) return;
         const userDoc = await getDoc(doc(db, 'users', user.uid));
@@ -110,35 +186,64 @@ export default function MailPage() {
         const toMailAddress = `${recipientUsername}@${recipientDomain}`;
         const fromMailAddress = `${username}@connekt.com`;
 
+        // Resolve recipient user ID from usernames collection
+        const recipientRef = doc(db, 'usernames', recipientUsername.toLowerCase());
+        const recipientSnap = await getDoc(recipientRef);
+        if (!recipientSnap.exists()) {
+            throw new Error(`User @${recipientUsername} not found.`);
+        }
+        const toUserId = recipientSnap.data().uid;
+        const toUserProfile = await getDoc(doc(db, 'users', toUserId));
+        const toDisplayName = toUserProfile.data()?.displayName || recipientUsername;
+
         // If contract data is present, create a contract
+        let contractId: string | undefined;
         if (contractData) {
             try {
-                // Create the contract
-                const contractId = await ContractMailService.createContract(
+                // Create the contract document only
+                contractId = await ContractMailService.createContractDocument(
                     user.uid,
                     username,
                     fromMailAddress,
-                    'unknown_user_id', // TODO: Lookup recipient user ID from username
+                    toUserId,
                     recipientUsername,
                     toMailAddress,
                     contractData.terms?.contractType || 'general',
-                    subject,
-                    body,
+                    contractData.terms?.title || subject,
+                    contractData.description || body,
                     contractData.terms || {},
                     30, // 30 days expiration
                     contractData.defaultTerms // Pass defaultTerms
                 );
 
                 console.log('Contract created with ID:', contractId);
-                // The ContractMailService.createContract already sends a notification mail
             } catch (error) {
                 console.error('Error creating contract:', error);
                 throw new Error('Failed to create contract');
             }
-        } else {
-            // Normal mail sending
-            await MailService.sendMail(user.uid, username, displayName, recipientUsername, subject, body);
         }
+
+        // Construct from address
+        const fromAddress = {
+            address: fromMailAddress,
+            type: 'personal', // Assuming personal for now
+            displayName: displayName,
+            username: username,
+            domain: 'connekt.com'
+        };
+
+        // Send mail
+        await MailService.sendMailFromAddress(
+            fromAddress as any,
+            toMailAddress,
+            subject,
+            body,
+            attachments,
+            category as any,
+            signatureId,
+            contractId,
+            user.uid
+        );
 
         await loadMails();
     };
@@ -151,10 +256,92 @@ export default function MailPage() {
         }
     };
 
+    const openComposeWithPrefill = (prefill: {
+        recipient?: string;
+        subject?: string;
+        body?: string;
+        contractId?: string;
+        contractType?: string;
+        brief?: string;
+        category?: MailCategory;
+    }) => {
+        setComposePrefill({ recipient: prefill.recipient, subject: prefill.subject, body: prefill.body });
+        if (prefill.contractId || prefill.contractType || prefill.brief) {
+            setAutoContractDraftRequest({
+                contractType: prefill.contractType,
+                brief: prefill.brief,
+                autoStart: true
+            });
+            setActiveCategories(['Contracts']);
+        }
+        setIsComposing(true);
+    };
+
     const handleDelete = async () => {
         if (!selectedMail?.id) return;
         await MailService.moveToTrash(selectedMail.id);
         setSelectedMail(null);
+        await loadMails();
+    };
+
+    const handleSaveDraft = async (
+        recipient: string,
+        subject: string,
+        body: string,
+        attachments?: any[],
+        category?: string
+    ) => {
+        if (!user) return;
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        const userData = userDoc.data();
+        const username = userData?.username || 'user';
+        const displayName = userData?.displayName || username;
+        const photoURL = userData?.photoURL || '';
+
+        // Parse recipient to get details
+        const recipientParts = recipient.split('@');
+        const recipientUsername = recipientParts[0] || '';
+        const recipientDomain = recipientParts[1] || 'connekt.com';
+        const toMailAddress = recipientUsername ? `${recipientUsername}@${recipientDomain}` : '';
+        const fromMailAddress = `${username}@connekt.com`;
+
+        // Resolve recipient display name and photo if possible
+        let recipientName = recipientUsername;
+        let recipientPhotoURL = '';
+        if (recipientUsername) {
+            try {
+                const recipientRef = doc(db, 'usernames', recipientUsername.toLowerCase());
+                const recipientSnap = await getDoc(recipientRef);
+                if (recipientSnap.exists()) {
+                    const toUserId = recipientSnap.data().uid;
+                    const toUserProfile = await getDoc(doc(db, 'users', toUserId));
+                    recipientName = toUserProfile.data()?.displayName || recipientUsername;
+                    recipientPhotoURL = toUserProfile.data()?.photoURL || '';
+                }
+            } catch (err) {
+                console.warn('Could not resolve recipient details:', err);
+            }
+        }
+
+        await MailService.saveDraft({
+            userId: user.uid,
+            senderId: user.uid,
+            senderUsername: username,
+            senderName: displayName,
+            senderAddress: fromMailAddress,
+            senderPhotoURL: photoURL,
+            recipientUsername: recipientUsername,
+            recipientAddress: toMailAddress,
+            recipientName,
+            recipientPhotoURL,
+            subject,
+            body,
+            attachments,
+            category: category as any,
+            folder: 'drafts',
+            createdAt: null as any
+        });
+
         await loadMails();
     };
 
@@ -343,29 +530,57 @@ export default function MailPage() {
                 {/* Primary Sidebar */}
                 <MailPrimarySidebar
                     activeFolder={activeFolder}
-                    activeCategory={activeCategory}
+                    activeCategories={activeCategories}
                     unreadCounts={{ inbox: mails.filter(m => !m.isRead && m.folder === 'inbox').length, drafts: 0 }}
                     onFolderChange={setActiveFolder}
-                    onCategoryChange={setActiveCategory}
+                    onCategoriesChange={setActiveCategories}
                     onCompose={() => setIsComposing(true)}
+                    storageUsedGB={storageUsedGB}
+                    storageTotalGB={storageTotalGB}
                 />
 
                 {/* Mail List */}
                 <MailListColumn
-                    mails={mails}
+                    mails={mails.filter(mail => {
+                        // Unread filter
+                        if (showUnreadOnly && mail.isRead) return false;
+                        // Category filter
+                        if (!activeCategories.includes('All')) {
+                            return mail.category && activeCategories.includes(mail.category);
+                        }
+                        return true;
+                    })}
                     selectedMail={selectedMail}
                     onMailSelect={handleMailSelect}
                     loading={loading}
                     searchQuery={searchQuery}
                     onSearchChange={setSearchQuery}
+                    showUnreadOnly={showUnreadOnly}
+                    onToggleUnreadOnly={setShowUnreadOnly}
                 />
 
                 {/* Mail Viewer */}
                 <MailViewerColumn
                     mail={selectedMail}
-                    onReply={() => setIsComposing(true)}
-                    onForward={() => setIsComposing(true)}
+                    onReply={(prefill) => openComposeWithPrefill({
+                        recipient: prefill.recipient,
+                        subject: prefill.subject,
+                        body: prefill.body,
+                        contractType: prefill.contractId ? 'general' : undefined,
+                        brief: prefill.contractId ? 'Replying with referenced contract' : undefined
+                    })}
+                    onForward={(prefill) => openComposeWithPrefill({
+                        subject: prefill.subject,
+                        body: prefill.body,
+                        contractType: prefill.contractId ? 'general' : undefined,
+                        brief: prefill.contractId ? 'Forwarding with referenced contract' : undefined
+                    })}
                     onDelete={handleDelete}
+                    onMarkUnread={async () => {
+                        if (!selectedMail?.id) return;
+                        await MailService.markAsUnread(selectedMail.id);
+                        await loadMails();
+                    }}
                 />
             </div>
 
@@ -374,6 +589,9 @@ export default function MailPage() {
                 isOpen={isComposing}
                 onClose={() => setIsComposing(false)}
                 onSend={handleSendMail}
+                onSaveDraft={handleSaveDraft}
+                initialData={composePrefill}
+                autoContractDraftRequest={autoContractDraftRequest}
             />
         </div>
     );
