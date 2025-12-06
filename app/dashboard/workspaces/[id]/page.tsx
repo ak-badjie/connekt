@@ -23,15 +23,25 @@ export default function WorkspaceDetailPage() {
         if (user && workspaceId) {
             const fetchData = async () => {
                 try {
-                    const [workspaceData, projectsData, role] = await Promise.all([
+                    // First get workspace and role
+                    const [workspaceData, role] = await Promise.all([
                         WorkspaceService.getWorkspace(workspaceId),
-                        EnhancedProjectService.getWorkspaceProjects(workspaceId),
                         WorkspaceService.getUserRole(workspaceId, user.uid)
                     ]);
 
                     setWorkspace(workspaceData);
-                    setProjects(projectsData);
                     setUserRole(role);
+
+                    // Then fetch projects based on role
+                    let projectsData: Project[] = [];
+                    if (role === 'owner' || role === 'admin') {
+                        projectsData = await EnhancedProjectService.getWorkspaceProjects(workspaceId);
+                    } else {
+                        // For regular members, only show projects they are part of
+                        projectsData = await EnhancedProjectService.getWorkspaceProjectsForMember(workspaceId, user.uid);
+                    }
+
+                    setProjects(projectsData);
                 } catch (error) {
                     console.error('Error fetching workspace:', error);
                 } finally {
@@ -203,9 +213,9 @@ export default function WorkspaceDetailPage() {
                                         {project.title}
                                     </h3>
                                     <span className={`px-2 py-1 rounded-full text-xs font-bold ${project.status === 'active' ? 'bg-green-100 text-green-600 dark:bg-green-900/30' :
-                                            project.status === 'planning' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' :
-                                                project.status === 'completed' ? 'bg-gray-100 text-gray-600 dark:bg-gray-800' :
-                                                    'bg-amber-100 text-amber-600 dark:bg-amber-900/30'
+                                        project.status === 'planning' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' :
+                                            project.status === 'completed' ? 'bg-gray-100 text-gray-600 dark:bg-gray-800' :
+                                                'bg-amber-100 text-amber-600 dark:bg-amber-900/30'
                                         }`}>
                                         {project.status}
                                     </span>
@@ -252,8 +262,8 @@ export default function WorkspaceDetailPage() {
                                     </p>
                                 </div>
                                 <span className={`px-2 py-1 rounded-full text-xs font-bold ${member.role === 'owner' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30' :
-                                        member.role === 'admin' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' :
-                                            'bg-gray-100 text-gray-600 dark:bg-gray-800'
+                                    member.role === 'admin' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' :
+                                        'bg-gray-100 text-gray-600 dark:bg-gray-800'
                                     }`}>
                                     {member.role}
                                 </span>

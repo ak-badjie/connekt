@@ -284,6 +284,8 @@ export default function PublicProjectPage() {
                                             params.set('contractType', 'project_assignment');
                                             params.set('brief', `Project: ${project.title}\nBudget: ${project.budget}\nDeadline: ${project.deadline ? new Date(project.deadline).toDateString() : 'N/A'}\nDescription: ${project.description || ''}`);
                                             const variables = {
+                                                projectId: project.id,
+                                                workspaceId: project.workspaceId,
                                                 contractDate: new Date().toISOString().slice(0, 10),
                                                 clientName: project.ownerUsername,
                                                 contractorName: project.title,
@@ -355,6 +357,11 @@ export default function PublicProjectPage() {
                                             params.set('templateId', 'Project-Based Job Contract');
                                             params.set('contractType', 'project_assignment');
                                             params.set('brief', `Project: ${project.title}\nBudget: ${project.budget}\nDeadline: ${project.deadline ? new Date(project.deadline).toDateString() : 'N/A'}\nDescription: ${project.description || ''}`);
+                                            const variables = {
+                                                projectId: project.id,
+                                                workspaceId: project.workspaceId,
+                                            } as Record<string, any>;
+                                            params.set('variables', JSON.stringify(variables));
                                         }
 
                                         if (sendMode === 'proposal') {

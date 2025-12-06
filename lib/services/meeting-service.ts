@@ -20,10 +20,23 @@ export const MeetingService = {
      * Create a new meeting
      */
     async createMeeting(data: Omit<Meeting, 'id' | 'createdAt' | 'updatedAt' | 'status'>) {
-        const meetingData = {
-            ...data,
+        // Omit undefined optional fields to satisfy Firestore (no undefined allowed)
+        const meetingData: any = {
+            title: data.title,
+            description: data.description,
+            startTime: data.startTime,
+            ...(typeof data.endTime === 'number' ? { endTime: data.endTime } : {}),
+            duration: data.duration,
+            hostId: data.hostId,
+            hostName: data.hostName,
+            participants: data.participants,
+            type: data.type,
+            ...(data.conversationId ? { conversationId: data.conversationId } : {}),
+            ...(data.projectId ? { projectId: data.projectId } : {}),
+            ...(data.workspaceId ? { workspaceId: data.workspaceId } : {}),
+            ...(data.agencyId ? { agencyId: data.agencyId } : {}),
             status: 'scheduled',
-            createdAt: Date.now(), // Use client time or serverTimestamp() if preferred, but types say number
+            createdAt: Date.now(),
             updatedAt: Date.now()
         };
 

@@ -172,20 +172,19 @@ export const EnhancedProjectService = {
      * Get projects where user is a member (but not owner)
      */
     async getProjectsMemberOf(userId: string): Promise<Project[]> {
-        // This is a simplified query - in production, you might need a separate collection
-        // for project members to efficiently query
-        const allProjects = await getDocs(collection(db, 'projects'));
+        const q = query(
+            collection(db, 'projects'),
+            where('memberIds', 'array-contains', userId),
+            orderBy('createdAt', 'desc')
+        );
 
-        return allProjects.docs
+        const snapshot = await getDocs(q);
+        return snapshot.docs
             .map(doc => ({
                 id: doc.id,
                 ...doc.data()
             } as Project))
-            .filter(project =>
-                project.ownerId !== userId &&
-                project.assignedOwnerId !== userId &&
-                project.members.some(m => m.userId === userId)
-            );
+            .filter(project => project.ownerId !== userId && project.assignedOwnerId !== userId);
     },
 
     /**
@@ -203,6 +202,44 @@ export const EnhancedProjectService = {
             id: doc.id,
             ...doc.data()
         } as Project));
+    },
+
+    /**
+     * Get projects in a workspace where user is a member/owner
+     */
+    async getWorkspaceProjectsForMember(workspaceId: string, userId: string): Promise<Project[]> {
+        // First try efficient query using memberIds
+        const q = query(
+            collection(db, 'projects'),
+            where('workspaceId', '==', workspaceId),
+            where('memberIds', 'array-contains', userId),
+            orderBy('createdAt', 'desc')
+        );
+
+        const snapshot = await getDocs(q);
+        const memberProjects = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        } as Project));
+
+        // Also get owned projects in this workspace (in case owner isn't in memberIds for some reason, though they should be)
+        const ownedQuery = query(
+            collection(db, 'projects'),
+            where('workspaceId', '==', workspaceId),
+            where('ownerId', '==', userId),
+            orderBy('createdAt', 'desc')
+        );
+
+        const ownedSnapshot = await getDocs(ownedQuery);
+        const ownedProjects = ownedSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        } as Project));
+
+        // Merge and deduplicate
+        const all = [...memberProjects, ...ownedProjects];
+        const unique = new Map(all.map(p => [p.id, p]));
+        return Array.from(unique.values());
     },
 
     /**
@@ -259,6 +296,7 @@ export const EnhancedProjectService = {
 
         await updateDoc(doc(db, 'projects', projectId), {
             members: arrayUnion(projectMember),
+            memberIds: arrayUnion(member.userId),
             updatedAt: serverTimestamp()
         });
 

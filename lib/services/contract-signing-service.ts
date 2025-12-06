@@ -93,10 +93,49 @@ export const ContractSigningService = {
         const usernameForUser = contract.toUsername || 'recipient';
         const emailForUser = contract.toUserEmail || contract.toMailAddress || '';
 
-        const projectId = terms.projectId || terms.linkedProjectId || contract.relatedProjectId;
-        const workspaceId = terms.workspaceId || terms.linkedWorkspaceId || contract.relatedWorkspaceId;
+        let projectId = terms.projectId || terms.linkedProjectId || contract.relatedProjectId;
+        let workspaceId = terms.workspaceId || terms.linkedWorkspaceId || contract.relatedWorkspaceId;
         const taskId = terms.taskId || terms.linkedTaskId || contract.relatedTaskId;
+        // Infer project/workspace IDs from task when missing
+        if ((!projectId || !workspaceId) && taskId) {
+            try {
+                const t = await TaskService.getTask(taskId);
+                if (t) {
+                    projectId = projectId || t.projectId;
+                    workspaceId = workspaceId || t.workspaceId;
+                }
+            } catch (inferErr) {
+                console.error('Failed to infer project/workspace from task', taskId, inferErr);
+            }
+        }
         const linkedChatId = terms.linkedChatId || terms.chatId || terms.teamChatId;
+
+        // Helper to force-add a member with verification (idempotent)
+        const ensureProjectMembership = async (id: string) => {
+            const projectRef = doc(db, 'projects', id);
+            const projectSnap = await getDoc(projectRef);
+            const members = projectSnap.exists() ? projectSnap.data().members || [] : [];
+            const alreadyMember = members.some((m: any) => (m?.userId || m) === userId);
+            if (!alreadyMember) {
+                await updateDoc(projectRef, {
+                    members: arrayUnion({ userId, username: usernameForUser, email: emailForUser, role: 'member', assignedAt: Timestamp.now() }),
+                    memberIds: arrayUnion(userId)
+                });
+            }
+        };
+
+        const ensureWorkspaceMembership = async (id: string) => {
+            const wsRef = doc(db, 'workspaces', id);
+            const wsSnap = await getDoc(wsRef);
+            const members = wsSnap.exists() ? wsSnap.data().members || [] : [];
+            const alreadyMember = members.some((m: any) => (m?.userId || m) === userId);
+            if (!alreadyMember) {
+                await updateDoc(wsRef, {
+                    members: arrayUnion({ userId, username: usernameForUser, email: emailForUser, role: 'member', joinedAt: Timestamp.now() }),
+                    memberIds: arrayUnion(userId)
+                });
+            }
+        };
 
         // If contract specifies a project, add user to project
         if (projectId) {
@@ -107,29 +146,44 @@ export const ContractSigningService = {
                     email: emailForUser,
                     role: roleForUser === 'owner' || roleForUser === 'admin' || roleForUser === 'supervisor' ? 'supervisor' : 'member'
                 });
+                // Verify membership and enforce if missing
+                await ensureProjectMembership(projectId);
             } catch (err) {
                 console.error('Failed to add member via project service for contract', contractId, err);
 
                 // Fallback: append member shape directly if service failed (keeps data consistent)
                 try {
-                    const projectRef = doc(db, 'projects', projectId);
-                    const projectSnap = await getDoc(projectRef);
-                    const members = projectSnap.exists() ? projectSnap.data().members || [] : [];
-                    const alreadyMember = members.some((m: any) => (m?.userId || m) === userId);
-                    if (!alreadyMember) {
-                        await updateDoc(projectRef, {
-                            members: [...members, { userId, username: usernameForUser, email: emailForUser, role: 'member' }]
-                        });
-                    }
+                    await ensureProjectMembership(projectId);
                 } catch (fallbackErr) {
                     console.error('Project membership fallback failed for contract', contractId, fallbackErr);
                 }
             }
 
-            // Ensure project chat membership (team chat)
+            // Ensure project chat membership (team chat). Create chat if missing.
             try {
-                const chat = await ChatService.getConversationByContextId(projectId, 'project');
-                if (chat) {
+                let chat = await ChatService.getConversationByContextId(projectId, 'project');
+                if (!chat) {
+                    try {
+                        const project = await EnhancedProjectService.getProject(projectId);
+                        const title = project?.title || 'Project Chat';
+                        const createdBy = contract.fromUserId;
+                        const newChatId = await ChatService.createConversation({
+                            type: 'project',
+                            title,
+                            description: `Official chat for project: ${title}`,
+                            projectId,
+                            workspaceId: project?.workspaceId,
+                            createdBy,
+                            participants: [
+                                { userId: createdBy, username: contract.fromUsername || 'Owner', role: 'admin' }
+                            ]
+                        });
+                        chat = { id: newChatId } as any;
+                    } catch (createErr) {
+                        console.error('Failed to create missing project chat for contract', contractId, createErr);
+                    }
+                }
+                if (chat?.id) {
                     await ChatService.addMember(chat.id, {
                         userId,
                         username: usernameForUser,
@@ -150,13 +204,40 @@ export const ContractSigningService = {
                     email: emailForUser,
                     role: roleForUser === 'owner' || roleForUser === 'admin' ? 'admin' : 'member'
                 });
+                await ensureWorkspaceMembership(workspaceId);
             } catch (err) {
                 console.error('Failed to add workspace member for contract', contractId, err);
+                // Fallback: direct write membership if service update fails
+                try {
+                    await ensureWorkspaceMembership(workspaceId);
+                } catch (fallbackErr) {
+                    console.error('Workspace membership fallback failed for contract', contractId, fallbackErr);
+                }
             }
 
             try {
-                const chat = await ChatService.getConversationByContextId(workspaceId, 'workspace');
-                if (chat) {
+                let chat = await ChatService.getConversationByContextId(workspaceId, 'workspace');
+                if (!chat) {
+                    try {
+                        const workspace = await WorkspaceService.getWorkspace(workspaceId);
+                        const title = workspace?.name || 'Workspace Chat';
+                        const createdBy = contract.fromUserId;
+                        const newChatId = await ChatService.createConversation({
+                            type: 'workspace',
+                            title,
+                            description: `Official chat for workspace: ${title}`,
+                            workspaceId,
+                            createdBy,
+                            participants: [
+                                { userId: createdBy, username: contract.fromUsername || 'Owner', role: 'admin' }
+                            ]
+                        });
+                        chat = { id: newChatId } as any;
+                    } catch (createErr) {
+                        console.error('Failed to create missing workspace chat for contract', contractId, createErr);
+                    }
+                }
+                if (chat?.id) {
                     await ChatService.addMember(chat.id, {
                         userId,
                         username: usernameForUser,
@@ -225,7 +306,21 @@ export const ContractSigningService = {
         const endDate = terms.endDate || terms.dueDate;
 
         // Project membership via enhanced service (idempotent)
-        const projectId = terms.projectId || terms.linkedProjectId;
+        let projectId = terms.projectId || terms.linkedProjectId;
+        let workspaceId = terms.workspaceId || terms.linkedWorkspaceId;
+        const taskId = terms.taskId || terms.linkedTaskId || contract.relatedTaskId;
+        // Infer from task if missing
+        if ((!projectId || !workspaceId) && taskId) {
+            try {
+                const t = await TaskService.getTask(taskId);
+                if (t) {
+                    projectId = projectId || t.projectId;
+                    workspaceId = workspaceId || t.workspaceId;
+                }
+            } catch (inferErr) {
+                console.error('Failed to infer project/workspace from task in syncCollaboration', taskId, inferErr);
+            }
+        }
         if (projectId) {
             try {
                 const project = await EnhancedProjectService.getProject(projectId);
@@ -243,7 +338,6 @@ export const ContractSigningService = {
         }
 
         // Workspace membership via service (already handles chat join)
-        const workspaceId = terms.workspaceId || terms.linkedWorkspaceId;
         if (workspaceId) {
             try {
                 await WorkspaceService.addMember(workspaceId, {
@@ -335,8 +429,39 @@ export const ContractSigningService = {
      */
     async ensureEscrowHold(contractId: string, contract: any): Promise<void> {
         const terms = contract?.terms || {};
-        const amount = terms.paymentAmount || terms.totalCost || terms.budgetAmount;
-        if (!amount || amount <= 0) return;
+
+        // Escrow is ONLY for ownership/assignment contracts, not simple member invites.
+        const roleForUser = terms.roles?.find((r: any) => r.userId === contract?.toUserId)?.role || terms.projectRole;
+        const isOwnershipInvite = roleForUser && ['owner', 'admin', 'supervisor'].includes(roleForUser);
+        const isAssignmentType = terms.contractType === 'project_assignment' || terms.contractType === 'workspace_assignment';
+        if (!isOwnershipInvite || !isAssignmentType) {
+            await this.appendAudit(contractId, {
+                by: contract.fromUserId,
+                action: 'escrow_skipped_not_owner_assignment',
+                details: 'Escrow skipped because this is a member/participant invite (not ownership assignment).'
+            });
+            return;
+        }
+
+        // Amount/currency constraints
+        const amount = terms.paymentAmount || terms.projectBudget || terms.totalCost || terms.budgetAmount;
+        const currency = terms.paymentCurrency || terms.totalCurrency || terms.currency || terms.budgetCurrency || 'GMD';
+        if (!amount || amount <= 0) {
+            await this.appendAudit(contractId, {
+                by: contract.fromUserId,
+                action: 'escrow_skipped_no_amount',
+                details: 'Escrow skipped: no positive amount found for ownership assignment.'
+            });
+            return;
+        }
+        if (currency && currency.toUpperCase() !== 'GMD') {
+            await this.appendAudit(contractId, {
+                by: contract.fromUserId,
+                action: 'escrow_skipped_currency_mismatch',
+                details: `Escrow skipped: currency ${currency} not supported (expected GMD)`
+            });
+            return;
+        }
 
         const escrowRef = doc(db, 'escrow_holds', `escrow_${contractId}`);
         const escrowSnap = await getDoc(escrowRef);
@@ -356,7 +481,17 @@ export const ContractSigningService = {
             );
         } catch (err: any) {
             console.error('Escrow hold failed', err);
-            throw new Error(err?.message || 'Unable to place funds in escrow for this contract');
+            const msg = err?.message || '';
+            // Make insufficient funds non-blocking so memberships still proceed
+            if (typeof msg === 'string' && msg.toLowerCase().includes('insufficient')) {
+                await this.appendAudit(contractId, {
+                    by: contract.fromUserId,
+                    action: 'escrow_skipped_insufficient_funds',
+                    details: `Escrow skipped: insufficient funds for amount ${amount}`
+                });
+                return;
+            }
+            throw new Error(msg || 'Unable to place funds in escrow for this contract');
         }
 
         await this.appendAudit(contractId, {
