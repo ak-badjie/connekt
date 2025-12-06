@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { EscrowHold } from '@/lib/types/wallet.types';
-import { Lock, Unlock, User, FileText, Calendar } from 'lucide-react';
+import { Lock, Unlock, User, FileText, Calendar, Briefcase } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface EscrowHoldingsListProps {
@@ -106,19 +106,19 @@ export function EscrowHoldingsList({ holdings, isLoading = false }: EscrowHoldin
                                 <div className="flex-1 min-w-0">
                                     <div className="text-xs text-gray-500 mb-1">From → To</div>
                                     <div className="text-sm font-bold text-gray-900 dark:text-white truncate">
-                                        {holding.fromUserId.slice(0, 8)}... → {holding.toUserId.slice(0, 8)}...
+                                        {holding.fromUserId.slice(0, 8)}... → {holding.toUserId ? `${holding.toUserId.slice(0, 8)}...` : (holding.type === 'project' ? 'Project Fund' : 'Escrow')}
                                     </div>
                                 </div>
                             </div>
 
                             <div className="flex items-start gap-3">
                                 <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0">
-                                    <FileText size={16} className="text-blue-600 dark:text-blue-400" />
+                                    {holding.type === 'project' ? <Briefcase size={16} className="text-blue-600 dark:text-blue-400" /> : <FileText size={16} className="text-blue-600 dark:text-blue-400" />}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <div className="text-xs text-gray-500 mb-1">Reference</div>
+                                    <div className="text-xs text-gray-500 mb-1">{holding.type === 'project' ? 'Project' : 'Reference'}</div>
                                     <div className="text-sm font-mono text-gray-900 dark:text-white truncate">
-                                        {holding.referenceId}
+                                        {holding.projectId || holding.referenceId || holding.contractId || 'N/A'}
                                     </div>
                                 </div>
                             </div>

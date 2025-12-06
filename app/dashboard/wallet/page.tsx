@@ -73,16 +73,9 @@ export default function WalletPage() {
                     const txHistory = await WalletService.getTransactionHistory(walletId, 50);
                     setTransactions(txHistory);
 
-                    // Calculate escrow holdings
-                    const escrowOut = (walletData.escrowHolds || [])
-                        .filter(h => h.status === 'held')
-                        .reduce((sum, h) => sum + h.amount, 0);
-
-                    const escrowIn = txHistory
-                        .filter(t => t.type === 'escrow_hold' && t.status === 'pending')
-                        .reduce((sum, t) => sum + t.amount, 0);
-
-                    setEscrowHoldings(walletData.escrowHolds || []);
+                    // Load active escrow holdings directly from collection
+                    const activeHolds = await WalletService.getEscrowHoldings(walletId);
+                    setEscrowHoldings(activeHolds);
                 }
             } catch (error) {
                 console.error('Error loading wallet:', error);

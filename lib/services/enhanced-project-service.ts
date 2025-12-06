@@ -7,6 +7,7 @@ import {
     getDoc,
     doc,
     updateDoc,
+    setDoc,
     addDoc,
     serverTimestamp,
     orderBy,
@@ -17,6 +18,8 @@ import {
 import { Project, ProjectMember, Task } from '@/lib/types/workspace.types';
 import { ChatService } from './chat-service';
 import { TaskService } from './task-service';
+import { WorkspaceService } from './workspace-service';
+import { WalletService } from './wallet-service';
 
 export const EnhancedProjectService = {
     /**
@@ -32,7 +35,21 @@ export const EnhancedProjectService = {
         deadline?: string;
         recurringType?: 'none' | 'daily' | 'weekly' | 'monthly';
     }): Promise<string> {
-        const project: Omit<Project, 'id'> = {
+        // 1. Create potential Project ID first (for escrow reference)
+        const projectRef = doc(collection(db, 'projects'));
+        const projectId = projectRef.id;
+
+        // 2. Prepare Project Data (Sanitize input to remove undefined)
+        // 2. Prepare Project Data (Sanitize input to remove undefined)
+        const sanitizedData = { ...data };
+        Object.keys(sanitizedData).forEach(key => {
+            if (sanitizedData[key as keyof typeof sanitizedData] === undefined) {
+                delete sanitizedData[key as keyof typeof sanitizedData];
+            }
+        });
+
+        const project: Project = {
+            id: projectId,
             status: 'planning',
             supervisors: [],
             members: [
@@ -41,6 +58,7 @@ export const EnhancedProjectService = {
                     username: data.ownerUsername,
                     email: '',
                     role: 'owner',
+                    type: 'employee', // Owner is always an employee
                     assignedAt: Timestamp.now()
                 }
             ],
@@ -48,31 +66,59 @@ export const EnhancedProjectService = {
             isPublic: false,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
-            ...data
+            ...sanitizedData
         };
 
-        const docRef = await addDoc(collection(db, 'projects'), project);
-
-        // Create Project Chat
-        try {
-            await ChatService.createConversation({
-                type: 'project',
-                title: data.title,
-                description: `Official chat for project: ${data.title}`,
-                projectId: docRef.id,
-                workspaceId: data.workspaceId,
-                createdBy: data.ownerId,
-                participants: [{
-                    userId: data.ownerId,
-                    username: data.ownerUsername,
-                    role: 'admin'
-                }]
-            });
-        } catch (error) {
-            console.error('Failed to create project chat:', error);
+        // 3. Hold Funds in Escrow (if budget > 0)
+        let escrowId = null;
+        if (data.budget > 0) {
+            try {
+                // Determine wallet hold amount (Project Budget)
+                escrowId = await WalletService.holdProjectFunds(
+                    projectId,
+                    data.ownerId,
+                    data.budget
+                );
+            } catch (error) {
+                console.error('Failed to hold project funds:', error);
+                throw new Error('Insufficient funds to create project. Please top up your wallet.');
+            }
         }
 
-        return docRef.id;
+        // 4. Create Project Document
+        try {
+            await setDoc(projectRef, project);
+
+            // 5. Create Project Chat
+            try {
+                await ChatService.createConversation({
+                    type: 'project',
+                    title: data.title,
+                    description: `Official chat for project: ${data.title}`,
+                    projectId: projectId,
+                    workspaceId: data.workspaceId,
+                    createdBy: data.ownerId,
+                    participants: [{
+                        userId: data.ownerId,
+                        username: data.ownerUsername,
+                        role: 'admin'
+                    }]
+                });
+            } catch (error) {
+                console.error('Failed to create project chat:', error);
+                // Chat creation failure is non-critical, do not rollback project
+            }
+        } catch (error) {
+            console.error('Failed to create project document:', error);
+            // ROLLBACK: If funds were held, refund them
+            if (escrowId) {
+                console.log(`Rolling back escrow ${escrowId} due to project creation failure`);
+                await WalletService.refundProjectEscrow(projectId, 'Project creation failed');
+            }
+            throw new Error('Failed to create project. Funds have been refunded.');
+        }
+
+        return projectId;
     },
 
     /**
@@ -208,38 +254,48 @@ export const EnhancedProjectService = {
      * Get projects in a workspace where user is a member/owner
      */
     async getWorkspaceProjectsForMember(workspaceId: string, userId: string): Promise<Project[]> {
-        // First try efficient query using memberIds
-        const q = query(
-            collection(db, 'projects'),
-            where('workspaceId', '==', workspaceId),
-            where('memberIds', 'array-contains', userId),
-            orderBy('createdAt', 'desc')
-        );
+        // 1. Get Workspace Member details to determine role (Employee vs Freelancer)
+        const workspace = await WorkspaceService.getWorkspace(workspaceId);
+        if (!workspace) return [];
 
-        const snapshot = await getDocs(q);
-        const memberProjects = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        } as Project));
+        const member = workspace.members.find(m => m.userId === userId);
 
-        // Also get owned projects in this workspace (in case owner isn't in memberIds for some reason, though they should be)
-        const ownedQuery = query(
-            collection(db, 'projects'),
-            where('workspaceId', '==', workspaceId),
-            where('ownerId', '==', userId),
-            orderBy('createdAt', 'desc')
-        );
+        let isEmployee = false;
+        let blockedProjectIds: string[] = [];
 
-        const ownedSnapshot = await getDocs(ownedQuery);
-        const ownedProjects = ownedSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        } as Project));
+        if (workspace.ownerId === userId) {
+            isEmployee = true; // Owner is super-employee
+        } else if (member) {
+            // Treat existing members as employees if type is undefined (backward compatibility)
+            if (member.type === 'employee' || !member.type) {
+                isEmployee = true;
+                blockedProjectIds = member.settings?.blockedProjectIds || [];
+            }
+        }
 
-        // Merge and deduplicate
-        const all = [...memberProjects, ...ownedProjects];
-        const unique = new Map(all.map(p => [p.id, p]));
-        return Array.from(unique.values());
+        if (isEmployee) {
+            // Employees see all projects in workspace (except blocked ones)
+            const q = query(
+                collection(db, 'projects'),
+                where('workspaceId', '==', workspaceId),
+                orderBy('createdAt', 'desc')
+            );
+            const snapshot = await getDocs(q);
+            return snapshot.docs
+                .map(doc => ({ id: doc.id, ...doc.data() } as Project))
+                .filter(p => !blockedProjectIds.includes(p.id!));
+        } else {
+            // Freelancers (or non-workspace members) see only assigned projects
+            // Note: This query automatically handles strict isolation
+            const q = query(
+                collection(db, 'projects'),
+                where('workspaceId', '==', workspaceId),
+                where('memberIds', 'array-contains', userId),
+                orderBy('createdAt', 'desc')
+            );
+            const snapshot = await getDocs(q);
+            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
+        }
     },
 
     /**
@@ -287,10 +343,15 @@ export const EnhancedProjectService = {
             username: string;
             email: string;
             role: 'supervisor' | 'member';
+            type: 'employee' | 'freelancer'; // NEW
         }
     ): Promise<void> {
         const projectMember: ProjectMember = {
-            ...member,
+            userId: member.userId,
+            username: member.username,
+            email: member.email,
+            role: member.role,
+            type: member.type,
             assignedAt: Timestamp.now()
         };
 
@@ -397,7 +458,11 @@ export const EnhancedProjectService = {
         const project = await this.getProject(projectId);
         if (!project) return false;
 
-        return project.supervisors.includes(userId);
+        return (
+            project.ownerId === userId ||
+            project.assignedOwnerId === userId ||
+            (project.supervisors || []).includes(userId)
+        );
     },
 
     /**
@@ -439,6 +504,29 @@ export const EnhancedProjectService = {
             planning: projects.filter(p => p.status === 'planning').length,
             onHold: projects.filter(p => p.status === 'on-hold').length
         };
+    },
+
+
+    /**
+     * Update project details
+     */
+    async updateProject(projectId: string, data: Partial<Project>): Promise<void> {
+        const projectRef = doc(db, 'projects', projectId);
+        await updateDoc(projectRef, {
+            ...data,
+            updatedAt: serverTimestamp()
+        });
+    },
+
+    /**
+     * Update project budget
+     */
+    async updateProjectBudget(projectId: string, newBudget: number): Promise<void> {
+        const projectRef = doc(db, 'projects', projectId);
+        await updateDoc(projectRef, {
+            budget: newBudget,
+            updatedAt: serverTimestamp()
+        });
     },
 
     /**

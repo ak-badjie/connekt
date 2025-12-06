@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { EnhancedProjectService } from '@/lib/services/enhanced-project-service';
-import { Project } from '@/lib/types/workspace.types';
-import { Loader2, Settings, ArrowLeft, Save, DollarSign } from 'lucide-react';
+import { Project, ProjectMember } from '@/lib/types/workspace.types';
+import { Loader2, Settings, ArrowLeft, Save, DollarSign, UserCheck } from 'lucide-react';
 
 export default function ProjectSettingsPage() {
     const params = useParams();
@@ -16,12 +16,13 @@ export default function ProjectSettingsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [project, setProject] = useState<Project | null>(null);
-    const [isOwner, setIsOwner] = useState(false);
+    const [canManage, setCanManage] = useState(false);
     const [formData, setFormData] = useState({
         title: '',
         description: '',
         budget: '',
-        deadline: ''
+        deadline: '',
+        assignedOwnerId: '' // For re-assignment
     });
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [budgetStatus, setBudgetStatus] = useState<{
@@ -33,25 +34,33 @@ export default function ProjectSettingsPage() {
         if (user && projectId) {
             const fetchData = async () => {
                 try {
-                    const [projectData, ownerCheck, budgetData] = await Promise.all([
+                    const [projectData, ownerCheck, supervisorCheck, budgetData] = await Promise.all([
                         EnhancedProjectService.getProject(projectId),
                         EnhancedProjectService.isOwner(projectId, user.uid),
+                        EnhancedProjectService.isSupervisor(projectId, user.uid),
                         EnhancedProjectService.getProjectBudgetStatus(projectId)
                     ]);
 
-                    if (!ownerCheck) {
+                    if (!projectData) {
+                        setProject(null);
+                        setLoading(false);
+                        return;
+                    }
+
+                    if (!ownerCheck && !supervisorCheck) {
                         router.push(`/dashboard/projects/${projectId}`);
                         return;
                     }
 
                     setProject(projectData);
-                    setIsOwner(ownerCheck);
+                    setCanManage(true);
                     setBudgetStatus(budgetData);
                     setFormData({
                         title: projectData.title,
                         description: projectData.description,
                         budget: projectData.budget?.toString() || '',
-                        deadline: projectData.deadline || ''
+                        deadline: projectData.deadline || '',
+                        assignedOwnerId: projectData.assignedOwnerId || ''
                     });
                 } catch (error) {
                     console.error('Error fetching project:', error);
@@ -63,7 +72,7 @@ export default function ProjectSettingsPage() {
         }
     }, [user, projectId, router]);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
         if (errors[name]) {
@@ -96,18 +105,23 @@ export default function ProjectSettingsPage() {
         setSaving(true);
         try {
             // Update project details
-            await EnhancedProjectService.updateWorkspace(projectId, {
-                name: formData.title,
-                description: formData.description
+            await EnhancedProjectService.updateProject(projectId, {
+                title: formData.title,
+                description: formData.description,
+                assignedOwnerId: formData.assignedOwnerId || undefined, // undefined instead of null
+                assignedOwnerUsername: formData.assignedOwnerId
+                    ? project.members.find(m => m.userId === formData.assignedOwnerId)?.username
+                    : undefined // undefined instead of null
             });
 
-            // Update budget separately
-            await EnhancedProjectService.updateProjectBudget(projectId, parseFloat(formData.budget));
+            // Update budget separately (if changed)
+            if (parseFloat(formData.budget) !== project.budget) {
+                await EnhancedProjectService.updateProjectBudget(projectId, parseFloat(formData.budget));
+            }
 
-            // If deadline changed, update it
+            // Update deadline if changed (Project update handles this implicitly via spread usually, but explicitly is fine)
             if (formData.deadline !== project.deadline) {
-                // Note: You might need to add an updateProjectDeadline method
-                // For now, we'll just update the core fields
+                await EnhancedProjectService.updateProject(projectId, { deadline: formData.deadline });
             }
 
             alert('Project settings saved successfully!');
@@ -161,7 +175,7 @@ export default function ProjectSettingsPage() {
                     <div>
                         <h1 className="text-4xl font-bold text-gray-900 dark:text-white">Project Settings</h1>
                         <p className="text-gray-500 dark:text-gray-400 mt-1">
-                            Manage project details and budget
+                            Manage project details, budget, and assignment
                         </p>
                     </div>
                 </div>
@@ -252,6 +266,31 @@ export default function ProjectSettingsPage() {
                             onChange={handleChange}
                             className="w-full px-4 py-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#008080]/20"
                         />
+                    </div>
+
+                    {/* Project Assignment (Re-assign) */}
+                    <div>
+                        <label htmlFor="assignedOwnerId" className="block text-sm font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+                            <UserCheck size={16} className="text-[#008080]" />
+                            Assign Project To (Lead)
+                        </label>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                            Designate a member as the active project lead or freelancer.
+                        </p>
+                        <select
+                            id="assignedOwnerId"
+                            name="assignedOwnerId"
+                            value={formData.assignedOwnerId}
+                            onChange={handleChange}
+                            className="w-full px-4 py-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#008080]/20"
+                        >
+                            <option value="">No specific assignment</option>
+                            {project.members.map(member => (
+                                <option key={member.userId} value={member.userId}>
+                                    @{member.username} ({member.role})
+                                </option>
+                            ))}
+                        </select>
                     </div>
                 </div>
 

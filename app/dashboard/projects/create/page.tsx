@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { EnhancedProjectService } from '@/lib/services/enhanced-project-service';
 import { WorkspaceService } from '@/lib/services/workspace-service';
+import { WalletService } from '@/lib/services/wallet-service';
 import { Workspace } from '@/lib/types/workspace.types';
 import { useRouter } from 'next/navigation';
-import { Loader2, Briefcase, ArrowLeft, Check, Calendar, DollarSign } from 'lucide-react';
+import { Loader2, Briefcase, ArrowLeft, Check, Calendar, DollarSign, Wallet } from 'lucide-react';
+import ConnektWalletLogo from '@/components/wallet/ConnektWalletLogo';
 
 export default function CreateProjectPage() {
     const { user, userProfile } = useAuth();
@@ -22,17 +24,27 @@ export default function CreateProjectPage() {
         recurringType: 'none' as 'none' | 'daily' | 'weekly' | 'monthly'
     });
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [walletBalance, setWalletBalance] = useState<number | null>(null);
 
     useEffect(() => {
         if (user) {
-            const fetchWorkspaces = async () => {
+            const fetchInitialData = async () => {
                 const userWorkspaces = await WorkspaceService.getUserWorkspaces(user.uid);
                 setWorkspaces(userWorkspaces);
                 if (userWorkspaces.length > 0) {
                     setFormData(prev => ({ ...prev, workspaceId: userWorkspaces[0].id! }));
                 }
+
+                try {
+                    const wallet = await WalletService.getWallet(user.uid, 'user');
+                    if (wallet) {
+                        setWalletBalance(wallet.balance);
+                    }
+                } catch (error) {
+                    console.error('Error fetching wallet:', error);
+                }
             };
-            fetchWorkspaces();
+            fetchInitialData();
         }
     }, [user]);
 
@@ -50,7 +62,13 @@ export default function CreateProjectPage() {
         if (!formData.workspaceId) newErrors.workspaceId = 'Please select a workspace';
         if (!formData.title.trim()) newErrors.title = 'Project title is required';
         if (!formData.description.trim()) newErrors.description = 'Description is required';
-        if (!formData.budget || parseFloat(formData.budget) <= 0) newErrors.budget = 'Budget must be greater than 0';
+
+        const budget = parseFloat(formData.budget);
+        if (!formData.budget || budget <= 0) {
+            newErrors.budget = 'Budget must be greater than 0';
+        } else if (walletBalance !== null && budget > walletBalance) {
+            newErrors.budget = `Insufficient funds. Available: D${walletBalance.toFixed(2)}`;
+        }
 
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
@@ -75,9 +93,10 @@ export default function CreateProjectPage() {
             });
 
             router.push(`/dashboard/projects/${projectId}`);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error creating project:', error);
-            alert('Failed to create project. Please try again.');
+            const errorMessage = error.message || 'Failed to create project. Please try again.';
+            alert(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -188,6 +207,53 @@ export default function CreateProjectPage() {
                         {errors.description && <p className="mt-2 text-sm text-red-500">{errors.description}</p>}
                     </div>
 
+                    {/* Wallet & Budget Calculator */}
+                    <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-zinc-800 dark:to-zinc-900 rounded-xl p-6 border border-gray-200 dark:border-zinc-700">
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 bg-white rounded-xl shadow-sm overflow-hidden flex items-center justify-center">
+                                    <ConnektWalletLogo size="small" />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-gray-900 dark:text-white">Wallet Check</h3>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Real-time funding status</p>
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Available Funds</p>
+                                <p className="text-xl font-bold text-[#008080]">
+                                    D{walletBalance?.toFixed(2) || '0.00'}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-4 mb-2">
+                            <div className="p-3 bg-white dark:bg-zinc-900 rounded-lg border border-gray-100 dark:border-zinc-700">
+                                <p className="text-xs text-gray-500 mb-1">Current</p>
+                                <p className="font-bold text-gray-900 dark:text-white">D{walletBalance?.toFixed(2) || '0.00'}</p>
+                            </div>
+                            <div className="p-3 bg-white dark:bg-zinc-900 rounded-lg border border-gray-100 dark:border-zinc-700 flex flex-col items-center justify-center">
+                                <p className="text-xs text-gray-500 mb-1">- Project Cost</p>
+                                <p className="font-bold text-gray-900 dark:text-white">D{parseFloat(formData.budget || '0').toFixed(2)}</p>
+                            </div>
+                            <div className={`p-3 rounded-lg border flex flex-col items-end ${(walletBalance !== null && parseFloat(formData.budget || '0') > walletBalance)
+                                ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+                                : 'bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-800'
+                                }`}>
+                                <p className={`text-xs mb-1 ${(walletBalance !== null && parseFloat(formData.budget || '0') > walletBalance)
+                                    ? 'text-red-600 dark:text-red-400'
+                                    : 'text-teal-600 dark:text-teal-400'
+                                    }`}>Remaining</p>
+                                <p className={`font-bold ${(walletBalance !== null && parseFloat(formData.budget || '0') > walletBalance)
+                                    ? 'text-red-600 dark:text-red-400'
+                                    : 'text-teal-600 dark:text-teal-400'
+                                    }`}>
+                                    D{(walletBalance !== null ? (walletBalance - parseFloat(formData.budget || '0')) : 0).toFixed(2)}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Budget and Deadline Row */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
@@ -256,12 +322,12 @@ export default function CreateProjectPage() {
                         {loading ? (
                             <>
                                 <Loader2 className="animate-spin" size={20} />
-                                Creating...
+                                Securing Funds...
                             </>
                         ) : (
                             <>
                                 <Check size={20} />
-                                Create Project
+                                Confirm & Create Project
                             </>
                         )}
                     </button>
@@ -273,7 +339,7 @@ export default function CreateProjectPage() {
                         Cancel
                     </button>
                 </div>
-            </form>
-        </div>
+            </form >
+        </div >
     );
 }

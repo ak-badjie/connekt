@@ -1,61 +1,45 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { X, Search, UserPlus, Loader2, FileText } from 'lucide-react';
+import { X, Search, Loader2, UserPlus, FileText } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { FirestoreService, UserProfile } from '@/lib/services/firestore-service';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
 
-interface SendProjectInviteModalProps {
+interface AddWorkspaceMemberModalProps {
     isOpen: boolean;
     onClose: () => void;
-    projectId: string;
-    projectTitle: string;
-    projectBudget?: number;
-    projectDeadline?: string;
+    workspaceId: string;
+    workspaceName?: string; // Helpful for email context
+    onMemberAdded?: () => void;
 }
 
-export default function SendProjectInviteModal({
+export default function AddWorkspaceMemberModal({
     isOpen,
     onClose,
-    projectId,
-    projectTitle,
-    projectBudget,
-    projectDeadline
-}: SendProjectInviteModalProps) {
+    workspaceId,
+    workspaceName = 'Workspace',
+    onMemberAdded
+}: AddWorkspaceMemberModalProps) {
     const [isMounted, setIsMounted] = useState(false);
-    const router = useRouter();
     const { user, userProfile } = useAuth();
     const [searchQuery, setSearchQuery] = useState('');
     const [searching, setSearching] = useState(false);
     const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
     const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
-    const [selectedRole, setSelectedRole] = useState<'supervisor' | 'member'>('member');
-    const [employmentType, setEmploymentType] = useState<'employee' | 'freelancer'>('freelancer');
+
+    // Roles & Types
+    // User requested "No Admins in Workspaces". Only "Member" exists, distinguished by Type.
+    const [employmentType, setEmploymentType] = useState<'employee' | 'freelancer'>('employee');
     const [jobTitle, setJobTitle] = useState('');
+
     const [sending, setSending] = useState(false);
     const [error, setError] = useState('');
-    const [workspaceId, setWorkspaceId] = useState<string | undefined>();
 
-    // Load workspaceId for the project so we can embed it in the contract terms
     useEffect(() => {
-        const fetchProjectContext = async () => {
-            try {
-                const project = await FirestoreService.getProjectById(projectId);
-                if ((project as any)?.workspaceId) {
-                    setWorkspaceId((project as any).workspaceId);
-                }
-            } catch (err) {
-                console.warn('Unable to fetch project context for contract invite', err);
-            }
-        };
-
-        if (isOpen && projectId) {
-            fetchProjectContext();
-        }
-    }, [isOpen, projectId]);
+        setIsMounted(true);
+    }, []);
 
     const handleSearch = async () => {
         if (!searchQuery.trim()) return;
@@ -64,7 +48,8 @@ export default function SendProjectInviteModal({
         setError('');
         try {
             const results = await FirestoreService.searchUsers(searchQuery);
-            setSearchResults(results);
+            // Filter out self
+            setSearchResults(results.filter(u => u.uid !== user?.uid));
             if (results.length === 0) {
                 setError('No users found');
             }
@@ -80,50 +65,39 @@ export default function SendProjectInviteModal({
         const today = new Date();
         const todayStr = today.toISOString().slice(0, 10);
 
-        let deadlineStr = projectDeadline || todayStr;
-        let durationDays = 7;
-        try {
-            const startMs = Date.parse(todayStr);
-            const endMs = Date.parse(projectDeadline || todayStr);
-            if (!Number.isNaN(startMs) && !Number.isNaN(endMs) && endMs >= startMs) {
-                durationDays = Math.max(1, Math.ceil((endMs - startMs) / (1000 * 60 * 60 * 24)));
-                deadlineStr = new Date(endMs).toISOString().slice(0, 10);
-            }
-        } catch (_) {
-            // Keep defaults if parsing fails
-        }
-
         const recruiterName = userProfile?.displayName || userProfile?.username || 'Recruiter';
         const recipientName = selectedUser?.displayName || selectedUser?.username || 'Recipient';
 
         return {
-            projectId,
-            workspaceId: workspaceId || undefined,
+            workspaceId,
             contractDate: todayStr,
             clientName: recruiterName,
             contractorName: recipientName,
-            projectTitle: projectTitle || 'Project',
-            projectDescription: `Project invitation for ${projectTitle || 'project'} as ${selectedRole}`,
-            deliverables: 'Deliverables to be detailed with the assignee.',
+            projectTitle: `Membership at ${workspaceName}`, // Re-using project field for title context
+            projectDescription: employmentType === 'employee'
+                ? `Full-time employment as ${jobTitle} at ${workspaceName}`
+                : `Freelance contract with ${workspaceName}`,
+            deliverables: employmentType === 'employee'
+                ? 'As defined by job description and role requirements.'
+                : 'As defined by assigned projects and tasks.',
             startDate: todayStr,
-            endDate: deadlineStr,
-            duration: durationDays,
+            duration: 30, // Default to 30 days or open-ended (logic can be refined)
             durationUnit: 'days',
-            paymentAmount: projectBudget || 0,
+            paymentAmount: 0, // Workspace contract might not have fixed direct budget like project
             paymentCurrency: 'GMD',
-            paymentType: 'fixed',
-            paymentMilestones: 'Milestones will be outlined in the project plan.',
-            reviewPeriod: 3,
-            revisionRounds: 2,
-            noticePeriod: 7,
-            terminationConditions: 'Either party may terminate with notice via Connekt.',
+            paymentType: employmentType === 'employee' ? 'salary' : 'variable',
             employmentType,
-            jobTitle: employmentType === 'employee' ? jobTitle : undefined
+            jobTitle: employmentType === 'employee' ? jobTitle : undefined,
+            role: 'member' // Workspace role is always member
         } as Record<string, any>;
     };
 
     const openMailWithContract = async (options: { autoStartAI: boolean }) => {
         if (!selectedUser || !user || !userProfile) return;
+        if (employmentType === 'employee' && !jobTitle.trim()) {
+            setError('Job Title is required for employees');
+            return;
+        }
 
         setSending(true);
         setError('');
@@ -133,17 +107,16 @@ export default function SendProjectInviteModal({
             const fromAddress = `${userProfile.username}@connekt.com`;
             const toAddress = `${selectedUser.username}@connekt.com`;
 
-            const subject = `Project Invitation: ${projectTitle}`;
+            const subject = `Workspace Invitation: ${workspaceName}`;
             const briefLines = [
-                `Project: ${projectTitle || ''}`,
-                `Role: ${selectedRole}`,
-                projectBudget ? `Budget: ${projectBudget}` : '',
-                projectDeadline ? `Deadline: ${projectDeadline}` : '',
+                `Workspace: ${workspaceName}`,
+                `Type: ${employmentType === 'employee' ? 'Employee' : 'Freelancer'}`,
+                employmentType === 'employee' ? `Role: ${jobTitle}` : '',
                 `Recruiter: ${recruiterName} (${fromAddress})`,
                 `Recipient: ${recipientName} (${toAddress})`
             ].filter(Boolean);
 
-            const body = `Hi ${recipientName},\n\nYou've been invited to join "${projectTitle}" as a ${selectedRole}. Please review the attached contract.\n\nThank you,\n${recruiterName}`;
+            const body = `Hi ${recipientName},\n\nYou've been invited to join the workspace "${workspaceName}" as a ${employmentType}.${employmentType === 'employee' ? `\nPosition: ${jobTitle}` : ''}\n\nPlease review the attached contract.\n\nThank you,\n${recruiterName}`;
 
             const variables = buildContractVariables();
 
@@ -152,8 +125,8 @@ export default function SendProjectInviteModal({
                 to: toAddress,
                 subject,
                 body,
-                templateId: 'Project-Based Job Contract',
-                contractType: 'project_assignment',
+                templateId: 'General Service Agreement', // Using generic template for workspace
+                contractType: 'workspace_membership',
                 brief: briefLines.join('\n'),
                 autoStart: options.autoStartAI ? '1' : '0',
                 variables: JSON.stringify(variables)
@@ -163,11 +136,8 @@ export default function SendProjectInviteModal({
             window.open(url, '_blank', 'noopener,noreferrer');
 
             // Reset and close
-            setSearchQuery('');
-            setSearchResults([]);
-            setSelectedUser(null);
-            setSelectedRole('member');
-            onClose();
+            handleClose();
+            onMemberAdded?.(); // Optional: Trigger refresh even though they aren't added yet
         } catch (err: any) {
             console.error('Send contract error:', err);
             setError(err.message || 'Failed to send contract invitation');
@@ -180,14 +150,11 @@ export default function SendProjectInviteModal({
         setSearchQuery('');
         setSearchResults([]);
         setSelectedUser(null);
-        setSelectedRole('member');
+        setEmploymentType('employee');
+        setJobTitle('');
         setError('');
         onClose();
     };
-
-    useEffect(() => {
-        setIsMounted(true);
-    }, []);
 
     if (!isMounted || !isOpen) return null;
 
@@ -198,11 +165,11 @@ export default function SendProjectInviteModal({
                 <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-zinc-800">
                     <div>
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                            <FileText size={24} className="text-[#008080]" />
-                            Send Project Invitation
+                            <UserPlus size={24} className="text-[#008080]" />
+                            Add Workspace Member
                         </h2>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                            Send contract invitation for {projectTitle}
+                            Invite a new member to {workspaceName}
                         </p>
                     </div>
                     <button
@@ -218,7 +185,7 @@ export default function SendProjectInviteModal({
                     {/* Info Alert */}
                     <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
                         <p className="text-sm text-blue-800 dark:text-blue-200">
-                            <strong>Contract Invitation:</strong> The selected user will receive a formal contract via ConnektMail. They must review and accept the contract before being added to the project.
+                            <strong>Contract Required:</strong> New members must accept a contract before joining the workspace. You can draft this contract manually or use AI.
                         </p>
                     </div>
 
@@ -282,74 +249,32 @@ export default function SendProjectInviteModal({
                         </div>
                     )}
 
-                    {/* Selected User & Role Selection */}
+                    {/* Selected User & Configuration */}
                     {selectedUser && (
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-bold text-gray-900 dark:text-white mb-2">
-                                    Contract Recipient
-                                </label>
-                                <div className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl">
-                                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#008080] to-teal-600 flex items-center justify-center text-white font-bold">
-                                        {selectedUser.username?.[0]?.toUpperCase() || '?'}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-bold text-gray-900 dark:text-white">@{selectedUser.username}</p>
-                                        <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{selectedUser.email}</p>
-                                    </div>
-                                    <button
-                                        onClick={() => setSelectedUser(null)}
-                                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                                    >
-                                        <X size={20} />
-                                    </button>
+                        <div className="space-y-6">
+                            {/* User Badge */}
+                            <div className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl">
+                                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#008080] to-teal-600 flex items-center justify-center text-white font-bold">
+                                    {selectedUser.username?.[0]?.toUpperCase() || '?'}
                                 </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-bold text-gray-900 dark:text-white">@{selectedUser.username}</p>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{selectedUser.email}</p>
+                                </div>
+                                <button
+                                    onClick={() => setSelectedUser(null)}
+                                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                                >
+                                    <X size={20} />
+                                </button>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-bold text-gray-900 dark:text-white mb-2">
-                                    Project Role
-                                </label>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <button
-                                        onClick={() => setSelectedRole('member')}
-                                        className={`p-4 rounded-xl border-2 transition-all ${selectedRole === 'member'
-                                            ? 'border-[#008080] bg-teal-50 dark:bg-teal-900/20'
-                                            : 'border-gray-200 dark:border-zinc-700 hover:border-gray-300'
-                                            }`}
-                                    >
-                                        <p className="font-bold text-gray-900 dark:text-white">Member</p>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Can work on tasks</p>
-                                    </button>
-                                    <button
-                                        onClick={() => setSelectedRole('supervisor')}
-                                        className={`p-4 rounded-xl border-2 transition-all ${selectedRole === 'supervisor'
-                                            ? 'border-[#008080] bg-teal-50 dark:bg-teal-900/20'
-                                            : 'border-gray-200 dark:border-zinc-700 hover:border-gray-300'
-                                            }`}
-                                    >
-                                        <p className="font-bold text-gray-900 dark:text-white">Supervisor</p>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Can manage tasks</p>
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Employment Type Selection */}
+                            {/* Employment Type */}
                             <div>
                                 <label className="block text-sm font-bold text-gray-900 dark:text-white mb-2">
                                     Employment Type
                                 </label>
                                 <div className="grid grid-cols-2 gap-3">
-                                    <button
-                                        onClick={() => setEmploymentType('freelancer')}
-                                        className={`p-4 rounded-xl border-2 transition-all ${employmentType === 'freelancer'
-                                            ? 'border-[#008080] bg-teal-50 dark:bg-teal-900/20'
-                                            : 'border-gray-200 dark:border-zinc-700 hover:border-gray-300'
-                                            }`}
-                                    >
-                                        <p className="font-bold text-gray-900 dark:text-white">Freelancer</p>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Project-based</p>
-                                    </button>
                                     <button
                                         onClick={() => setEmploymentType('employee')}
                                         className={`p-4 rounded-xl border-2 transition-all ${employmentType === 'employee'
@@ -358,50 +283,36 @@ export default function SendProjectInviteModal({
                                             }`}
                                     >
                                         <p className="font-bold text-gray-900 dark:text-white">Employee</p>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Long-term role</p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Long-term role with title</p>
+                                    </button>
+                                    <button
+                                        onClick={() => setEmploymentType('freelancer')}
+                                        className={`p-4 rounded-xl border-2 transition-all ${employmentType === 'freelancer'
+                                            ? 'border-[#008080] bg-teal-50 dark:bg-teal-900/20'
+                                            : 'border-gray-200 dark:border-zinc-700 hover:border-gray-300'
+                                            }`}
+                                    >
+                                        <p className="font-bold text-gray-900 dark:text-white">Freelancer</p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">External / Temporary</p>
                                     </button>
                                 </div>
                             </div>
 
-                            {/* Job Title (Employee Only) */}
+                            {/* Job Title (Employee) */}
                             {employmentType === 'employee' && (
                                 <div>
                                     <label className="block text-sm font-bold text-gray-900 dark:text-white mb-2">
-                                        Job Title
+                                        Job Title <span className="text-red-500">*</span>
                                     </label>
                                     <input
                                         type="text"
                                         value={jobTitle}
                                         onChange={(e) => setJobTitle(e.target.value)}
-                                        placeholder="e.g. Senior Developer"
+                                        placeholder="e.g. Senior Product Designer"
                                         className="w-full px-4 py-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#008080]/20"
                                     />
                                 </div>
                             )}
-
-                            {/* Contract Preview */}
-                            <div className="bg-gray-50 dark:bg-zinc-800 rounded-xl p-4 border border-gray-200 dark:border-zinc-700">
-                                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">CONTRACT PREVIEW</p>
-                                <p className="text-sm text-gray-700 dark:text-gray-300">
-                                    <strong>Project:</strong> {projectTitle}
-                                    <br />
-                                    <strong>Role:</strong> {selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)}
-                                    {projectBudget && (
-                                        <>
-                                            <br />
-                                            <strong>Budget:</strong> GMD {projectBudget}
-                                        </>
-                                    )}
-                                    {projectDeadline && (
-                                        <>
-                                            <br />
-                                            <strong>Deadline:</strong> {projectDeadline}
-                                        </>
-                                    )}
-                                    <br />
-                                    <strong>Expires:</strong> 7 days
-                                </p>
-                            </div>
                         </div>
                     )}
                 </div>
@@ -410,7 +321,7 @@ export default function SendProjectInviteModal({
                 <div className="p-6 border-t border-gray-200 dark:border-zinc-800 flex flex-col gap-3">
                     <button
                         onClick={() => openMailWithContract({ autoStartAI: false })}
-                        disabled={!selectedUser || sending}
+                        disabled={!selectedUser || sending || (employmentType === 'employee' && !jobTitle.trim())}
                         className="w-full px-6 py-3 bg-gradient-to-r from-[#008080] to-teal-600 hover:from-teal-600 hover:to-[#008080] text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-teal-500/30 hover:shadow-teal-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {sending ? (
@@ -428,7 +339,7 @@ export default function SendProjectInviteModal({
 
                     <button
                         onClick={() => openMailWithContract({ autoStartAI: true })}
-                        disabled={!selectedUser || sending}
+                        disabled={!selectedUser || sending || (employmentType === 'employee' && !jobTitle.trim())}
                         className="inline-flex items-center gap-2 self-center px-4 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {sending ? (
@@ -444,7 +355,7 @@ export default function SendProjectInviteModal({
                         )}
                     </button>
 
-                    <div className="flex justify-end">
+                    <div className="flex justify-end mt-2">
                         <button
                             onClick={handleClose}
                             className="px-6 py-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"

@@ -172,26 +172,31 @@ export default function ProjectDetailPage() {
                             </button>
                         </>
                     )}
-                    {isOwner && (
+                    {/* Allow Settings for both Owner and Supervisor */}
+                    {(isOwner || isSupervisor) && (
                         <>
-                            <button
-                                onClick={async () => {
-                                    if (project.isPublic) {
-                                        await EnhancedProjectService.removeFromPublic(projectId);
-                                        setProject({ ...project, isPublic: false });
-                                    } else {
-                                        await EnhancedProjectService.pushToPublic(projectId);
-                                        setProject({ ...project, isPublic: true });
-                                    }
-                                }}
-                                className={`px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${project.isPublic
-                                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/40'
-                                    : 'bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700'
-                                    }`}
-                            >
-                                {project.isPublic ? <Eye size={16} /> : <Globe size={16} />}
-                                {project.isPublic ? 'Public' : 'Push to Public'}
-                            </button>
+                            {/* Only owner can control Public Status */}
+                            {isOwner && (
+                                <button
+                                    onClick={async () => {
+                                        if (project.isPublic) {
+                                            await EnhancedProjectService.removeFromPublic(projectId);
+                                            setProject({ ...project, isPublic: false });
+                                        } else {
+                                            await EnhancedProjectService.pushToPublic(projectId);
+                                            setProject({ ...project, isPublic: true });
+                                        }
+                                    }}
+                                    className={`px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${project.isPublic
+                                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/40'
+                                        : 'bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700'
+                                        }`}
+                                >
+                                    {project.isPublic ? <Eye size={16} /> : <Globe size={16} />}
+                                    {project.isPublic ? 'Public' : 'Push to Public'}
+                                </button>
+                            )}
+
                             <button
                                 onClick={() => router.push(`/dashboard/projects/${projectId}/settings`)}
                                 className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors">
@@ -338,8 +343,8 @@ export default function ProjectDetailPage() {
                                             }`}>
                                             {member.role}
                                         </span>
-                                        {/* Only owner can remove members, and cannot remove themselves */}
-                                        {isOwner && member.role !== 'owner' && (
+                                        {/* Owner and Supervisor can remove members, but cannot remove owner */}
+                                        {canManage && member.role !== 'owner' && (
                                             <button
                                                 onClick={() => handleRemoveMember(member.userId, member.username)}
                                                 className="w-7 h-7 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 hover:text-red-600 transition-colors flex items-center justify-center"

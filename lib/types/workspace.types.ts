@@ -5,6 +5,11 @@ export interface WorkspaceMember {
     username: string;
     email: string;
     role: 'owner' | 'admin' | 'member';
+    type: 'employee' | 'freelancer'; // NEW
+    jobTitle?: string; // NEW: Only for employees
+    settings?: {
+        blockedProjectIds?: string[]; // NEW: Explicitly block employees from specific projects
+    };
     joinedAt: any; // Timestamp | Date | FieldValue
 }
 
@@ -47,6 +52,7 @@ export interface ProjectMember {
     username: string;
     email: string;
     role: 'owner' | 'supervisor' | 'member';
+    type: 'employee' | 'freelancer'; // NEW
     assignedAt: any; // Timestamp | Date | FieldValue
 }
 

@@ -39,14 +39,16 @@ export interface WalletTransaction {
 
 export interface EscrowHold {
     id?: string;
-    contractId: string;
+    contractId?: string; // Optional: funds can be held for a project without a specific contract yet
+    projectId?: string;  // NEW: Link to project
+    type?: 'contract' | 'project'; // NEW: Type of hold
     fromWalletId: string;
-    toWalletId: string;
+    toWalletId?: string; // Optional: Project holds might not have a destination wallet yet
     fromUserId: string;
-    toUserId: string;
+    toUserId?: string;   // Optional
     amount: number;
     currency: string;
-    status: 'held' | 'released' | 'refunded';
+    status: 'held' | 'released' | 'refunded' | 'partially_released';
     referenceId?: string;
     createdAt: any; // Timestamp | FieldValue
     heldAt?: any; // Timestamp | FieldValue

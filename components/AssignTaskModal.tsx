@@ -7,6 +7,8 @@ import { FirestoreService, UserProfile } from '@/lib/services/firestore-service'
 import { TaskService } from '@/lib/services/task-service';
 import { useAuth } from '@/context/AuthContext';
 import { Project } from '@/lib/types/workspace.types';
+import { WorkspaceService } from '@/lib/services/workspace-service';
+import { EnhancedProjectService } from '@/lib/services/enhanced-project-service';
 import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
 
 interface AssignTaskModalProps {
@@ -43,6 +45,7 @@ export default function AssignTaskModal({
     const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
     const [isProjectMember, setIsProjectMember] = useState(false);
 
+    const [isWorkspaceEmployee, setIsWorkspaceEmployee] = useState(false);
     const [assigning, setAssigning] = useState(false);
     const [sendingContract, setSendingContract] = useState(false);
     const [error, setError] = useState('');
@@ -51,14 +54,33 @@ export default function AssignTaskModal({
         setIsMounted(true);
     }, []);
 
-    // Check if selected user is a project member
+    // Check if selected user is a project member or workspace employee
     useEffect(() => {
-        if (selectedUser && project) {
-            const member = project.members.find(m => m.userId === selectedUser.uid);
-            setIsProjectMember(!!member);
-        } else {
-            setIsProjectMember(false);
-        }
+        const checkStatus = async () => {
+            if (selectedUser && project) {
+                // 1. Check Project Membership
+                const member = project.members.find(m => m.userId === selectedUser.uid);
+                setIsProjectMember(!!member);
+
+                // 2. Check Workspace Employee Status (if not already project member)
+                if (!member && project.workspaceId) {
+                    const role = await WorkspaceService.getUserRole(project.workspaceId, selectedUser.uid);
+                    // We need to fetch the full member to check 'type', assuming getUserRole only checks role field
+                    // Let's fetch the workspace member details directly
+                    const workspace = await WorkspaceService.getWorkspace(project.workspaceId);
+                    const wsMember = workspace?.members.find(m => m.userId === selectedUser.uid);
+                    // Default to 'employee' if type is undefined for backward compatibility with existing members
+                    const isEmployee = wsMember && (wsMember.type === 'employee' || !wsMember.type);
+                    setIsWorkspaceEmployee(!!isEmployee);
+                } else {
+                    setIsWorkspaceEmployee(false);
+                }
+            } else {
+                setIsProjectMember(false);
+                setIsWorkspaceEmployee(false);
+            }
+        };
+        checkStatus();
     }, [selectedUser, project]);
 
     const handleSearch = async () => {
@@ -87,6 +109,20 @@ export default function AssignTaskModal({
         setAssigning(true);
         setError('');
         try {
+            // If user is a Workspace Employee but not in project, add them first
+            if (isWorkspaceEmployee && !isProjectMember && project) {
+                await EnhancedProjectService.addMember(
+                    project.id!,
+                    {
+                        userId: selectedUser.uid,
+                        username: selectedUser.username || selectedUser.displayName || 'Unknown',
+                        email: selectedUser.email || '',
+                        role: 'member',
+                        type: 'employee'
+                    }
+                );
+            }
+
             await TaskService.reassignTask(
                 taskId,
                 selectedUser.uid,
@@ -290,23 +326,25 @@ export default function AssignTaskModal({
 
                             {/* Action Options */}
                             <div className="grid gap-4">
-                                {/* Option 1: Direct Assign (Only for Members) */}
-                                <div className={`p-4 rounded-xl border-2 transition-all ${isProjectMember
+                                {/* Option 1: Direct Assign (For Members & Employees) */}
+                                <div className={`p-4 rounded-xl border-2 transition-all ${isProjectMember || isWorkspaceEmployee
                                     ? 'bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-900'
                                     : 'bg-gray-50 dark:bg-zinc-800/50 border-gray-200 dark:border-zinc-700 opacity-60'}`}>
                                     <div className="flex items-start gap-4">
-                                        <div className={`p-2 rounded-lg ${isProjectMember ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-500'}`}>
+                                        <div className={`p-2 rounded-lg ${isProjectMember || isWorkspaceEmployee ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-500'}`}>
                                             <CheckCircle2 size={24} />
                                         </div>
                                         <div className="flex-1">
                                             <h3 className="font-bold text-gray-900 dark:text-white">Direct Assignment</h3>
                                             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                                                 {isProjectMember
-                                                    ? "Assign this task immediately. The user is already a member of this project."
-                                                    : "This user is NOT a member of the project. You must send a contract invite first."}
+                                                    ? "Assign this task immediately. The user is a project member."
+                                                    : isWorkspaceEmployee
+                                                        ? "Assign immediately. User is a Workspace Employee and will be added to the project."
+                                                        : "This user is NOT a member/employee. You must send a contract invite."}
                                             </p>
 
-                                            {isProjectMember && (
+                                            {(isProjectMember || isWorkspaceEmployee) && (
                                                 <button
                                                     onClick={handleDirectAssign}
                                                     disabled={assigning}
@@ -321,7 +359,7 @@ export default function AssignTaskModal({
                                 </div>
 
                                 {/* Option 2: Contract Assignment (Always available, but primarily for non-members) */}
-                                <div className={`p-4 rounded-xl border-2 transition-all ${!isProjectMember
+                                <div className={`p-4 rounded-xl border-2 transition-all ${!isProjectMember && !isWorkspaceEmployee
                                     ? 'bg-teal-50 dark:bg-teal-900/10 border-[#008080]'
                                     : 'bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700'}`}>
                                     <div className="flex items-start gap-4">

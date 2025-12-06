@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { WorkspaceService } from '@/lib/services/workspace-service';
 import { EnhancedProjectService } from '@/lib/services/enhanced-project-service';
-import { Workspace, Project } from '@/lib/types/workspace.types';
+import { Workspace, Project, WorkspaceMember } from '@/lib/types/workspace.types';
 import { Loader2, Folder, Users, Settings, Briefcase, Plus, UserPlus, ArrowLeft } from 'lucide-react';
+import AddWorkspaceMemberModal from '@/components/AddWorkspaceMemberModal';
+import ManageWorkspaceMemberModal from '@/components/ManageWorkspaceMemberModal';
 
 export default function WorkspaceDetailPage() {
     const params = useParams();
@@ -18,6 +20,11 @@ export default function WorkspaceDetailPage() {
     const [workspace, setWorkspace] = useState<Workspace | null>(null);
     const [projects, setProjects] = useState<Project[]>([]);
     const [userRole, setUserRole] = useState<'owner' | 'admin' | 'member' | null>(null);
+    const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
+
+    // Manage Member State
+    const [selectedMember, setSelectedMember] = useState<WorkspaceMember | null>(null);
+    const [isManageMemberModalOpen, setIsManageMemberModalOpen] = useState(false);
 
     useEffect(() => {
         if (user && workspaceId) {
@@ -36,9 +43,12 @@ export default function WorkspaceDetailPage() {
                     let projectsData: Project[] = [];
                     if (role === 'owner' || role === 'admin') {
                         projectsData = await EnhancedProjectService.getWorkspaceProjects(workspaceId);
-                    } else {
+                    } else if (role === 'member') { // Basic check, enhanced service handles strict logic
                         // For regular members, only show projects they are part of
                         projectsData = await EnhancedProjectService.getWorkspaceProjectsForMember(workspaceId, user.uid);
+                    } else {
+                        // Not a member?
+                        projectsData = [];
                     }
 
                     setProjects(projectsData);
@@ -51,6 +61,25 @@ export default function WorkspaceDetailPage() {
             fetchData();
         }
     }, [user, workspaceId]);
+
+    const handleMemberAdded = () => {
+        if (workspaceId) {
+            WorkspaceService.getWorkspace(workspaceId).then(setWorkspace);
+        }
+    };
+
+    const handleMemberUpdated = () => {
+        if (workspaceId) {
+            WorkspaceService.getWorkspace(workspaceId).then(setWorkspace);
+        }
+    };
+
+    const handleMemberClick = (member: WorkspaceMember) => {
+        if (canManage) {
+            setSelectedMember(member);
+            setIsManageMemberModalOpen(true);
+        }
+    };
 
     if (loading) {
         return (
@@ -87,6 +116,13 @@ export default function WorkspaceDetailPage() {
 
     return (
         <div className="max-w-[1400px] mx-auto space-y-6">
+            {/* ... (Header, Stats, Projects Section) ... same as before, skipping redundant replaces for clarity if possible, 
+                 but replace_file_content needs context. I will assume Header/Stats/Projects are unchanged and only focus on the whole file or appropriate chunks.
+                 Actually, since I need to hook up the modal and click handler, I will replace the whole return block related to members to be safe, 
+                 or better, replace the file to ensure all imports and state are clean. 
+                 But wait, I will try to be surgical.
+            */}
+
             {/* Header */}
             <div className="flex items-start justify-between">
                 <div className="flex items-center gap-4">
@@ -106,7 +142,10 @@ export default function WorkspaceDetailPage() {
                 </div>
                 <div className="flex items-center gap-3">
                     {canManage && (
-                        <button className="px-5 py-2.5 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold text-sm hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors flex items-center gap-2">
+                        <button
+                            onClick={() => setIsAddMemberModalOpen(true)}
+                            className="px-5 py-2.5 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold text-sm hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors flex items-center gap-2"
+                        >
                             <UserPlus size={16} />
                             Invite Members
                         </button>
@@ -248,7 +287,9 @@ export default function WorkspaceDetailPage() {
                         {workspace.members.map((member, index) => (
                             <div
                                 key={index}
-                                className="flex items-center gap-3 p-4 bg-white dark:bg-zinc-800 rounded-xl border border-gray-100 dark:border-zinc-700"
+                                onClick={() => handleMemberClick(member)}
+                                className={`flex items-center gap-3 p-4 bg-white dark:bg-zinc-800 rounded-xl border border-gray-100 dark:border-zinc-700 transition-all ${canManage ? 'cursor-pointer hover:border-[#008080] hover:shadow-lg' : ''
+                                    }`}
                             >
                                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#008080] to-teal-600 flex items-center justify-center text-white font-bold">
                                     {member.username[0].toUpperCase()}
@@ -257,9 +298,16 @@ export default function WorkspaceDetailPage() {
                                     <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
                                         @{member.username}
                                     </p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                                        {member.email}
-                                    </p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                            {member.jobTitle || member.type || member.role}
+                                        </p>
+                                        {member.type === 'freelancer' && (
+                                            <span className="px-1.5 py-0.5 rounded-md bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-[10px] font-bold">
+                                                FL
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                                 <span className={`px-2 py-1 rounded-full text-xs font-bold ${member.role === 'owner' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30' :
                                     member.role === 'admin' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' :
@@ -272,6 +320,22 @@ export default function WorkspaceDetailPage() {
                     </div>
                 </div>
             </div>
+
+            <AddWorkspaceMemberModal
+                isOpen={isAddMemberModalOpen}
+                onClose={() => setIsAddMemberModalOpen(false)}
+                workspaceId={workspaceId}
+                workspaceName={workspace?.name}
+                onMemberAdded={handleMemberAdded}
+            />
+
+            <ManageWorkspaceMemberModal
+                isOpen={isManageMemberModalOpen}
+                onClose={() => setIsManageMemberModalOpen(false)}
+                workspaceId={workspaceId}
+                member={selectedMember}
+                onMemberUpdated={handleMemberUpdated}
+            />
         </div>
     );
 }

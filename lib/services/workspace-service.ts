@@ -40,6 +40,7 @@ export const WorkspaceService = {
                 username: data.ownerUsername,
                 email: data.ownerEmail,
                 role: 'owner',
+                type: 'employee', // Owner is always an employee
                 joinedAt: Timestamp.now()
             }],
             isActive: true,
@@ -146,12 +147,27 @@ export const WorkspaceService = {
             username: string;
             email: string;
             role: 'admin' | 'member';
+            type: 'employee' | 'freelancer'; // NEW
+            jobTitle?: string; // NEW
+            settings?: { blockedProjectIds?: string[] }; // NEW
         }
     ): Promise<void> {
         const workspaceMember: WorkspaceMember = {
-            ...member,
+            userId: member.userId,
+            username: member.username,
+            email: member.email,
+            role: member.role,
+            type: member.type,
             joinedAt: Timestamp.now()
         };
+
+        if (member.jobTitle) {
+            workspaceMember.jobTitle = member.jobTitle;
+        }
+
+        if (member.settings) {
+            workspaceMember.settings = member.settings;
+        }
 
         await updateDoc(doc(db, 'workspaces', workspaceId), {
             members: arrayUnion(workspaceMember),
@@ -172,6 +188,47 @@ export const WorkspaceService = {
         } catch (error) {
             console.error('Failed to add member to workspace chat:', error);
         }
+    },
+
+    /**
+     * Update a workspace member's details
+     */
+    async updateMember(
+        workspaceId: string,
+        userId: string,
+        updates: {
+            role?: 'owner' | 'admin' | 'member';
+            type?: 'employee' | 'freelancer';
+            jobTitle?: string;
+            settings?: { blockedProjectIds?: string[] };
+        }
+    ): Promise<void> {
+        const workspaceRef = doc(db, 'workspaces', workspaceId);
+        const workspaceSnap = await getDoc(workspaceRef);
+
+        if (!workspaceSnap.exists()) {
+            throw new Error('Workspace not found');
+        }
+
+        const workspace = workspaceSnap.data() as Workspace;
+        const members = workspace.members || [];
+        const memberIndex = members.findIndex(m => m.userId === userId);
+
+        if (memberIndex === -1) {
+            throw new Error('Member not found');
+        }
+
+        // Update member fields
+        const updatedMember = { ...members[memberIndex], ...updates };
+
+        // Handle nested settings merge if needed
+        if (updates.settings) {
+            updatedMember.settings = { ...members[memberIndex].settings, ...updates.settings };
+        }
+
+        members[memberIndex] = updatedMember;
+
+        await updateDoc(workspaceRef, { members });
     },
 
     /**

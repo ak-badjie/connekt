@@ -69,6 +69,23 @@ export const WalletService = {
     },
 
     /**
+     * Get active escrow holdings for a wallet
+     */
+    async getEscrowHoldings(walletId: string): Promise<EscrowHold[]> {
+        const q = query(
+            collection(db, 'escrow_holds'),
+            where('fromWalletId', '==', walletId),
+            where('status', '==', 'held')
+        );
+
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        } as EscrowHold));
+    },
+
+    /**
      * Get or create wallet (helper function)
      */
     async getOrCreateWallet(ownerId: string, ownerType: 'user' | 'agency'): Promise<Wallet> {
@@ -115,6 +132,10 @@ export const WalletService = {
 
         if (amount > escrow.amount) {
             throw new Error('Release amount exceeds escrow balance');
+        }
+
+        if (!escrow.toWalletId) {
+            throw new Error('Escrow has no destination wallet');
         }
 
         // Add to recipient's wallet
@@ -280,7 +301,8 @@ export const WalletService = {
         }
 
         const walletData = walletSnap.data() as Wallet;
-        return walletData.balance >= amount;
+        const tolerance = 0.001;
+        return walletData.balance >= (amount - tolerance);
     },
 
     /**
@@ -384,6 +406,150 @@ export const WalletService = {
     },
 
     /**
+     * Hold funds in escrow for a PROJECT (no specific recipient yet)
+     */
+    async holdProjectFunds(
+        projectId: string,
+        userId: string,
+        amount: number
+    ): Promise<string> {
+        const walletId = `user_${userId}`;
+        console.log(`Checking funds for ${walletId}: Required ${amount}`);
+        const hasFunds = await this.hasSufficientFunds(walletId, amount);
+        console.log(`Has funds result: ${hasFunds}`);
+
+        if (!hasFunds) {
+            // Fetch wallet to log actual balance for debugging
+            const wallet = await this.getWallet(userId, 'user');
+            console.error(`Insufficient funds debug: Balance=${wallet?.balance}, Required=${amount}, WalletID=${walletId}`);
+            throw new Error(`Insufficient wallet balance to fund project. Available: ${wallet?.balance}, Required: ${amount}`);
+        }
+
+        // Deduct from sender's wallet
+        await this.updateBalance(walletId, -amount);
+        await this.addTransaction(walletId, {
+            type: 'escrow_hold',
+            walletId: walletId,
+            currency: 'GMD',
+            amount: -amount,
+            description: `Project budget hold for ${projectId}`,
+            relatedEntityId: projectId,
+            relatedEntityType: 'project',
+            status: 'completed'
+        });
+
+        // Create escrow hold record
+        const escrowId = `escrow_project_${projectId}`;
+        const escrowHold: EscrowHold = {
+            id: escrowId,
+            projectId,
+            type: 'project',
+            amount,
+            fromWalletId: walletId,
+            fromUserId: userId,
+            currency: 'GMD',
+            status: 'held',
+            createdAt: serverTimestamp(),
+            heldAt: serverTimestamp()
+        };
+
+        await setDoc(doc(db, 'escrow_holds', escrowId), escrowHold);
+
+        // Notify user
+        try {
+            await NotificationService.createNotification(
+                userId,
+                'transaction',
+                'Project Funds Secured',
+                `D${amount.toFixed(2)} has been secured for your project.`,
+                'low',
+                {
+                    type: 'transaction',
+                    transactionId: escrowId,
+                    transactionType: 'escrow_hold',
+                    amount: -amount,
+                    currency: 'GMD',
+                    fromUserId: userId,
+                    relatedEntityId: projectId,
+                    relatedEntityType: 'project'
+                },
+                `/wallet`,
+                'View Wallet'
+            );
+        } catch (error) {
+            console.error('Error creating project hold notification:', error);
+        }
+
+        return escrowId;
+    },
+
+    /**
+     * Refund PROJECT escrow (e.g. if project creation fails)
+     */
+    async refundProjectEscrow(projectId: string, reason: string): Promise<void> {
+        const escrowId = `escrow_project_${projectId}`;
+        const escrowRef = doc(db, 'escrow_holds', escrowId);
+        const escrowSnap = await getDoc(escrowRef);
+
+        if (!escrowSnap.exists()) {
+            console.error(`Escrow hold ${escrowId} not found for refund`);
+            return;
+        }
+
+        const escrow = escrowSnap.data() as EscrowHold;
+
+        if (escrow.status !== 'held') {
+            console.error(`Escrow ${escrowId} is not in held status`);
+            return;
+        }
+
+        // Refund to sender's wallet
+        await this.updateBalance(escrow.fromWalletId, escrow.amount);
+        await this.addTransaction(escrow.fromWalletId, {
+            type: 'refund',
+            walletId: escrow.fromWalletId,
+            currency: 'GMD',
+            amount: escrow.amount,
+            description: `Project funding refund: ${reason}`,
+            relatedEntityId: projectId,
+            relatedEntityType: 'project',
+            status: 'completed'
+        });
+
+        // Update escrow status
+        await updateDoc(escrowRef, {
+            status: 'refunded',
+            refundedAt: serverTimestamp(),
+            reason
+        });
+
+        // Notify user
+        try {
+            await NotificationService.createNotification(
+                escrow.fromUserId,
+                'transaction',
+                'Project Funds Refunded',
+                `D${escrow.amount.toFixed(2)} has been refunded. Reason: ${reason}`,
+                'medium',
+                {
+                    type: 'transaction',
+                    transactionId: escrowId,
+                    transactionType: 'refund',
+                    amount: escrow.amount,
+                    currency: 'GMD',
+                    fromUserId: escrow.fromUserId,
+                    relatedEntityId: projectId,
+                    relatedEntityType: 'project'
+                },
+                `/wallet`,
+                'View Wallet'
+            );
+        } catch (error) {
+            console.error('Error creating refund notification:', error);
+        }
+    },
+
+    /**
      * Release escrow payment to recipient
      */
     async releaseEscrow(contractId: string): Promise<void> {
@@ -399,6 +565,10 @@ export const WalletService = {
 
         if (escrow.status !== 'held') {
             throw new Error('Escrow is not in held status');
+        }
+
+        if (!escrow.toWalletId) {
+            throw new Error('Escrow has no destination wallet');
         }
 
         // Add to recipient's wallet
@@ -420,28 +590,29 @@ export const WalletService = {
             releasedAt: serverTimestamp()
         });
 
-        // Create notifications
         try {
-            await NotificationService.createNotification(
-                escrow.toUserId,
-                'transaction',
-                'Payment Received',
-                `D${escrow.amount.toFixed(2)} has been released from escrow.`,
-                'high',
-                {
-                    type: 'transaction',
-                    transactionId: escrowId,
-                    transactionType: 'escrow_release',
-                    amount: escrow.amount,
-                    currency: 'GMD',
-                    fromUserId: escrow.fromUserId,
-                    toUserId: escrow.toUserId,
-                    relatedEntityId: contractId,
-                    relatedEntityType: 'contract'
-                },
-                `/wallet`,
-                'View Wallet'
-            );
+            if (escrow.toUserId) {
+                await NotificationService.createNotification(
+                    escrow.toUserId,
+                    'transaction',
+                    'Payment Received',
+                    `D${escrow.amount.toFixed(2)} has been released from escrow.`,
+                    'high',
+                    {
+                        type: 'transaction',
+                        transactionId: escrowId,
+                        transactionType: 'escrow_release',
+                        amount: escrow.amount,
+                        currency: 'GMD',
+                        fromUserId: escrow.fromUserId,
+                        toUserId: escrow.toUserId,
+                        relatedEntityId: contractId,
+                        relatedEntityType: 'contract'
+                    },
+                    `/wallet`,
+                    'View Wallet'
+                );
+            }
         } catch (error) {
             console.error('Error creating escrow release notification:', error);
         }
