@@ -4,8 +4,12 @@ import { useState } from 'react';
 import { Contract, ContractSignature } from '@/lib/types/mail.types';
 import GambianLegalHeader from './GambianLegalHeader';
 import { ContractMailService } from '@/lib/services/contract-mail-service';
+import { EnhancedProjectService } from '@/lib/services/enhanced-project-service';
+import { WorkspaceService } from '@/lib/services/workspace-service';
+import { TaskService } from '@/lib/services/task-service';
 import { useAuth } from '@/context/AuthContext';
 import ReactMarkdown from 'react-markdown';
+import toast from 'react-hot-toast';
 
 interface ContractViewerProps {
     contract: Contract;
@@ -38,7 +42,7 @@ export default function ContractViewer({ contract, onSign, onReject }: ContractV
 
         // Validate signature
         if (!signatureName.trim()) {
-            alert('Please type your full legal name to sign the contract');
+            toast.error('Please type your full legal name to sign the contract');
             return;
         }
 
@@ -57,9 +61,41 @@ export default function ContractViewer({ contract, onSign, onReject }: ContractV
                 window.location.href = `/projects/${contract.relatedEntityId}`;
             }
 
+            // Success toast with summary based on terms
+            const t = contract.terms || {};
+            const parts: string[] = [];
+            if (t.projectId || t.linkedProjectId) parts.push('added to project');
+            if (t.workspaceId || t.linkedWorkspaceId) parts.push('added to workspace');
+            if (t.taskId || t.linkedTaskId) parts.push('task assigned');
+            if (t.startDate || t.endDate) parts.push('calendar events created');
+            const summary = parts.length ? `Sync: ${parts.join(', ')}` : 'Access and sync granted';
+            // Fetch names for richer toast
+            try {
+                const names: string[] = [];
+                const projectId = t.projectId || t.linkedProjectId;
+                const workspaceId = t.workspaceId || t.linkedWorkspaceId;
+                const taskId = t.taskId || t.linkedTaskId;
+                if (projectId) {
+                    const p = await EnhancedProjectService.getProject(projectId);
+                    if (p?.title) names.push(`project: ${p.title}`);
+                }
+                if (workspaceId) {
+                    const w = await WorkspaceService.getWorkspace(workspaceId);
+                    if (w?.name) names.push(`workspace: ${w.name}`);
+                }
+                if (taskId) {
+                    const tk = await TaskService.getTask(taskId);
+                    if (tk?.title) names.push(`task: ${tk.title}`);
+                }
+                const namesSummary = names.length ? ` (${names.join('; ')})` : '';
+                toast.success(`Contract signed successfully. ${summary}.${namesSummary}`);
+            } catch (e) {
+                toast.success(`Contract signed successfully. ${summary}.`);
+            }
+
             onSign?.();
         } catch (error: any) {
-            alert(error.message || 'Failed to sign contract');
+            toast.error(error?.message || 'Failed to sign contract');
         } finally {
             setSigning(false);
         }
@@ -76,9 +112,10 @@ export default function ContractViewer({ contract, onSign, onReject }: ContractV
                 rejectReason || undefined
             );
             setShowRejectModal(false);
+            toast.success('Contract rejected.');
             onReject?.();
         } catch (error: any) {
-            alert(error.message || 'Failed to reject contract');
+            toast.error(error?.message || 'Failed to reject contract');
         } finally {
             setRejecting(false);
         }

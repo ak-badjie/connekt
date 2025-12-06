@@ -5,7 +5,13 @@ import { X, FileText, Download, CheckCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '@/context/AuthContext';
+import toast from 'react-hot-toast';
+import { ContractSigningService } from '@/lib/services/contract-signing-service';
+import { EnhancedProjectService } from '@/lib/services/enhanced-project-service';
+import { WorkspaceService } from '@/lib/services/workspace-service';
+import { TaskService } from '@/lib/services/task-service';
 import GambianLegalHeader from '@/components/mail/GambianLegalHeader';
+import { StorageService } from '@/lib/services/storage-service';
 
 interface UnifiedContractViewerProps {
     contractId: string;
@@ -23,11 +29,16 @@ interface UnifiedContractViewerProps {
         signedAt?: any;
         signedBy?: string;
         signatureFullName?: string;
+        escrowId?: string;
     };
     isOpen: boolean;
     onClose: () => void;
     onSign?: (contractId: string, fullName: string) => Promise<void>;
     canSign?: boolean; // Whether current user can sign
+    onApproveMilestone?: (milestoneId: string) => Promise<void>;
+    canApproveMilestones?: boolean;
+    onSubmitMilestoneEvidence?: (milestoneId: string, payload: { url: string; note?: string }) => Promise<void>;
+    canSubmitEvidence?: boolean;
 }
 
 export function UnifiedContractViewer({
@@ -36,31 +47,84 @@ export function UnifiedContractViewer({
     isOpen,
     onClose,
     onSign,
-    canSign = false
+    canSign = false,
+    onApproveMilestone,
+    canApproveMilestones = false,
+    onSubmitMilestoneEvidence,
+    canSubmitEvidence = false
 }: UnifiedContractViewerProps) {
     const { user } = useAuth();
     const [fullName, setFullName] = useState('');
     const [signing, setSigning] = useState(false);
     const [exporting, setExporting] = useState(false);
+    const [approvingId, setApprovingId] = useState<string | null>(null);
+    const [submittingId, setSubmittingId] = useState<string | null>(null);
+    const [evidenceInputs, setEvidenceInputs] = useState<Record<string, { url: string; note?: string }>>({});
+    const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
 
     const handleSign = async () => {
+        console.log('[UnifiedContractViewer] Sign clicked', { contractId, fullName, userId: user?.uid, toUserId: contract?.toUserId, hasOnSign: !!onSign });
         if (!fullName.trim()) {
             alert('Please enter your full legal name');
             return;
         }
 
-        if (!onSign) return;
+        // If no handler is provided, fall back to signing directly
+        const canFallbackSign = user?.uid && contract?.toUserId === user.uid;
+        if (!onSign && !canFallbackSign) {
+            alert('Signing is currently unavailable. Please try again or contact support.');
+            return;
+        }
 
         setSigning(true);
         try {
-            await onSign(contractId, fullName.trim());
-            alert('Contract signed successfully!');
-            onClose();
+            if (onSign) {
+                await onSign(contractId, fullName.trim());
+            } else if (canFallbackSign) {
+                const username = contract.toUsername || user?.displayName || 'recipient';
+                await ContractSigningService.signContract(contractId, user.uid, username, fullName.trim());
+            }
+            console.log('[UnifiedContractViewer] Sign success');
+            const t = contract?.terms || {};
+            const projectId = t.projectId || t.linkedProjectId;
+            const workspaceId = t.workspaceId || t.linkedWorkspaceId;
+            const taskId = t.taskId || t.linkedTaskId;
+
+            const names: string[] = [];
+            try {
+                if (projectId) {
+                    const p = await EnhancedProjectService.getProject(projectId);
+                    if (p?.title) names.push(`project: ${p.title}`);
+                }
+                if (workspaceId) {
+                    const w = await WorkspaceService.getWorkspace(workspaceId);
+                    if (w?.name) names.push(`workspace: ${w.name}`);
+                }
+                if (taskId) {
+                    const tk = await TaskService.getTask(taskId);
+                    if (tk?.title) names.push(`task: ${tk.title}`);
+                }
+            } catch (e) {
+                console.warn('Lookup for entity names failed', e);
+            }
+
+            const parts: string[] = [];
+            if (projectId) parts.push('added to project');
+            if (workspaceId) parts.push('added to workspace');
+            if (taskId) parts.push('task assigned');
+            if (t.startDate || t.endDate) parts.push('calendar events created');
+            const summary = parts.length ? `Sync: ${parts.join(', ')}` : 'Access and sync granted';
+            const namesSummary = names.length ? ` (${names.join('; ')})` : '';
+            toast.success(`Contract signed successfully. ${summary}.${namesSummary}`);
         } catch (error: any) {
-            alert(error.message || 'Failed to sign contract');
+            console.error('[UnifiedContractViewer] Sign error', error);
+            toast.error(error?.message || 'Failed to sign contract');
+            return;
         } finally {
             setSigning(false);
         }
+
+        onClose();
     };
 
     const handlePrintToPDF = async () => {
@@ -76,11 +140,56 @@ export function UnifiedContractViewer({
         }
     };
 
+    const setEvidenceField = (id: string, field: 'url' | 'note', value: string) => {
+        setEvidenceInputs(prev => ({
+            ...prev,
+            [id]: {
+                ...(prev[id] || { url: '', note: '' }),
+                [field]: value
+            }
+        }));
+    };
+
+    const handleFileUpload = async (milestoneId: string, fileList: FileList | null) => {
+        if (!fileList || !fileList[0]) return;
+        const file = fileList[0];
+
+        const type = StorageService.validateFileType(file);
+        if (!type) {
+            alert('Unsupported file type');
+            return;
+        }
+        if (!StorageService.validateFileSize(file, 25)) {
+            alert('File too large (max 25MB)');
+            return;
+        }
+
+        if (!user?.uid) {
+            alert('You must be signed in to upload evidence');
+            return;
+        }
+
+        try {
+            setUploadProgress(prev => ({ ...prev, [milestoneId]: 0 }));
+            const url = await StorageService.uploadFile(file, user.uid, contractId, (p) => {
+                setUploadProgress(prev => ({ ...prev, [milestoneId]: p }));
+            });
+            setEvidenceField(milestoneId, 'url', url);
+            setEvidenceField(milestoneId, 'note', file.name);
+        } catch (err: any) {
+            alert(err?.message || 'Failed to upload evidence');
+        } finally {
+            setUploadProgress(prev => ({ ...prev, [milestoneId]: 0 }));
+        }
+    };
+
     if (!isOpen) return null;
 
     const isSigned = contract.status === 'signed';
     const isRecipient = user?.uid === contract.toUserId;
     const isProposal = !!contract?.terms?.proposal;
+    const milestones = contract?.terms?.milestones || [];
+    const escrowId = contract.escrowId;
 
     return (
         <AnimatePresence>
@@ -136,6 +245,9 @@ export function UnifiedContractViewer({
                                 <h1 className="text-2xl font-bold text-center text-gray-900 dark:text-white">
                                     {contract.title}
                                 </h1>
+                                {escrowId && (
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Escrow: {escrowId}</p>
+                                )}
                             </div>
                         </div>
 
@@ -150,6 +262,118 @@ export function UnifiedContractViewer({
                                 <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Standard Terms</h2>
                                 <div className="prose dark:prose-invert max-w-none text-sm prose-p:text-gray-600 dark:prose-p:text-gray-400">
                                     <ReactMarkdown>{contract.defaultTerms}</ReactMarkdown>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Milestones */}
+                        {milestones.length > 0 && (
+                            <div className="mt-8 pt-6 border-t border-gray-300 dark:border-zinc-700">
+                                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Milestones</h2>
+                                <div className="space-y-3">
+                                    {milestones.map((m: any) => (
+                                        <div key={m.id} className="p-4 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/60 space-y-3">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <div className="space-y-1">
+                                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{m.title}</p>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400">{m.amount ? `Amount: ${m.currency || contract?.terms?.totalCurrency || 'GMD'} ${m.amount}` : 'No amount set'}</p>
+                                                    {m.dueAt && <p className="text-xs text-gray-500 dark:text-gray-400">Due: {m.dueAt}</p>}
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${m.status === 'paid' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : m.status === 'submitted' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'}`}>
+                                                        {m.status || 'pending'}
+                                                    </span>
+                                                    {onApproveMilestone && canApproveMilestones && m.status !== 'paid' && (
+                                                        <button
+                                                            onClick={async () => {
+                                                                setApprovingId(m.id);
+                                                                try {
+                                                                    await onApproveMilestone(m.id);
+                                                                } finally {
+                                                                    setApprovingId(null);
+                                                                }
+                                                            }}
+                                                            disabled={approvingId === m.id}
+                                                            className="px-3 py-1.5 bg-teal-600 text-white rounded-lg text-sm font-semibold hover:bg-teal-700 transition-colors disabled:opacity-50"
+                                                        >
+                                                            {approvingId === m.id ? 'Releasing...' : 'Approve & Release'}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {m.evidence?.length > 0 && (
+                                                <div className="space-y-1">
+                                                    <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">Evidence</p>
+                                                    <ul className="space-y-1 text-xs text-gray-600 dark:text-gray-400">
+                                                        {m.evidence.map((e: any, idx: number) => (
+                                                            <li key={idx} className="flex items-center gap-2">
+                                                                <a href={e.url} target="_blank" rel="noreferrer" className="text-[#008080] hover:underline break-all">{e.url}</a>
+                                                                {e.note && <span className="text-gray-500">– {e.note}</span>}
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            )}
+
+                                            {onSubmitMilestoneEvidence && canSubmitEvidence && m.status !== 'submitted' && m.status !== 'paid' && (
+                                                <div className="space-y-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <label
+                                                            htmlFor={`evidence-upload-${m.id}`}
+                                                            className="px-3 py-1.5 bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm cursor-pointer hover:bg-gray-200 dark:hover:bg-zinc-800"
+                                                        >
+                                                            Upload file
+                                                        </label>
+                                                        <input
+                                                            id={`evidence-upload-${m.id}`}
+                                                            type="file"
+                                                            className="hidden"
+                                                            onChange={(e) => handleFileUpload(m.id, e.target.files)}
+                                                        />
+                                                        {uploadProgress[m.id] ? (
+                                                            <span className="text-xs text-gray-500">{Math.round(uploadProgress[m.id])}%</span>
+                                                        ) : null}
+                                                    </div>
+                                                    <input
+                                                        type="url"
+                                                        value={(evidenceInputs[m.id]?.url) || ''}
+                                                        onChange={(e) => setEvidenceField(m.id, 'url', e.target.value)}
+                                                        placeholder="Evidence link (file/url)"
+                                                        className="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={(evidenceInputs[m.id]?.note) || ''}
+                                                        onChange={(e) => setEvidenceField(m.id, 'note', e.target.value)}
+                                                        placeholder="Note (optional)"
+                                                        className="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm"
+                                                    />
+                                                    <button
+                                                        onClick={async () => {
+                                                            const url = evidenceInputs[m.id]?.url;
+                                                            const note = evidenceInputs[m.id]?.note;
+                                                            if (!url) {
+                                                                alert('Please provide an evidence link');
+                                                                return;
+                                                            }
+                                                            setSubmittingId(m.id);
+                                                            try {
+                                                                await onSubmitMilestoneEvidence(m.id, { url, note });
+                                                                setEvidenceInputs(prev => ({ ...prev, [m.id]: { url: '', note: '' } }));
+                                                            } finally {
+                                                                setSubmittingId(null);
+                                                            }
+                                                        }}
+                                                        disabled={submittingId === m.id}
+                                                        className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50"
+                                                    >
+                                                        {submittingId === m.id ? 'Submitting...' : 'Submit Evidence'}
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         )}
@@ -221,6 +445,9 @@ export function UnifiedContractViewer({
                                             <p className="text-sm text-gray-600 dark:text-gray-400">
                                                 {isRecipient ? 'Waiting for your signature' : 'Waiting for recipient signature'}
                                             </p>
+                                            {!canSign && isRecipient && (
+                                                <p className="text-xs text-amber-600 mt-1">You currently cannot sign (status must be pending).</p>
+                                            )}
                                         </div>
                                     )}
                                 </>
