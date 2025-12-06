@@ -5,8 +5,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { TaskService } from '@/lib/services/task-service';
 import { EnhancedProjectService } from '@/lib/services/enhanced-project-service';
-import { Project } from '@/lib/types/workspace.types';
-import { Loader2, CheckSquare, ArrowLeft, Check, Calendar, DollarSign, Clock } from 'lucide-react';
+import { Project, ProjectMember } from '@/lib/types/workspace.types';
+import { Loader2, CheckSquare, ArrowLeft, Check, Calendar, DollarSign, Clock, User } from 'lucide-react';
 
 // Add shake animation
 const shakeAnimation = `
@@ -28,11 +28,13 @@ export default function CreateTaskPage() {
 
     const [loading, setLoading] = useState(false);
     const [projects, setProjects] = useState<Project[]>([]);
+    const [projectMembers, setProjectMembers] = useState<ProjectMember[]>([]);
     const [formData, setFormData] = useState({
         projectId: projectIdParam || '',
         title: '',
         description: '',
         priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent',
+        assigneeId: '',
         dueDate: '',
         estimatedHours: '',
         amount: '',
@@ -66,12 +68,24 @@ export default function CreateTaskPage() {
         }
     }, [user, projectIdParam]);
 
-    // Fetch budget status when project changes
+    // Fetch budget status and members when project changes
     useEffect(() => {
         if (formData.projectId) {
+            // Fetch Budget
             EnhancedProjectService.getProjectBudgetStatus(formData.projectId)
                 .then(setBudgetStatus)
                 .catch(console.error);
+
+            // Fetch Members
+            EnhancedProjectService.getProject(formData.projectId)
+                .then(project => {
+                    if (project) {
+                        setProjectMembers(project.members || []);
+                    }
+                })
+                .catch(console.error);
+        } else {
+            setProjectMembers([]);
         }
     }, [formData.projectId]);
 
@@ -133,6 +147,8 @@ export default function CreateTaskPage() {
                 description: formData.description,
                 priority: formData.priority,
                 createdBy: user.uid,
+                assigneeId: formData.assigneeId || undefined,
+                assigneeUsername: formData.assigneeId ? projectMembers.find(m => m.userId === formData.assigneeId)?.username : undefined,
                 timeline: {
                     dueDate: formData.dueDate || undefined,
                     estimatedHours: formData.estimatedHours ? parseFloat(formData.estimatedHours) : undefined
@@ -300,6 +316,28 @@ export default function CreateTaskPage() {
                             <option value="medium">Medium</option>
                             <option value="high">High</option>
                             <option value="urgent">Urgent</option>
+                        </select>
+                    </div>
+
+                    {/* Assignee (Optional) */}
+                    <div>
+                        <label htmlFor="assigneeId" className="block text-sm font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+                            <User size={16} className="text-[#008080]" />
+                            Assign to Member (Optional)
+                        </label>
+                        <select
+                            id="assigneeId"
+                            name="assigneeId"
+                            value={formData.assigneeId}
+                            onChange={handleChange}
+                            className="w-full px-4 py-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#008080]/20"
+                        >
+                            <option value="">-- Unassigned --</option>
+                            {projectMembers.map(member => (
+                                <option key={member.userId} value={member.userId}>
+                                    @{member.username} ({member.role})
+                                </option>
+                            ))}
                         </select>
                     </div>
 

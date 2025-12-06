@@ -77,7 +77,7 @@ export default function ProposalComposer({ onProposalGenerated, autoAIRequest }:
         const template = templates.find(t => t.id === templateId || t.name === templateId);
         if (template) {
             setSelectedTemplate(template);
-            setVariables({});
+            // Preserve existing variables involved in the proposal context
         }
     };
 

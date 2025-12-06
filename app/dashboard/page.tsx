@@ -37,12 +37,18 @@ export default function DashboardPage() {
             const fetchData = async () => {
                 try {
                     // Fetch all user's projects
-                    const [owned, assigned] = await Promise.all([
+                    const [owned, assigned, memberOf] = await Promise.all([
                         EnhancedProjectService.getUserProjects(user.uid),
-                        EnhancedProjectService.getAssignedProjects(user.uid)
+                        EnhancedProjectService.getAssignedProjects(user.uid),
+                        EnhancedProjectService.getProjectsMemberOf(user.uid)
                     ]);
 
-                    const allProjects = [...owned, ...assigned];
+                    // Merge and deduplicate projects
+                    const allProjectsMap = new Map<string, Project>();
+                    [...owned, ...assigned, ...memberOf].forEach(p => {
+                        if (p.id) allProjectsMap.set(p.id, p);
+                    });
+                    const allProjects = Array.from(allProjectsMap.values());
 
                     // Pending projects (started but not finished)
                     const pending = allProjects.filter(p =>

@@ -75,7 +75,8 @@ export default function ContractMailComposer({ onContractGenerated, autoAIReques
         const template = templates.find(t => t.id === templateId || t.name === templateId);
         if (template) {
             setSelectedTemplate(template);
-            setVariables({});
+            // Preserve existing variables (like projectId, recipient info) when switching templates
+            // only overwrite if the template specifically demands it (which it doesn't here)
         }
     };
 
