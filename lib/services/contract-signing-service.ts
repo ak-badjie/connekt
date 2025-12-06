@@ -88,6 +88,7 @@ export const ContractSigningService = {
         userId: string,
         contract: any
     ): Promise<void> {
+        console.log(`[ContractSigningService] Granting access for contract ${contractId} to user ${userId}`);
         const terms = contract.terms || {};
         const roleForUser = terms.roles?.find((r: any) => r.userId === userId)?.role || 'member';
         const usernameForUser = contract.toUsername || 'recipient';
@@ -96,6 +97,9 @@ export const ContractSigningService = {
         let projectId = terms.projectId || terms.linkedProjectId || contract.relatedProjectId;
         let workspaceId = terms.workspaceId || terms.linkedWorkspaceId || contract.relatedWorkspaceId;
         const taskId = terms.taskId || terms.linkedTaskId || contract.relatedTaskId;
+
+        console.log('[ContractSigningService] IDs identified:', { projectId, workspaceId, taskId, terms });
+
         // Infer project/workspace IDs from task when missing
         if ((!projectId || !workspaceId) && taskId) {
             try {
@@ -139,6 +143,7 @@ export const ContractSigningService = {
 
         // If contract specifies a project, add user to project
         if (projectId) {
+            console.log(`[ContractSigningService] Adding user ${userId} to project ${projectId}`);
             try {
                 await EnhancedProjectService.addMember(projectId, {
                     userId,
@@ -193,6 +198,25 @@ export const ContractSigningService = {
             } catch (err) {
                 console.error('Failed to sync project chat membership for contract', contractId, err);
             }
+        }
+
+        // Handle specific Task Assignment logic
+        if (taskId && contract.type === 'task_assignment') {
+            console.log(`[ContractSigningService] Executing task assignment for ${taskId}`);
+            try {
+                const taskRef = doc(db, 'tasks', taskId);
+                await updateDoc(taskRef, {
+                    assigneeId: userId,
+                    assigneeUsername: usernameForUser,
+                    status: 'in-progress',
+                    updatedAt: serverTimestamp()
+                });
+                console.log(`[ContractSigningService] Task ${taskId} assigned to ${userId}`);
+            } catch (err) {
+                console.error('Failed to update task assignment for contract', contractId, err);
+            }
+        } else {
+            console.log('[ContractSigningService] No projectId found in contract terms (skipping project membership)');
         }
 
         // If contract specifies a workspace, add user to workspace

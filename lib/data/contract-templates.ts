@@ -414,6 +414,51 @@ This Agreement shall begin on {{startDate}} and continue until {{endDate}} or un
     ]
 };
 
+export const SINGLE_TASK_ASSIGNMENT_TEMPLATE: Omit<ContractTemplate, 'id' | 'createdAt' | 'updatedAt'> = {
+    name: 'Single Task Assignment',
+    type: 'task_assignment',
+    visibility: 'system',
+    headerConfig: {
+        showConnektLogo: true,
+        showCoatOfArms: false,
+        showGambianFlag: false
+    },
+    bodyTemplate: `# Task Assignment: {{taskTitle}}
+
+This agreement confirms the assignment of the task described below from {{clientName}} to {{contractorName}}.
+
+## Task Details
+
+**Task:** {{taskTitle}}
+
+**Description:** {{taskDescription}}
+
+**Deadline:** {{taskDeadline}}
+
+## Compensation
+
+**Payment:** {{taskPayment}} {{taskCurrency}}
+
+**Terms:** {{paymentTerms}}
+
+## Acceptance
+
+By signing this agreement, the Contractor agrees to complete the task by the deadline and according to the requirements. The Client agrees to release payment upon satisfactory completion.`,
+    defaultTerms: `1. **Completion:** Task must be marked as complete and proof submitted by the deadline.
+2. **Payment:** Funds are held in escrow and released upon approval of the work.
+3. **Disputes:** Connekt Platform mediation applies.`,
+    variables: [
+        { key: 'taskTitle', label: 'Task Title', type: 'text', required: true },
+        { key: 'taskDescription', label: 'Task Description', type: 'text', required: true },
+        { key: 'taskDeadline', label: 'Deadline', type: 'date', required: true },
+        { key: 'taskPayment', label: 'Payment Amount', type: 'currency', required: true },
+        { key: 'taskCurrency', label: 'Currency', type: 'text', required: true },
+        { key: 'paymentTerms', label: 'Payment Terms', type: 'text', required: true },
+        { key: 'clientName', label: 'Client Name', type: 'text', required: true },
+        { key: 'contractorName', label: 'Contractor Name', type: 'text', required: true }
+    ]
+};
+
 /**
  * All system templates
  */
@@ -422,5 +467,6 @@ export const SYSTEM_TEMPLATES = [
     LONG_TERM_JOB_TEMPLATE,
     PROJECT_BASED_JOB_TEMPLATE,
     GENERAL_PROPOSAL_TEMPLATE,
-    SERVICE_AGREEMENT_TEMPLATE
+    SERVICE_AGREEMENT_TEMPLATE,
+    SINGLE_TASK_ASSIGNMENT_TEMPLATE
 ];
