@@ -45,7 +45,6 @@ interface ContractData {
     toUserId?: string;
     toUsername?: string;
 }
-
 export function ContractViewerModal({ contractId, userId, isOpen, onClose, onSigned }: ContractViewerModalProps) {
     const [contract, setContract] = useState<ContractData | null>(null);
     const [loading, setLoading] = useState(true);

@@ -6,7 +6,11 @@ import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import type { MailMessage } from '@/lib/services/mail-service';
 import Image from 'next/image';
-import { ContractViewerModal } from './ContractViewerModal';
+import { UnifiedContractViewer } from '@/components/contracts/UnifiedContractViewer';
+import { ContractSigningService } from '@/lib/services/contract-signing-service';
+import { ContractMailService } from '@/lib/services/contract-mail-service';
+import toast from 'react-hot-toast';
+import { useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 
 interface MailViewerColumnProps {
@@ -27,6 +31,27 @@ export function MailViewerColumn({
     const { user } = useAuth();
     const router = useRouter();
     const [showContractViewer, setShowContractViewer] = useState(false);
+    const [loadedContract, setLoadedContract] = useState<any | null>(null);
+    const [loadingContract, setLoadingContract] = useState(false);
+    // Load the full contract by ID when viewer opens
+    useEffect(() => {
+        const load = async () => {
+            if (!showContractViewer || !hasContract) return;
+            const contractId = (mail as any).contractId as string;
+            setLoadingContract(true);
+            try {
+                const c = await ContractSigningService.getContract(contractId);
+                setLoadedContract(c);
+            } catch (err: any) {
+                console.error('Failed to load contract', err);
+                toast.error(err?.message || 'Failed to load contract');
+            } finally {
+                setLoadingContract(false);
+            }
+        };
+        load();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [showContractViewer]);
 
     // Check if this mail has a contract
     const hasContract = (mail as any)?.contractId;
@@ -183,21 +208,32 @@ export function MailViewerColumn({
                 {/* TODO: Add attachments display when implemented */}
             </div>
 
-            {/* Contract Viewer Modal */}
+            {/* Contract Viewer Modal (Unified) */}
             {hasContract && user && (
-                <ContractViewerModal
+                <UnifiedContractViewer
                     contractId={(mail as any).contractId}
-                    userId={user.uid}
+                    contract={loadedContract || {
+                        type: 'general',
+                        title: mail.subject || 'Contract',
+                        description: mail.body || '',
+                        terms: {},
+                        status: 'pending',
+                        fromUserId: mail.senderId,
+                        fromUsername: mail.senderUsername,
+                        toUserId: mail.recipientId,
+                        toUsername: mail.recipientUsername,
+                    }}
                     isOpen={showContractViewer}
                     onClose={() => setShowContractViewer(false)}
-                    onSigned={(contract) => {
-                        setShowContractViewer(false);
-                        if (contract.type === 'task_assignment' && contract.terms.taskId) {
-                            router.push(`/dashboard/tasks?taskId=${contract.terms.taskId}`);
-                        } else if (contract.type === 'project_assignment' && contract.terms.projectId) {
-                            router.push(`/projects/${contract.terms.projectId}`);
+                    onSign={async (contractId: string, fullName: string) => {
+                        try {
+                            await ContractSigningService.signContract(contractId, user.uid, mail.recipientUsername, fullName);
+                            toast.success('Contract signed successfully.');
+                        } catch (err: any) {
+                            toast.error(err?.message || 'Failed to sign contract');
                         }
                     }}
+                    canSign={user.uid === (mail as any).recipientId && (loadedContract?.status === 'pending')}
                 />
             )}
         </div>

@@ -78,17 +78,27 @@ export function UnifiedContractViewer({
 
         setSigning(true);
         try {
+            // Ensure we have the freshest contract payload (with inferred terms) before signing
+            let hydratedContract = contract;
+            try {
+                const latest = await ContractSigningService.getContract(contractId);
+                if (latest) hydratedContract = { ...hydratedContract, ...latest };
+            } catch (loadErr) {
+                console.warn('[UnifiedContractViewer] Failed to hydrate contract before sign', loadErr);
+            }
+
             if (onSign) {
                 await onSign(contractId, fullName.trim());
             } else if (canFallbackSign) {
-                const username = contract.toUsername || user?.displayName || 'recipient';
+                const username = hydratedContract.toUsername || contract.toUsername || user?.displayName || 'recipient';
                 await ContractSigningService.signContract(contractId, user.uid, username, fullName.trim());
             }
             console.log('[UnifiedContractViewer] Sign success');
-            const t = contract?.terms || {};
-            const projectId = t.projectId || t.linkedProjectId;
-            const workspaceId = t.workspaceId || t.linkedWorkspaceId;
-            const taskId = t.taskId || t.linkedTaskId;
+            const t = hydratedContract?.terms || {};
+            const projectId = t.projectId || t.linkedProjectId || (hydratedContract as any)?.relatedProjectId;
+            const workspaceId = t.workspaceId || t.linkedWorkspaceId || (hydratedContract as any)?.relatedWorkspaceId;
+            const taskId = t.taskId || t.linkedTaskId || (hydratedContract as any)?.relatedTaskId;
+            const linkedChatId = t.linkedChatId || t.chatId || t.teamChatId;
 
             const names: string[] = [];
             try {
@@ -115,7 +125,8 @@ export function UnifiedContractViewer({
             if (t.startDate || t.endDate) parts.push('calendar events created');
             const summary = parts.length ? `Sync: ${parts.join(', ')}` : 'Access and sync granted';
             const namesSummary = names.length ? ` (${names.join('; ')})` : '';
-            toast.success(`Contract signed successfully. ${summary}.${namesSummary}`);
+            const idDebug = [`project=${projectId || 'none'}`, `workspace=${workspaceId || 'none'}`, `task=${taskId || 'none'}`, `chat=${linkedChatId || 'none'}`].join(' | ');
+            toast.success(`Contract signed successfully. ${summary}.${namesSummary}\n${idDebug}`);
         } catch (error: any) {
             console.error('[UnifiedContractViewer] Sign error', error);
             toast.error(error?.message || 'Failed to sign contract');

@@ -31,7 +31,14 @@ export default function ProjectDetailPage() {
         if (user && projectId) {
             const fetchData = async () => {
                 try {
-                    const [projectData, tasksData, ownerCheck, supervisorCheck, budgetData] = await Promise.all([
+                    // Check access first
+                    const hasAccess = await EnhancedProjectService.hasAccess(projectId, user.uid);
+                    if (!hasAccess) {
+                        router.push('/dashboard/projects');
+                        return;
+                    }
+
+                    const [projectData, allTasks, ownerCheck, supervisorCheck, budgetData] = await Promise.all([
                         EnhancedProjectService.getProject(projectId),
                         TaskService.getProjectTasks(projectId),
                         EnhancedProjectService.isOwner(projectId, user.uid),
@@ -40,7 +47,18 @@ export default function ProjectDetailPage() {
                     ]);
 
                     setProject(projectData);
-                    setTasks(tasksData);
+
+                    // Filter tasks based on role - strict visibility for members
+                    if (ownerCheck || supervisorCheck) {
+                        setTasks(allTasks);
+                    } else {
+                        // Regular members see only their tasks or tasks they created
+                        const myTasks = allTasks.filter(t =>
+                            t.assigneeId === user.uid || t.createdBy === user.uid
+                        );
+                        setTasks(myTasks);
+                    }
+
                     setIsOwner(ownerCheck);
                     setIsSupervisor(supervisorCheck);
                     setBudgetStatus(budgetData);

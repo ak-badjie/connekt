@@ -35,6 +35,25 @@ export default function SendProjectInviteModal({
     const [selectedRole, setSelectedRole] = useState<'supervisor' | 'member'>('member');
     const [sending, setSending] = useState(false);
     const [error, setError] = useState('');
+    const [workspaceId, setWorkspaceId] = useState<string | undefined>();
+
+    // Load workspaceId for the project so we can embed it in the contract terms
+    useEffect(() => {
+        const fetchProjectContext = async () => {
+            try {
+                const project = await FirestoreService.getProjectById(projectId);
+                if (project?.workspaceId) {
+                    setWorkspaceId(project.workspaceId);
+                }
+            } catch (err) {
+                console.warn('Unable to fetch project context for contract invite', err);
+            }
+        };
+
+        if (isOpen && projectId) {
+            fetchProjectContext();
+        }
+    }, [isOpen, projectId]);
 
     const handleSearch = async () => {
         if (!searchQuery.trim()) return;
@@ -76,6 +95,8 @@ export default function SendProjectInviteModal({
         const recipientName = selectedUser?.displayName || selectedUser?.username || 'Recipient';
 
         return {
+            projectId,
+            workspaceId: workspaceId || undefined,
             contractDate: todayStr,
             clientName: recruiterName,
             contractorName: recipientName,

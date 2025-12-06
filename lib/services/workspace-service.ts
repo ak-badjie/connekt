@@ -107,20 +107,32 @@ export const WorkspaceService = {
      * Get workspaces where user is a member (but not owner)
      */
     async getWorkspacesMemberOf(userId: string): Promise<Workspace[]> {
-        const q = query(
+        // Prefer memberIds array if present; fallback to scanning
+        const byMemberId = query(
             collection(db, 'workspaces'),
-            where('members', 'array-contains', { userId }),
+            where('memberIds', 'array-contains', userId),
             where('isActive', '==', true),
             orderBy('createdAt', 'desc')
         );
 
-        const snapshot = await getDocs(q);
+        let snapshot = await getDocs(byMemberId);
+
+        // If no results (older docs without memberIds), scan all active workspaces and filter
+        if (snapshot.empty) {
+            const all = await getDocs(
+                query(collection(db, 'workspaces'), where('isActive', '==', true))
+            );
+            const filtered = all.docs
+                .map(doc => ({ id: doc.id, ...doc.data() } as Workspace))
+                .filter(w => w.members?.some(m => m.userId === userId));
+            return filtered.filter(w => w.ownerId !== userId);
+        }
+
         const workspaces = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
         } as Workspace));
 
-        // Filter out workspaces where user is the owner
         return workspaces.filter(w => w.ownerId !== userId);
     },
 
@@ -143,6 +155,7 @@ export const WorkspaceService = {
 
         await updateDoc(doc(db, 'workspaces', workspaceId), {
             members: arrayUnion(workspaceMember),
+            memberIds: arrayUnion(member.userId),
             updatedAt: serverTimestamp()
         });
 
