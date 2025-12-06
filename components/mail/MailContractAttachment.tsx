@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { FileSignature, Eye } from 'lucide-react';
 import { UnifiedContractViewer } from '@/components/contracts/UnifiedContractViewer';
 import { ContractSigningService } from '@/lib/services/contract-signing-service';
+import { ContractMailService } from '@/lib/services/contract-mail-service';
 import { useAuth } from '@/context/AuthContext';
 
 interface MailContractAttachmentProps {
@@ -33,16 +34,37 @@ export function MailContractAttachment({ contractId, mailId }: MailContractAttac
     };
 
     const handleSign = async (contractId: string, fullName: string) => {
-        if (!user || !userProfile) return;
+        if (!user) {
+            alert('You need to be signed in to sign this contract.');
+            return;
+        }
 
-        await ContractSigningService.signContract(
-            contractId,
-            user.uid,
-            userProfile?.username || 'unknown',
-            fullName
-        );
+        const username = (userProfile?.username) || user.displayName || user.email || 'user';
 
-        // Reload contract to show signed status
+        try {
+            await ContractSigningService.signContract(
+                contractId,
+                user.uid,
+                String(username),
+                fullName
+            );
+        } catch (err: any) {
+            const message = err?.message || 'Failed to sign contract';
+            alert(message);
+        } finally {
+            await loadContract();
+        }
+    };
+
+    const handleApproveMilestone = async (milestoneId: string) => {
+        if (!user) return;
+        await ContractMailService.approveMilestone(contractId, milestoneId, user.uid);
+        await loadContract();
+    };
+
+    const handleSubmitEvidence = async (milestoneId: string, payload: { url: string; note?: string }) => {
+        if (!user) return;
+        await ContractMailService.submitMilestoneEvidence(contractId, milestoneId, user.uid, payload);
         await loadContract();
     };
 
@@ -60,6 +82,8 @@ export function MailContractAttachment({ contractId, mailId }: MailContractAttac
 
     const canSign = user?.uid === contract.toUserId && contract.status === 'pending';
     const isSigned = contract.status === 'signed';
+    const canApproveMilestones = user?.uid === contract.fromUserId;
+    const canSubmitEvidence = user?.uid === contract.toUserId;
 
     return (
         <>
@@ -114,6 +138,10 @@ export function MailContractAttachment({ contractId, mailId }: MailContractAttac
                     onClose={() => setViewing(false)}
                     onSign={canSign ? handleSign : undefined}
                     canSign={canSign}
+                    onApproveMilestone={canApproveMilestones ? handleApproveMilestone : undefined}
+                    canApproveMilestones={canApproveMilestones}
+                    onSubmitMilestoneEvidence={canSubmitEvidence ? handleSubmitEvidence : undefined}
+                    canSubmitEvidence={canSubmitEvidence}
                 />
             )}
         </>

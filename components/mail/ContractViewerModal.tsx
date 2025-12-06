@@ -2,12 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 import { X, FileText, CheckCircle, XCircle, Printer } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import ReactMarkdown from 'react-markdown';
 import GambianLegalHeader from './GambianLegalHeader';
 import { ContractMailService } from '@/lib/services/contract-mail-service';
+import { EnhancedProjectService } from '@/lib/services/enhanced-project-service';
+import { WorkspaceService } from '@/lib/services/workspace-service';
+import { TaskService } from '@/lib/services/task-service';
 
 interface ContractViewerModalProps {
     contractId: string;
@@ -66,10 +70,12 @@ export function ContractViewerModal({ contractId, userId, isOpen, onClose, onSig
                 setContract({ id: contractSnap.id, ...contractSnap.data() } as ContractData);
             } else {
                 setError('Contract not found');
+                toast.error('Contract not found');
             }
         } catch (err: any) {
             console.error('Error loading contract:', err);
             setError(err.message || 'Failed to load contract');
+            toast.error(err?.message || 'Failed to load contract');
         } finally {
             setLoading(false);
         }
@@ -79,6 +85,7 @@ export function ContractViewerModal({ contractId, userId, isOpen, onClose, onSig
         if (!contract) return;
         if (!fullName.trim()) {
             setError('Please enter your full legal name to sign.');
+            toast.error('Please enter your full legal name to sign.');
             return;
         }
         setSigning(true);
@@ -88,9 +95,41 @@ export function ContractViewerModal({ contractId, userId, isOpen, onClose, onSig
             await ContractMailService.signContract(contract.id, userId, fullName.trim());
             await loadContract(); // Reload to show updated status
             if (onSigned) onSigned(contract);
+            // Success toast with simple summary
+            const t = contract.terms || {};
+            const parts: string[] = [];
+            if (t.projectId || t.linkedProjectId) parts.push('added to project');
+            if (t.workspaceId || t.linkedWorkspaceId) parts.push('added to workspace');
+            if (t.taskId || t.linkedTaskId) parts.push('task assigned');
+            if (t.startDate || t.endDate) parts.push('calendar events created');
+            const summary = parts.length ? `Sync: ${parts.join(', ')}` : 'Access and sync granted';
+            // Fetch names for richer toast
+            try {
+                const names: string[] = [];
+                const projectId = t.projectId || t.linkedProjectId;
+                const workspaceId = t.workspaceId || t.linkedWorkspaceId;
+                const taskId = t.taskId || t.linkedTaskId;
+                if (projectId) {
+                    const p = await EnhancedProjectService.getProject(projectId);
+                    if (p?.title) names.push(`project: ${p.title}`);
+                }
+                if (workspaceId) {
+                    const w = await WorkspaceService.getWorkspace(workspaceId);
+                    if (w?.name) names.push(`workspace: ${w.name}`);
+                }
+                if (taskId) {
+                    const tk = await TaskService.getTask(taskId);
+                    if (tk?.title) names.push(`task: ${tk.title}`);
+                }
+                const namesSummary = names.length ? ` (${names.join('; ')})` : '';
+                toast.success(`Contract signed successfully. ${summary}.${namesSummary}`);
+            } catch (e) {
+                toast.success(`Contract signed successfully. ${summary}.`);
+            }
         } catch (err: any) {
             console.error('Error accepting contract:', err);
             setError(err.message || 'Failed to accept contract');
+            toast.error(err?.message || 'Failed to accept contract');
         } finally {
             setSigning(false);
         }
@@ -107,9 +146,11 @@ export function ContractViewerModal({ contractId, userId, isOpen, onClose, onSig
             await ContractMailService.rejectContract(contract.id, userId, reason || undefined);
             await loadContract(); // Reload to show updated status
             if (onSigned) onSigned();
+            toast.success('Contract rejected.');
         } catch (err: any) {
             console.error('Error rejecting contract:', err);
             setError(err.message || 'Failed to reject contract');
+            toast.error(err?.message || 'Failed to reject contract');
         } finally {
             setSigning(false);
         }

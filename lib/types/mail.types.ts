@@ -229,6 +229,15 @@ export interface Contract {
     // Violations
     violations?: ContractViolation[];
 
+    // Audit trail
+    audit?: Array<{
+        at: any;
+        by: string;
+        action: string;
+        details?: string;
+        meta?: Record<string, any>;
+    }>;
+
     // Associated IDs
     relatedEntityId?: string; // Task ID, Project ID, Workspace ID, etc.
     relatedMailId?: string; // Mail that created this contract
@@ -244,6 +253,12 @@ export interface ContractTerms {
     linkedProjectId?: string;
     linkedWorkspaceId?: string;
     linkedChatId?: string;
+
+    // Roles
+    roles?: Array<{
+        userId: string;
+        role: 'owner' | 'admin' | 'member' | 'supervisor';
+    }>;
 
     // Task Assignment Terms
     taskId?: string;
@@ -297,6 +312,15 @@ export interface ContractTerms {
         dueAt?: string;
         deliverableRef?: string;
         status?: 'pending' | 'submitted' | 'approved' | 'paid';
+        submittedAt?: any;
+        approvedAt?: any;
+        evidence?: Array<{
+            url: string;
+            note?: string;
+            uploadedAt: any;
+            by: string;
+        }>;
+        reviewerNotes?: string;
     }>;
 
     // Timeline

@@ -8,10 +8,13 @@ import {
     doc,
     getDoc,
     updateDoc,
-    serverTimestamp
+    serverTimestamp,
+    arrayUnion,
+    Timestamp
 } from 'firebase/firestore';
 import type { Contract, ContractType, ContractTerms, ContractStatus } from '@/lib/types/mail.types';
 import { MailService } from './mail-service';
+import { WalletService } from './wallet-service';
 
 /**
  * Service for handling contract-based mail operations
@@ -188,6 +191,12 @@ export const ContractMailService = {
             ...(fullName ? { signatureFullName: fullName, signedAt: serverTimestamp(), signedBy: acceptedByUserId } : {})
         });
 
+        await this.appendAudit(contractId, {
+            by: acceptedByUserId,
+            action: 'accepted',
+            details: fullName ? `Accepted and signed by ${fullName}` : 'Accepted'
+        });
+
         // Hold funds in escrow if required
         await this.ensureEscrow(contractId, contract);
 
@@ -276,11 +285,150 @@ export const ContractMailService = {
             signedBy: userId
         });
 
+        await this.appendAudit(contractId, {
+            by: userId,
+            action: 'signed',
+            details: `Signed by ${safeFullName}`
+        });
+
         // Hold funds in escrow if required
         await this.ensureEscrow(contractId, contract);
 
         // Execute contract-specific actions
         await this.executeContractAcceptance(contract);
+    },
+
+    async appendAudit(contractId: string, entry: { by: string; action: string; details?: string; meta?: Record<string, any> }) {
+        const contractRef = doc(db, 'contracts', contractId);
+        await updateDoc(contractRef, {
+            audit: arrayUnion({
+                at: Timestamp.now(),
+                ...entry
+            })
+        });
+    },
+
+    /**
+     * Approve a contract milestone and trigger partial escrow release
+     */
+    async approveMilestone(
+        contractId: string,
+        milestoneId: string,
+        approverUserId: string
+    ): Promise<void> {
+        const contractRef = doc(db, 'contracts', contractId);
+        const contractSnap = await getDoc(contractRef);
+
+        if (!contractSnap.exists()) {
+            throw new Error('Contract not found');
+        }
+
+        const contract = contractSnap.data() as Contract;
+        const terms = contract.terms || {};
+        const milestones = terms.milestones || [];
+        const milestoneIndex = milestones.findIndex(m => m.id === milestoneId);
+
+        if (milestoneIndex === -1) {
+            throw new Error('Milestone not found');
+        }
+
+        // Only payer (fromUserId) can approve and release funds
+        if (contract.fromUserId !== approverUserId) {
+            throw new Error('Only the contract issuer can approve milestones');
+        }
+
+        const milestone = milestones[milestoneIndex];
+        if (milestone.status === 'paid') {
+            return; // idempotent
+        }
+
+        if (milestone.status === 'pending') {
+            // allow approving from pending (no submission), but note in audit
+        }
+
+        const amount = milestone.amount;
+        if (!amount || amount <= 0) {
+            throw new Error('Milestone has no payable amount');
+        }
+
+        // Release partial escrow for this milestone
+        await WalletService.releaseEscrowPartial(contractId, amount);
+
+        // Update milestone status locally
+        const updatedMilestone = {
+            ...milestone,
+            status: 'paid',
+            approvedAt: serverTimestamp()
+        };
+        const updatedMilestones = [...milestones];
+        updatedMilestones[milestoneIndex] = updatedMilestone;
+
+        await updateDoc(contractRef, {
+            'terms.milestones': updatedMilestones,
+            updatedAt: serverTimestamp()
+        });
+
+        await this.appendAudit(contractId, {
+            by: approverUserId,
+            action: 'milestone_paid',
+            details: `Milestone ${milestone.title || milestone.id} paid (${amount})`,
+            meta: { milestoneId }
+        });
+    },
+
+    /**
+     * Submit milestone evidence by recipient
+     */
+    async submitMilestoneEvidence(
+        contractId: string,
+        milestoneId: string,
+        submitterUserId: string,
+        evidence: { url: string; note?: string }
+    ): Promise<void> {
+        const contractRef = doc(db, 'contracts', contractId);
+        const contractSnap = await getDoc(contractRef);
+
+        if (!contractSnap.exists()) throw new Error('Contract not found');
+        const contract = contractSnap.data() as Contract;
+
+        if (contract.toUserId !== submitterUserId) {
+            throw new Error('Only the contract recipient can submit milestone evidence');
+        }
+
+        const terms = contract.terms || {};
+        const milestones = terms.milestones || [];
+        const milestoneIndex = milestones.findIndex(m => m.id === milestoneId);
+        if (milestoneIndex === -1) throw new Error('Milestone not found');
+
+        const milestone = milestones[milestoneIndex];
+        if (milestone.status === 'paid') return; // no-op
+
+        const updatedMilestone = {
+            ...milestone,
+            status: 'submitted',
+            submittedAt: serverTimestamp(),
+            evidence: [...(milestone.evidence || []), {
+                url: evidence.url,
+                note: evidence.note,
+                uploadedAt: serverTimestamp(),
+                by: submitterUserId
+            }]
+        };
+
+        const updatedMilestones = [...milestones];
+        updatedMilestones[milestoneIndex] = updatedMilestone;
+
+        await updateDoc(contractRef, {
+            'terms.milestones': updatedMilestones,
+            updatedAt: serverTimestamp()
+        });
+
+        await this.appendAudit(contractId, {
+            by: submitterUserId,
+            action: 'milestone_submitted',
+            details: `Milestone ${milestone.title || milestone.id} submitted` ,
+            meta: { milestoneId }
+        });
     },
 
     /**
