@@ -6,9 +6,10 @@ import { createPortal } from 'react-dom';
 import { FirestoreService, UserProfile } from '@/lib/services/firestore-service';
 import { TaskService } from '@/lib/services/task-service';
 import { useAuth } from '@/context/AuthContext';
-import { Project } from '@/lib/types/workspace.types';
+import { Project, JobTemplate } from '@/lib/types/workspace.types';
 import { WorkspaceService } from '@/lib/services/workspace-service';
 import { EnhancedProjectService } from '@/lib/services/enhanced-project-service';
+import { JobTemplateService } from '@/lib/services/job-template-service';
 import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
 
 interface AssignTaskModalProps {
@@ -50,9 +51,32 @@ export default function AssignTaskModal({
     const [sendingContract, setSendingContract] = useState(false);
     const [error, setError] = useState('');
 
+    // Templates
+    const [templates, setTemplates] = useState<JobTemplate[]>([]);
+    const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+    const [selectedTemplate, setSelectedTemplate] = useState<JobTemplate | null>(null);
+
     useEffect(() => {
         setIsMounted(true);
-    }, []);
+        if (project?.workspaceId) {
+            loadTemplates(project.workspaceId);
+        }
+    }, [project?.workspaceId]);
+
+    const loadTemplates = async (wsId: string) => {
+        try {
+            const allTemplates = await JobTemplateService.getTemplates(wsId);
+            // Filter only 'task' templates for this modal
+            setTemplates(allTemplates.filter(t => t.type === 'task'));
+        } catch (e) {
+            console.error('Error loading templates', e);
+        }
+    };
+
+    const handleTemplateSelect = (tId: string) => {
+        setSelectedTemplateId(tId);
+        setSelectedTemplate(templates.find(t => t.id === tId) || null);
+    };
 
     // Check if selected user is a project member or workspace employee
     useEffect(() => {
@@ -168,13 +192,32 @@ export default function AssignTaskModal({
                 workspaceId: project?.workspaceId,
                 clientName: recruiterName,
                 contractorName: recipientName,
+                // Map to Freelance Contract variables
+                projectTitle: taskTitle, // Mapping Task Title to Project Title
+                projectDescription: `Complete task: ${taskTitle}`,
+                deliverables: `Completion of task: ${taskTitle}`,
+                paymentAmount: budget,
+                paymentCurrency: currency,
+                startDate: new Date().toISOString().slice(0, 10),
+                endDate: deadline || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10), // Default 7 days
+                duration: deadline ? '1' : '7', // Rough estimate
+                durationUnit: 'days',
+                paymentType: 'Fixed Price',
+                reviewPeriod: '3',
+                revisionRounds: '1',
+                noticePeriod: '1',
+
+                // Keep original for back-compat or detailed views if needed
                 taskTitle,
                 taskDescription: `Complete task: ${taskTitle}`,
-                taskPayment: budget,
-                taskCurrency: currency,
-                taskDeadline: deadline || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10), // Default 7 days
-                acceptanceDeadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10), // Default 3 days
-                paymentTerms: 'Payment upon task completion and approval.'
+
+                paymentTerms: selectedTemplate?.paymentSchedule === 'on-completion'
+                    ? 'Payment upon task completion and approval.'
+                    : 'As defined by workspace agreement.',
+                // Template Injections
+                condition_penaltyPerLateTask: selectedTemplate?.conditions.penaltyPerLateTask
+                    ? `${selectedTemplate.conditions.penaltyPerLateTask} ${selectedTemplate.conditions.penaltyUnit} per late task`
+                    : 'None'
             };
 
             const params = new URLSearchParams({
@@ -182,11 +225,12 @@ export default function AssignTaskModal({
                 to: toAddress,
                 subject,
                 body,
-                templateId: 'Single Task Assignment', // Assuming this template exists or effectively maps to 'task_assignment' type
-                contractType: 'task_assignment', // Important: matches ContractType type
+                templateId: 'Freelance Contract', // Updated to match new system template
+                contractType: 'project', // Updated to 'project' (Freelance)
                 brief: briefLines.join('\n'),
                 autoStart: options.autoStartAI ? '1' : '0',
-                variables: JSON.stringify(variables)
+                variables: JSON.stringify(variables),
+                autoSelectTaskId: taskId // Auto-select this task in the composer
             });
 
             const url = `/mail?${params.toString()}`;
@@ -371,6 +415,25 @@ export default function AssignTaskModal({
                                             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                                                 Send a formal task contract. The user will be assigned once they sign the contract.
                                             </p>
+
+                                            {/* Template Select */}
+                                            {templates.length > 0 && (
+                                                <div className="mt-3">
+                                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">
+                                                        Apply Task Template (Optional)
+                                                    </label>
+                                                    <select
+                                                        value={selectedTemplateId}
+                                                        onChange={(e) => handleTemplateSelect(e.target.value)}
+                                                        className="w-full px-3 py-2 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm"
+                                                    >
+                                                        <option value="">-- No Template --</option>
+                                                        {templates.map(t => (
+                                                            <option key={t.id} value={t.id}>{t.title}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            )}
 
                                             <div className="flex flex-wrap gap-2 mt-3">
                                                 <button

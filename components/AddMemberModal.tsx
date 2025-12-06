@@ -17,6 +17,10 @@ interface SendProjectInviteModalProps {
     projectDeadline?: string;
 }
 
+import { JobTemplate, Task } from '@/lib/types/workspace.types';
+import { JobTemplateService } from '@/lib/services/job-template-service';
+import { TaskService } from '@/lib/services/task-service';
+
 export default function SendProjectInviteModal({
     isOpen,
     onClose,
@@ -33,11 +37,30 @@ export default function SendProjectInviteModal({
     const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
     const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
     const [selectedRole, setSelectedRole] = useState<'supervisor' | 'member'>('member');
-    const [employmentType, setEmploymentType] = useState<'employee' | 'freelancer'>('freelancer');
+    // Contract Types
+    const [contractType, setContractType] = useState<'project' | 'job' | 'task'>('project');
     const [jobTitle, setJobTitle] = useState('');
+
+    // Templates
+    const [templates, setTemplates] = useState<JobTemplate[]>([]);
+    const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+    const [selectedTemplate, setSelectedTemplate] = useState<JobTemplate | null>(null);
+
+    // Advanced Contract Fields (Auto-filled from template)
+    const [salary, setSalary] = useState<number>(0);
+    const [currency, setCurrency] = useState('GMD');
+    const [paymentSchedule, setPaymentSchedule] = useState<'monthly' | 'weekly' | 'bi-weekly' | 'on-completion'>('on-completion');
+    const [startTime, setStartTime] = useState('09:00');
+    const [endTime, setEndTime] = useState('17:00');
+    const [penaltyPerLateTask, setPenaltyPerLateTask] = useState<number>(0);
+
     const [sending, setSending] = useState(false);
     const [error, setError] = useState('');
     const [workspaceId, setWorkspaceId] = useState<string | undefined>();
+
+    // Multi-task selection
+    const [projectTasks, setProjectTasks] = useState<Task[]>([]);
+    const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
 
     // Load workspaceId for the project so we can embed it in the contract terms
     useEffect(() => {
@@ -45,7 +68,9 @@ export default function SendProjectInviteModal({
             try {
                 const project = await FirestoreService.getProjectById(projectId);
                 if ((project as any)?.workspaceId) {
-                    setWorkspaceId((project as any).workspaceId);
+                    const wsId = (project as any).workspaceId;
+                    setWorkspaceId(wsId);
+                    loadTemplates(wsId);
                 }
             } catch (err) {
                 console.warn('Unable to fetch project context for contract invite', err);
@@ -54,8 +79,56 @@ export default function SendProjectInviteModal({
 
         if (isOpen && projectId) {
             fetchProjectContext();
+            loadProjectTasks();
+            // Default to project type
+            setContractType('project');
         }
     }, [isOpen, projectId]);
+
+    const loadProjectTasks = async () => {
+        try {
+            const tasks = await TaskService.getProjectTasks(projectId);
+            console.log(`Loaded ${tasks.length} tasks for project ${projectId}:`, tasks);
+            setProjectTasks(tasks);
+        } catch (e) {
+            console.error('Error loading project tasks', e);
+        }
+    };
+
+    const toggleTaskSelection = (taskId: string) => {
+        setSelectedTaskIds(prev =>
+            prev.includes(taskId)
+                ? prev.filter(id => id !== taskId)
+                : [...prev, taskId]
+        );
+    };
+
+    const loadTemplates = async (wsId: string) => {
+        try {
+            const allTemplates = await JobTemplateService.getTemplates(wsId);
+            // Filter out 'job' templates (Employment Contracts) as they are Workspace-only
+            setTemplates(allTemplates.filter(t => t.type !== 'job'));
+        } catch (e) {
+            console.error('Error loading templates', e);
+        }
+    };
+
+    const handleTemplateSelect = (tId: string) => {
+        const template = templates.find(t => t.id === tId);
+        setSelectedTemplateId(tId);
+        setSelectedTemplate(template || null);
+
+        if (template) {
+            setContractType(template.type);
+            setJobTitle(template.title);
+            setSalary(template.salary);
+            setCurrency(template.currency);
+            setPaymentSchedule(template.paymentSchedule);
+            setStartTime(template.schedule.startTime);
+            setEndTime(template.schedule.endTime);
+            setPenaltyPerLateTask(template.conditions.penaltyPerLateTask);
+        }
+    };
 
     const handleSearch = async () => {
         if (!searchQuery.trim()) return;
@@ -104,21 +177,28 @@ export default function SendProjectInviteModal({
             contractorName: recipientName,
             projectTitle: projectTitle || 'Project',
             projectDescription: `Project invitation for ${projectTitle || 'project'} as ${selectedRole}`,
-            deliverables: 'Deliverables to be detailed with the assignee.',
+            deliverables: selectedTemplate?.description || 'Deliverables to be detailed with the assignee.',
             startDate: todayStr,
             endDate: deadlineStr,
             duration: durationDays,
             durationUnit: 'days',
-            paymentAmount: projectBudget || 0,
-            paymentCurrency: 'GMD',
-            paymentType: 'fixed',
+            paymentAmount: salary || projectBudget || 0,
+            paymentCurrency: currency,
+            paymentType: paymentSchedule,
+            paymentSchedule: paymentSchedule,
             paymentMilestones: 'Milestones will be outlined in the project plan.',
+
+            // Advanced Fields
+            schedule_startTime: startTime,
+            schedule_endTime: endTime,
+            condition_penaltyPerLateTask: penaltyPerLateTask > 0 ? `${penaltyPerLateTask} ${currency} deduction` : 'None',
+
             reviewPeriod: 3,
             revisionRounds: 2,
             noticePeriod: 7,
             terminationConditions: 'Either party may terminate with notice via Connekt.',
-            employmentType,
-            jobTitle: employmentType === 'employee' ? jobTitle : undefined
+            contractType,
+            jobTitle: jobTitle || selectedRole
         } as Record<string, any>;
     };
 
@@ -137,7 +217,8 @@ export default function SendProjectInviteModal({
             const briefLines = [
                 `Project: ${projectTitle || ''}`,
                 `Role: ${selectedRole}`,
-                projectBudget ? `Budget: ${projectBudget}` : '',
+                `Type: ${contractType.toUpperCase()}`,
+                `Payment: ${salary || projectBudget} ${currency}`,
                 projectDeadline ? `Deadline: ${projectDeadline}` : '',
                 `Recruiter: ${recruiterName} (${fromAddress})`,
                 `Recipient: ${recipientName} (${toAddress})`
@@ -147,17 +228,24 @@ export default function SendProjectInviteModal({
 
             const variables = buildContractVariables();
 
-            const params = new URLSearchParams({
+            const paramsObj: Record<string, string> = {
                 compose: '1',
                 to: toAddress,
                 subject,
                 body,
-                templateId: 'Project-Based Job Contract',
-                contractType: 'project_assignment',
+                templateId: 'Freelance Contract',
+                contractType: 'project',
                 brief: briefLines.join('\n'),
                 autoStart: options.autoStartAI ? '1' : '0',
                 variables: JSON.stringify(variables)
-            });
+            };
+
+            // Add multi-task selection if tasks are selected
+            if (selectedTaskIds.length > 0) {
+                paramsObj.autoSelectTaskIds = selectedTaskIds.join(',');
+            }
+
+            const params = new URLSearchParams(paramsObj);
 
             const url = `/mail?${params.toString()}`;
             window.open(url, '_blank', 'noopener,noreferrer');
@@ -167,6 +255,7 @@ export default function SendProjectInviteModal({
             setSearchResults([]);
             setSelectedUser(null);
             setSelectedRole('member');
+            setSelectedTaskIds([]);
             onClose();
         } catch (err: any) {
             console.error('Send contract error:', err);
@@ -334,50 +423,102 @@ export default function SendProjectInviteModal({
                                 </div>
                             </div>
 
-                            {/* Employment Type Selection */}
+                            {/* Template Selection */}
+                            {templates.length > 0 && (
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-900 dark:text-white mb-2">
+                                        Auto-Fill from Template
+                                    </label>
+                                    <select
+                                        value={selectedTemplateId}
+                                        onChange={(e) => handleTemplateSelect(e.target.value)}
+                                        className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl"
+                                    >
+                                        <option value="">-- Select a Template --</option>
+                                        {templates.map(t => (
+                                            <option key={t.id} value={t.id}>{t.title} ({t.type})</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            {/* Contract Type Selection */}
                             <div>
                                 <label className="block text-sm font-bold text-gray-900 dark:text-white mb-2">
-                                    Employment Type
+                                    Contract Type
                                 </label>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <button
-                                        onClick={() => setEmploymentType('freelancer')}
-                                        className={`p-4 rounded-xl border-2 transition-all ${employmentType === 'freelancer'
-                                            ? 'border-[#008080] bg-teal-50 dark:bg-teal-900/20'
-                                            : 'border-gray-200 dark:border-zinc-700 hover:border-gray-300'
-                                            }`}
-                                    >
-                                        <p className="font-bold text-gray-900 dark:text-white">Freelancer</p>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Project-based</p>
-                                    </button>
-                                    <button
-                                        onClick={() => setEmploymentType('employee')}
-                                        className={`p-4 rounded-xl border-2 transition-all ${employmentType === 'employee'
-                                            ? 'border-[#008080] bg-teal-50 dark:bg-teal-900/20'
-                                            : 'border-gray-200 dark:border-zinc-700 hover:border-gray-300'
-                                            }`}
-                                    >
-                                        <p className="font-bold text-gray-900 dark:text-white">Employee</p>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Long-term role</p>
-                                    </button>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {(['project', 'task'] as const).map(type => (
+                                        <button
+                                            key={type}
+                                            onClick={() => setContractType(type)}
+                                            className={`p-3 rounded-xl border transition-all capitalize ${contractType === type
+                                                ? 'border-[#008080] bg-teal-50 dark:bg-teal-900/20 text-[#008080] font-bold'
+                                                : 'border-gray-200 dark:border-zinc-700 text-gray-500'
+                                                }`}
+                                        >
+                                            {type}
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
 
-                            {/* Job Title (Employee Only) */}
-                            {employmentType === 'employee' && (
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-900 dark:text-white mb-2">
-                                        Job Title
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={jobTitle}
-                                        onChange={(e) => setJobTitle(e.target.value)}
-                                        placeholder="e.g. Senior Developer"
-                                        className="w-full px-4 py-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#008080]/20"
-                                    />
-                                </div>
-                            )}
+                            {/* Job Title */}
+                            <div>
+                                <label className="block text-sm font-bold text-gray-900 dark:text-white mb-2">
+                                    Project Role / Title
+                                </label>
+                                <input
+                                    type="text"
+                                    value={jobTitle}
+                                    onChange={(e) => setJobTitle(e.target.value)}
+                                    placeholder="e.g. Lead Developer"
+                                    className="w-full px-4 py-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#008080]/20"
+                                />
+                            </div>
+
+                            {/* Multi-Task Selection */}
+                            <div>
+                                <label className="block text-sm font-bold text-gray-900 dark:text-white mb-2">
+                                    Assign Specific Tasks (Optional)
+                                </label>
+                                {projectTasks.length > 0 ? (
+                                    <>
+                                        <div className="max-h-48 overflow-y-auto space-y-2 bg-gray-50 dark:bg-zinc-800 rounded-xl p-3 border border-gray-200 dark:border-zinc-700">
+                                            {projectTasks.map((task) => (
+                                                <label
+                                                    key={task.id}
+                                                    className="flex items-center gap-3 p-2 hover:bg-white dark:hover:bg-zinc-700 rounded-lg cursor-pointer transition-colors"
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedTaskIds.includes(task.id!)}
+                                                        onChange={() => toggleTaskSelection(task.id!)}
+                                                        className="w-4 h-4 text-[#008080] border-gray-300 rounded focus:ring-[#008080]"
+                                                    />
+                                                    <div className="flex-1">
+                                                        <p className="text-sm font-medium text-gray-900 dark:text-white">{task.title}</p>
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                            {task.pricing?.amount ? `${task.pricing.currency} ${task.pricing.amount}` : 'No budget set'}
+                                                        </p>
+                                                    </div>
+                                                </label>
+                                            ))}
+                                        </div>
+                                        {selectedTaskIds.length > 0 && (
+                                            <p className="text-xs text-teal-600 dark:text-teal-400 mt-2">
+                                                {selectedTaskIds.length} task{selectedTaskIds.length !== 1 ? 's' : ''} selected
+                                            </p>
+                                        )}
+                                    </>
+                                ) : (
+                                    <div className="bg-gray-50 dark:bg-zinc-800 rounded-xl p-4 border border-gray-200 dark:border-zinc-700">
+                                        <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
+                                            No tasks available in this project yet.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
 
                             {/* Contract Preview */}
                             <div className="bg-gray-50 dark:bg-zinc-800 rounded-xl p-4 border border-gray-200 dark:border-zinc-700">

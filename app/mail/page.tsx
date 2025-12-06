@@ -41,6 +41,7 @@ export default function MailPage() {
         brief?: string;
         variables?: Record<string, any>;
         autoStart?: boolean;
+        autoSelectTaskId?: string;
     }>();
 
     // Onboarding state
@@ -56,37 +57,40 @@ export default function MailPage() {
         }
     }, [user, activeFolder]);
 
-        // Handle deep-links from projects/tasks/workspaces to auto-open composer with contract AI or template prefills
-        useEffect(() => {
-            if (!searchParams) return;
+    // Handle deep-links from projects/tasks/workspaces to auto-open composer with contract AI or template prefills
+    useEffect(() => {
+        if (!searchParams) return;
 
-            const shouldCompose = searchParams.get('compose') === '1';
-            if (!shouldCompose) return;
+        const shouldCompose = searchParams.get('compose') === '1';
+        if (!shouldCompose) return;
 
-            const to = searchParams.get('to') || undefined;
-            const subject = searchParams.get('subject') || undefined;
-            const body = searchParams.get('body') || undefined;
-            const templateId = searchParams.get('templateId') || undefined;
-            const contractType = searchParams.get('contractType') || undefined;
-            const brief = searchParams.get('brief') || undefined;
-            const autoStartParam = searchParams.get('autoStart');
-            const autoStart = autoStartParam === null ? true : autoStartParam !== '0';
+        const to = searchParams.get('to') || undefined;
+        const subject = searchParams.get('subject') || undefined;
+        const body = searchParams.get('body') || undefined;
+        const templateId = searchParams.get('templateId') || undefined;
+        const contractType = searchParams.get('contractType') || undefined;
+        const brief = searchParams.get('brief') || undefined;
+        const autoStartParam = searchParams.get('autoStart');
+        const autoStart = autoStartParam === null ? true : autoStartParam !== '0';
 
-            let variables: Record<string, any> | undefined;
-            const rawVars = searchParams.get('variables');
-            if (rawVars) {
-                try {
-                    variables = JSON.parse(rawVars);
-                } catch (err) {
-                    console.warn('Failed to parse contract variables from URL', err);
-                }
+        let variables: Record<string, any> | undefined;
+        const rawVars = searchParams.get('variables');
+        if (rawVars) {
+            try {
+                variables = JSON.parse(rawVars);
+            } catch (err) {
+                console.warn('Failed to parse contract variables from URL', err);
             }
+        }
 
-            setComposePrefill({ recipient: to, subject, body });
-            setActiveCategories(['Contracts']);
-            setAutoContractDraftRequest({ templateId, contractType, brief, variables, autoStart });
-            setIsComposing(true);
-        }, [searchParams]);
+        // Support both single task ID and multi-task IDs (comma-separated)
+        const autoSelectTaskId = searchParams.get('autoSelectTaskIds') || searchParams.get('autoSelectTaskId') || undefined;
+
+        setComposePrefill({ recipient: to, subject, body });
+        setActiveCategories(['Contracts']);
+        setAutoContractDraftRequest({ templateId, contractType, brief, variables, autoStart, autoSelectTaskId });
+        setIsComposing(true);
+    }, [searchParams]);
 
     const checkOnboarding = async () => {
         if (!user) return;
@@ -153,7 +157,7 @@ export default function MailPage() {
             const userData = userDoc.data();
             const username = userData?.username || 'user';
             const mailAddress = `${username}@connekt.com`;
-            
+
             const quota = await StorageQuotaService.getStorageQuota(mailAddress);
             if (quota) {
                 setStorageUsedGB(StorageQuotaService.bytesToGB(quota.usedSpace));

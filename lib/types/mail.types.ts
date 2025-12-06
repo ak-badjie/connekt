@@ -108,6 +108,11 @@ export type ContractType =
     | 'workspace_invite'
     | 'agency_invite'
     | 'payment_request'
+    | 'job'
+    | 'project'
+    | 'task'
+    | 'project_admin'
+    | 'task_admin'
     | 'job_short_term'     // Short-term job (few tasks, days to weeks)
     | 'job_long_term'      // Long-term job (6+ months, monthly payment)
     | 'job_project_based'  // Project-based job (single project scope)
@@ -165,6 +170,7 @@ export interface ContractTemplate {
     type: ContractType;
     visibility: 'system' | 'agency_custom';
     agencyId?: string; // If agency_custom
+    requiresEscrow?: boolean; // Defines if the contract requires automated escrow
 
     // Legal Header Configuration
     headerConfig: {

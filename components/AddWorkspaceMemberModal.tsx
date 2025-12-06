@@ -5,6 +5,8 @@ import { X, Search, Loader2, UserPlus, FileText } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { FirestoreService, UserProfile } from '@/lib/services/firestore-service';
 import { useAuth } from '@/context/AuthContext';
+import { JobTemplateService } from '@/lib/services/job-template-service';
+import { JobTemplate } from '@/lib/types/workspace.types';
 import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
 
 interface AddWorkspaceMemberModalProps {
@@ -24,22 +26,78 @@ export default function AddWorkspaceMemberModal({
 }: AddWorkspaceMemberModalProps) {
     const [isMounted, setIsMounted] = useState(false);
     const { user, userProfile } = useAuth();
+
+    // Search State
     const [searchQuery, setSearchQuery] = useState('');
     const [searching, setSearching] = useState(false);
     const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
     const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
 
-    // Roles & Types
-    // User requested "No Admins in Workspaces". Only "Member" exists, distinguished by Type.
+    // Template State
+    const [templates, setTemplates] = useState<JobTemplate[]>([]);
+    const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+    const [showAdvanced, setShowAdvanced] = useState(false);
+
+    // Roles & Basic Info
     const [employmentType, setEmploymentType] = useState<'employee' | 'freelancer'>('employee');
     const [jobTitle, setJobTitle] = useState('');
+
+    // Advanced Contract Fields (Salary, Schedule, Conditions)
+    const [salary, setSalary] = useState<number>(0);
+    const [currency, setCurrency] = useState('GMD');
+    const [paymentSchedule, setPaymentSchedule] = useState<'monthly' | 'weekly'>('monthly');
+
+    // Schedule
+    const [startTime, setStartTime] = useState('09:00');
+    const [endTime, setEndTime] = useState('17:00');
+    const [workDays, setWorkDays] = useState<number[]>([1, 2, 3, 4, 5]); // Mon-Fri
+    const [breakDuration, setBreakDuration] = useState(60); // minutes
+
+    // Penalties
+    const [penaltyPerLateTask, setPenaltyPerLateTask] = useState<number>(0);
+    const [penaltyUnit, setPenaltyUnit] = useState<'fixed' | 'percentage'>('fixed');
 
     const [sending, setSending] = useState(false);
     const [error, setError] = useState('');
 
     useEffect(() => {
         setIsMounted(true);
-    }, []);
+        if (isOpen && workspaceId) {
+            loadTemplates();
+        }
+    }, [isOpen, workspaceId]);
+
+    const loadTemplates = async () => {
+        try {
+            const temps = await JobTemplateService.getTemplates(workspaceId);
+            setTemplates(temps);
+        } catch (err) {
+            console.error('Failed to load templates', err);
+        }
+    };
+
+    const handleTemplateSelect = (templateId: string) => {
+        setSelectedTemplateId(templateId);
+        const template = templates.find(t => t.id === templateId);
+        if (template) {
+            if (template.type === 'job') {
+                setEmploymentType('employee');
+            } else {
+                setEmploymentType('freelancer');
+            }
+            setJobTitle(template.title);
+            setSalary(template.salary);
+            setCurrency(template.currency);
+            setPaymentSchedule(template.paymentSchedule as any);
+            setStartTime(template.schedule.startTime);
+            setEndTime(template.schedule.endTime);
+            setWorkDays(template.schedule.workDays);
+            setBreakDuration(template.schedule.breakDurationMinutes);
+            setPenaltyPerLateTask(template.conditions.penaltyPerLateTask);
+            setPenaltyUnit(template.conditions.penaltyUnit);
+            setShowAdvanced(true);
+        }
+    };
 
     const handleSearch = async () => {
         if (!searchQuery.trim()) return;
@@ -68,12 +126,16 @@ export default function AddWorkspaceMemberModal({
         const recruiterName = userProfile?.displayName || userProfile?.username || 'Recruiter';
         const recipientName = selectedUser?.displayName || selectedUser?.username || 'Recipient';
 
+        // Format Work Days (e.g., "Mon, Tue, Wed")
+        const daysMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const formattedWorkDays = workDays.sort().map(d => daysMap[d]).join(', ');
+
         return {
             workspaceId,
             contractDate: todayStr,
             clientName: recruiterName,
             contractorName: recipientName,
-            projectTitle: `Membership at ${workspaceName}`, // Re-using project field for title context
+            projectTitle: `Membership at ${workspaceName}`,
             projectDescription: employmentType === 'employee'
                 ? `Full-time employment as ${jobTitle} at ${workspaceName}`
                 : `Freelance contract with ${workspaceName}`,
@@ -81,14 +143,29 @@ export default function AddWorkspaceMemberModal({
                 ? 'As defined by job description and role requirements.'
                 : 'As defined by assigned projects and tasks.',
             startDate: todayStr,
-            duration: 30, // Default to 30 days or open-ended (logic can be refined)
+            duration: 30, // Default to 30 days or open-ended
             durationUnit: 'days',
-            paymentAmount: 0, // Workspace contract might not have fixed direct budget like project
-            paymentCurrency: 'GMD',
-            paymentType: employmentType === 'employee' ? 'salary' : 'variable',
+
+            // Payment
+            paymentAmount: salary,
+            paymentCurrency: currency,
+            paymentType: paymentSchedule, // monthly, weekly
+            paymentSchedule: paymentSchedule,
+
+            // Schedule
+            schedule_startTime: startTime,
+            schedule_endTime: endTime,
+            schedule_workDays: formattedWorkDays,
+            schedule_breakDuration: `${breakDuration} minutes`,
+
+            // Penalties
+            condition_penaltyPerLateTask: penaltyPerLateTask > 0
+                ? `${penaltyPerLateTask} ${penaltyUnit === 'percentage' ? '%' : currency} deduction per late task`
+                : 'None',
+
             employmentType,
             jobTitle: employmentType === 'employee' ? jobTitle : undefined,
-            role: 'member' // Workspace role is always member
+            role: 'member'
         } as Record<string, any>;
     };
 
@@ -125,8 +202,8 @@ export default function AddWorkspaceMemberModal({
                 to: toAddress,
                 subject,
                 body,
-                templateId: 'General Service Agreement', // Using generic template for workspace
-                contractType: 'workspace_membership',
+                templateId: employmentType === 'employee' ? 'Employment Contract' : 'Freelance Contract',
+                contractType: employmentType === 'employee' ? 'job' : 'project',
                 brief: briefLines.join('\n'),
                 autoStart: options.autoStartAI ? '1' : '0',
                 variables: JSON.stringify(variables)
@@ -313,6 +390,111 @@ export default function AddWorkspaceMemberModal({
                                     />
                                 </div>
                             )}
+
+                            {/* Job Templates Dropdown */}
+                            {templates.length > 0 && (
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-900 dark:text-white mb-2">
+                                        Apply Job Template (Optional)
+                                    </label>
+                                    <select
+                                        value={selectedTemplateId}
+                                        onChange={(e) => handleTemplateSelect(e.target.value)}
+                                        className="w-full px-4 py-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#008080]/20"
+                                    >
+                                        <option value="">-- Select a Template --</option>
+                                        {templates.map(t => (
+                                            <option key={t.id} value={t.id}>{t.title} ({t.type})</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            {/* Advanced Contract Details Toggle */}
+                            <div className="pt-2">
+                                <button
+                                    onClick={() => setShowAdvanced(!showAdvanced)}
+                                    className="text-sm font-bold text-[#008080] hover:underline flex items-center gap-1"
+                                >
+                                    {showAdvanced ? 'Hide Contract Details' : 'Show Advanced Contract Details'}
+                                </button>
+                            </div>
+
+                            {/* Advanced Fields */}
+                            {showAdvanced && (
+                                <div className="space-y-4 p-4 bg-gray-50 dark:bg-zinc-800/50 rounded-xl border border-gray-200 dark:border-zinc-700">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Items</label>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                                                <input
+                                                    type="number"
+                                                    value={salary}
+                                                    onChange={e => setSalary(parseFloat(e.target.value) || 0)}
+                                                    className="w-full pl-6 pr-3 py-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm"
+                                                    placeholder="0.00"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Schedule</label>
+                                            <select
+                                                value={paymentSchedule}
+                                                onChange={e => setPaymentSchedule(e.target.value as any)}
+                                                className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm"
+                                            >
+                                                <option value="monthly">Monthly</option>
+                                                <option value="weekly">Weekly</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Start Time</label>
+                                            <input
+                                                type="time"
+                                                value={startTime}
+                                                onChange={e => setStartTime(e.target.value)}
+                                                className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">End Time</label>
+                                            <input
+                                                type="time"
+                                                value={endTime}
+                                                onChange={e => setEndTime(e.target.value)}
+                                                className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">
+                                            Late Task Penalty (per task)
+                                        </label>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="number"
+                                                value={penaltyPerLateTask}
+                                                onChange={e => setPenaltyPerLateTask(parseFloat(e.target.value) || 0)}
+                                                className="flex-1 px-3 py-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm"
+                                            />
+                                            <select
+                                                value={penaltyUnit}
+                                                onChange={e => setPenaltyUnit(e.target.value as any)}
+                                                className="w-24 px-3 py-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm"
+                                            >
+                                                <option value="fixed">{currency}</option>
+                                                <option value="percentage">%</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                         </div>
                     )}
                 </div>

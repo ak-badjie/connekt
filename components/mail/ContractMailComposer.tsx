@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ContractTemplate, ContractVariable } from '@/lib/types/mail.types';
+import { ContractTemplate } from '@/lib/types/mail.types';
 import { ContractTemplateService } from '@/lib/services/contract-template-service';
 import GambianLegalHeader from './GambianLegalHeader';
 import { SYSTEM_TEMPLATES } from '@/lib/data/contract-templates';
@@ -9,6 +9,10 @@ import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
 import { AIContractDrafterModal } from './ai/AIContractDrafterModal';
 import { useAuth } from '@/context/AuthContext';
 import ReactMarkdown from 'react-markdown';
+import { WorkspaceService } from '@/lib/services/workspace-service';
+import { EnhancedProjectService } from '@/lib/services/enhanced-project-service';
+import { Workspace, Project, Task } from '@/lib/types/workspace.types';
+import { TaskService } from '@/lib/services/task-service';
 
 interface ContractMailComposerProps {
     onContractGenerated: (contractData: {
@@ -25,20 +29,43 @@ interface ContractMailComposerProps {
         variables?: Record<string, any>;
         autoStart?: boolean;
     };
+    recipientEmail?: string;
+    autoSelectTaskId?: string; // Task ID to auto-select and pre-fill
 }
 
-export default function ContractMailComposer({ onContractGenerated, autoAIRequest }: ContractMailComposerProps) {
+export default function ContractMailComposer({ onContractGenerated, autoAIRequest, recipientEmail, autoSelectTaskId }: ContractMailComposerProps) {
     const [templates, setTemplates] = useState<ContractTemplate[]>([]);
     const [selectedTemplate, setSelectedTemplate] = useState<ContractTemplate | null>(null);
     const [variables, setVariables] = useState<Record<string, any>>({});
     const [loading, setLoading] = useState(true);
+
     const [showAIDrafter, setShowAIDrafter] = useState(false);
     const { user } = useAuth();
     const [autoTriggered, setAutoTriggered] = useState(false);
 
+    // Manual Context Selection
+    const [myWorkspaces, setMyWorkspaces] = useState<Workspace[]>([]);
+    const [workspaceProjects, setWorkspaceProjects] = useState<Project[]>([]);
+    const [projectTasks, setProjectTasks] = useState<Task[]>([]);
+    const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>('');
+    const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+    const [selectedTaskId, setSelectedTaskId] = useState<string>('');
+
     useEffect(() => {
         loadTemplates();
-    }, []);
+        if (user) {
+            loadWorkspaces();
+        }
+    }, [user]);
+
+    // Auto-update Client/Contractor Names
+    useEffect(() => {
+        setVariables(prev => ({
+            ...prev,
+            clientName: user?.displayName || user?.email || 'Client',
+            contractorName: recipientEmail ? recipientEmail.split('@')[0] : 'Contractor'
+        }));
+    }, [user, recipientEmail]);
 
     // Pre-select template and auto-open AI drafter when provided
     useEffect(() => {
@@ -52,7 +79,7 @@ export default function ContractMailComposer({ onContractGenerated, autoAIReques
         }
 
         if (autoAIRequest.variables) {
-            setVariables(autoAIRequest.variables);
+            setVariables(prev => ({ ...prev, ...autoAIRequest.variables }));
         }
 
         if (autoAIRequest.autoStart && !autoTriggered) {
@@ -60,6 +87,129 @@ export default function ContractMailComposer({ onContractGenerated, autoAIReques
             setShowAIDrafter(true);
         }
     }, [autoAIRequest, templates, autoTriggered]);
+
+    const loadWorkspaces = async () => {
+        if (!user) return;
+        try {
+            const ws = await WorkspaceService.getUserWorkspaces(user.uid);
+            setMyWorkspaces(ws);
+        } catch (e) {
+            console.error('Error loading workspaces', e);
+        }
+    };
+
+    const handleWorkspaceSelect = async (wsId: string) => {
+        setSelectedWorkspaceId(wsId);
+        setSelectedProjectId(''); // Reset project
+        setSelectedTaskId(''); // Reset task
+        setProjectTasks([]);
+
+        // Auto-fill workspace name into variables if applicable
+        const ws = myWorkspaces.find(w => w.id === wsId);
+        if (ws) {
+            setVariables(prev => ({
+                ...prev,
+                workspaceName: ws.name,
+                companyName: ws.name
+            }));
+        }
+
+        if (wsId) {
+            try {
+                const projects = await EnhancedProjectService.getWorkspaceProjects(wsId);
+                setWorkspaceProjects(projects);
+            } catch (e) {
+                console.error('Error loading projects', e);
+            }
+        } else {
+            setWorkspaceProjects([]);
+        }
+    };
+
+    const handleProjectSelect = async (pId: string) => {
+        setSelectedProjectId(pId);
+        setSelectedTaskId(''); // Reset task
+        const proj = workspaceProjects.find(p => p.id === pId);
+
+        if (proj) {
+            setVariables(prev => ({
+                ...prev,
+                projectId: proj.id,
+                projectTitle: proj.title,
+                projectDescription: proj.description,
+                paymentAmount: proj.budget || prev.paymentAmount,
+                deadline: proj.deadline || prev.deadline
+            }));
+
+            // Fetch tasks for the project
+            try {
+                const tasks = await TaskService.getProjectTasks(pId);
+                setProjectTasks(tasks);
+            } catch (e) {
+                console.error('Error loading tasks', e);
+                setProjectTasks([]);
+            }
+        } else {
+            setProjectTasks([]);
+        }
+    };
+
+    const handleTaskSelect = (tId: string) => {
+        setSelectedTaskId(tId);
+        const task = projectTasks.find(t => t.id === tId);
+        if (task) {
+            setVariables(prev => ({
+                ...prev,
+                taskId: task.id,
+                taskTitle: task.title,
+                taskDescription: task.description,
+                projectTitle: task.title, // Map to projectTitle for Freelance template
+                projectDescription: task.description,
+                paymentAmount: task.pricing?.amount || prev.paymentAmount,
+                deadline: task.timeline?.dueDate || prev.deadline
+            }));
+        }
+    };
+
+    // Auto-select task(s) when autoSelectTaskId is provided
+    useEffect(() => {
+        if (autoSelectTaskId && projectTasks.length > 0) {
+            // Support both single task ID and comma-separated list
+            const taskIds = autoSelectTaskId.split(',').filter(id => id.trim());
+
+            // For single task, select it
+            if (taskIds.length === 1) {
+                const taskExists = projectTasks.find(t => t.id === taskIds[0]);
+                if (taskExists) {
+                    handleTaskSelect(taskIds[0]);
+                }
+            } else if (taskIds.length > 1) {
+                // For multiple tasks, select the first one but aggregate data from all
+                const selectedTasks = projectTasks.filter(t => taskIds.includes(t.id!));
+                if (selectedTasks.length > 0) {
+                    // Select the first task visually
+                    setSelectedTaskId(selectedTasks[0].id!);
+
+                    // Aggregate budget and details from all tasks
+                    const totalBudget = selectedTasks.reduce((sum, t) => sum + (t.pricing?.amount || 0), 0);
+                    const taskTitles = selectedTasks.map(t => t.title).join(', ');
+                    const taskDescriptions = selectedTasks.map((t, i) => `${i + 1}. ${t.title}: ${t.description}`).join('\n\n');
+
+                    setVariables(prev => ({
+                        ...prev,
+                        taskId: selectedTasks.map(t => t.id).join(','),
+                        taskTitle: `Multiple Tasks: ${taskTitles}`,
+                        taskDescription: taskDescriptions,
+                        projectTitle: `Multiple Tasks (${selectedTasks.length})`,
+                        projectDescription: taskDescriptions,
+                        paymentAmount: totalBudget,
+                        paymentCurrency: selectedTasks[0].pricing?.currency || prev.paymentCurrency,
+                        deadline: selectedTasks[0].timeline?.dueDate || prev.deadline
+                    }));
+                }
+            }
+        }
+    }, [autoSelectTaskId, projectTasks]);
 
     const loadTemplates = async () => {
         try {
@@ -75,8 +225,6 @@ export default function ContractMailComposer({ onContractGenerated, autoAIReques
         const template = templates.find(t => t.id === templateId || t.name === templateId);
         if (template) {
             setSelectedTemplate(template);
-            // Preserve existing variables (like projectId, recipient info) when switching templates
-            // only overwrite if the template specifically demands it (which it doesn't here)
         }
     };
 
@@ -139,32 +287,102 @@ export default function ContractMailComposer({ onContractGenerated, autoAIReques
     return (
         <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900 rounded-lg overflow-hidden">
             {/* Header */}
-            <div className="p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-                <div className="flex items-center gap-3 mb-2">
-                    <label className="flex-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Select Contract Template
-                    </label>
-                    <button
-                        onClick={() => setShowAIDrafter(true)}
-                        className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                        title="AI Contract Drafter"
-                    >
-                        <ConnektAIIcon className="w-5 h-5" />
-                        <span className="text-sm font-medium">AI Contract Drafter</span>
-                    </button>
+            <div className="p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 space-y-3">
+
+                {/* Manual Context Selector (Compact & At Top) */}
+                <div className="flex gap-4">
+                    <div className="flex-1">
+                        <label className="block text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400 mb-1">
+                            Select Workspace
+                        </label>
+                        <select
+                            value={selectedWorkspaceId}
+                            onChange={(e) => handleWorkspaceSelect(e.target.value)}
+                            className="w-full py-1.5 px-2 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        >
+                            <option value="">-- None --</option>
+                            {myWorkspaces.map(ws => (
+                                <option key={ws.id} value={ws.id}>{ws.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="flex-1">
+                        <label className="block text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400 mb-1">
+                            Select Project
+                        </label>
+                        <select
+                            value={selectedProjectId}
+                            onChange={(e) => handleProjectSelect(e.target.value)}
+                            disabled={!selectedWorkspaceId}
+                            className="w-full py-1.5 px-2 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
+                        >
+                            <option value="">-- None --</option>
+                            {workspaceProjects.map(p => (
+                                <option key={p.id} value={p.id}>{p.title}</option>
+                            ))}
+                        </select>
+                    </div>
+                    {/* Select Task */}
+                    <div className="flex-1">
+                        <label className="block text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400 mb-1">
+                            Select Task
+                        </label>
+                        <select
+                            value={selectedTaskId}
+                            onChange={(e) => handleTaskSelect(e.target.value)}
+                            disabled={!selectedProjectId}
+                            className="w-full py-1.5 px-2 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
+                        >
+                            <option value="">-- None --</option>
+                            {projectTasks.map(t => (
+                                <option key={t.id} value={t.id}>{t.title}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="flex items-end pb-0.5">
+                        <button
+                            onClick={() => setShowAIDrafter(true)}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg transition-colors text-xs font-semibold"
+                            title="AI Contract Drafter"
+                        >
+                            <ConnektAIIcon className="w-4 h-4" />
+                            <span>AI Drafter</span>
+                        </button>
+                    </div>
                 </div>
-                <select
-                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    onChange={(e) => handleTemplateSelect(e.target.value)}
-                    value={selectedTemplate?.id || selectedTemplate?.name || ''}
-                >
-                    <option value="">-- Choose a Template --</option>
-                    {templates.map((template, index) => (
-                        <option key={template.id || index} value={template.id || template.name}>
-                            {template.name} ({template.type.replace(/_/g, ' ')})
-                        </option>
-                    ))}
-                </select>
+
+                <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Contract Template
+                    </label>
+                    <select
+                        className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        onChange={(e) => handleTemplateSelect(e.target.value)}
+                        value={selectedTemplate?.id || selectedTemplate?.name || ''}
+                    >
+                        <option value="">-- Choose a Template --</option>
+                        {templates.filter(t => {
+                            if (selectedTaskId) {
+                                // Task Context: Freelance, Task Admin
+                                return ['project', 'task_admin'].includes(t.type);
+                            }
+                            if (selectedProjectId) {
+                                // Project Context: Freelance, Project Admin
+                                return ['project', 'project_admin'].includes(t.type);
+                            }
+                            if (selectedWorkspaceId) {
+                                // Workspace Context: Employment, Freelance
+                                return ['job', 'project'].includes(t.type);
+                            }
+                            return true; // No context selected
+                        }).map((template, index) => (
+                            <option key={template.id || index} value={template.id || template.name}>
+                                {template.name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
             </div>
 
             {selectedTemplate && (
@@ -249,7 +467,6 @@ export default function ContractMailComposer({ onContractGenerated, autoAIReques
                 </div>
             )}
 
-            {/* Footer */}
             {selectedTemplate && (
                 <div className="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex justify-end">
                     <button

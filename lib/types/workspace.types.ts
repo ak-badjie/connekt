@@ -13,6 +13,30 @@ export interface WorkspaceMember {
     joinedAt: any; // Timestamp | Date | FieldValue
 }
 
+export interface JobTemplate {
+    id?: string;
+    workspaceId: string;
+    title: string;
+    description: string;
+    type: 'job' | 'project' | 'task'; // CHANGED: Strict types
+    salary: number;
+    currency: string;
+    paymentSchedule: 'monthly' | 'weekly' | 'bi-weekly' | 'on-completion'; // Added on-completion for Tasks/Projects
+    schedule: {
+        startTime: string;
+        endTime: string;
+        timezone: string;
+        breakDurationMinutes: number;
+        workDays: number[];
+    };
+    conditions: {
+        penaltyPerLateTask: number;
+        penaltyUnit: 'fixed' | 'percentage';
+        overtimeRate: number;
+    };
+    createdAt: any;
+}
+
 export interface Workspace {
     id?: string;
     name: string;

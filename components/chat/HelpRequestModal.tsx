@@ -9,6 +9,8 @@ import { Task } from '@/lib/types/workspace.types';
 import { Loader2, Briefcase, DollarSign, Clock, Sparkles } from 'lucide-react';
 import { ChatService } from '@/lib/services/chat-service';
 import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
+import { JobTemplateService } from '@/lib/services/job-template-service';
+import { JobTemplate } from '@/lib/types/workspace.types';
 
 interface HelpRequestModalProps {
     isOpen: boolean;
@@ -29,11 +31,36 @@ export function HelpRequestModal({ isOpen, onClose, conversationId, recipientId,
     const [sending, setSending] = useState(false);
     const [sendMode, setSendMode] = useState<'email' | 'contract' | 'proposal'>('email');
 
+    // Templates
+    const [templates, setTemplates] = useState<JobTemplate[]>([]);
+    const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+    const [selectedTemplate, setSelectedTemplate] = useState<JobTemplate | null>(null);
+
     useEffect(() => {
         if (isOpen && user) {
             loadTasks();
+            // Load templates from user's workspaces? 
+            // Since Help Request is "Personal" or "Project" based, maybe just load generic or all?
+            // For now, let's load templates if the task has a workspace.
         }
     }, [isOpen, user]);
+
+    // Load templates when task is selected
+    useEffect(() => {
+        if (selectedTask?.workspaceId) {
+            loadTemplates(selectedTask.workspaceId);
+        }
+    }, [selectedTask]);
+
+    const loadTemplates = async (wsId: string) => {
+        try {
+            const allTemplates = await JobTemplateService.getTemplates(wsId);
+            // Filter for 'task' type templates suitable for help requests
+            setTemplates(allTemplates.filter(t => t.type === 'task'));
+        } catch (e) {
+            console.error('Error loading templates', e);
+        }
+    };
 
     const loadTasks = async () => {
         if (!user) return;
@@ -71,12 +98,17 @@ export function HelpRequestModal({ isOpen, onClose, conversationId, recipientId,
             durationUnit: 'days',
             paymentAmount: offerType === 'paid' ? Number(budget || 0) : 0,
             paymentCurrency: 'USD',
-            paymentType: offerType === 'paid' ? 'fixed' : 'none',
+            paymentType: selectedTemplate?.paymentSchedule || (offerType === 'paid' ? 'fixed' : 'none'),
             paymentMilestones: 'Milestones will be defined in the task plan.',
             reviewPeriod: 3,
             revisionRounds: 1,
             noticePeriod: 7,
-            terminationConditions: 'Either party may terminate with notice via Connekt.'
+            terminationConditions: 'Either party may terminate with notice via Connekt.',
+
+            // Template Injections
+            condition_penaltyPerLateTask: selectedTemplate?.conditions?.penaltyPerLateTask
+                ? `${selectedTemplate.conditions.penaltyPerLateTask} ${selectedTemplate.conditions.penaltyUnit}`
+                : 'None'
         } as Record<string, any>;
     };
 
@@ -250,16 +282,39 @@ export function HelpRequestModal({ isOpen, onClose, conversationId, recipientId,
 
                     {/* Budget Input */}
                     {offerType === 'paid' && (
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Budget ($)</label>
-                            <input
-                                type="number"
-                                value={budget}
-                                onChange={(e) => setBudget(e.target.value)}
-                                placeholder="Enter amount"
-                                className="w-full p-2 rounded-xl bg-gray-100 dark:bg-zinc-800 border-none text-sm"
-                            />
-                            <p className="text-xs text-amber-600">A contract will be created automatically.</p>
+                        <div className="space-y-3">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Budget ($)</label>
+                                <input
+                                    type="number"
+                                    value={budget}
+                                    onChange={(e) => setBudget(e.target.value)}
+                                    placeholder="Enter amount"
+                                    className="w-full p-2 rounded-xl bg-gray-100 dark:bg-zinc-800 border-none text-sm"
+                                />
+                                <p className="text-xs text-amber-600">A contract will be created automatically.</p>
+                            </div>
+
+                            {/* Template Selection for Paid Tasks */}
+                            {templates.length > 0 && (
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Use Template (Conditions)</label>
+                                    <select
+                                        className="w-full p-2 rounded-xl bg-gray-100 dark:bg-zinc-800 border-none text-sm"
+                                        onChange={(e) => {
+                                            const t = templates.find(temp => temp.id === e.target.value);
+                                            setSelectedTemplate(t || null);
+                                            setSelectedTemplateId(e.target.value);
+                                        }}
+                                        value={selectedTemplateId}
+                                    >
+                                        <option value="">-- No Template --</option>
+                                        {templates.map(t => (
+                                            <option key={t.id} value={t.id}>{t.title}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                         </div>
                     )}
 
