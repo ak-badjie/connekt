@@ -75,12 +75,17 @@ export default function MemberManagement({ workspace, currentUserRole, onUpdate 
                             <tr key={member.userId} className="hover:bg-gray-50 dark:hover:bg-zinc-800/30 transition-colors">
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#008080] to-teal-600 flex items-center justify-center text-white font-bold text-sm">
-                                            {member.username[0].toUpperCase()}
+                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#008080] to-teal-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                                            {member.username ? member.username[0].toUpperCase() : 'U'}
                                         </div>
                                         <div>
-                                            <div className="font-bold text-gray-900 dark:text-white">@{member.username}</div>
+                                            <div className="font-bold text-gray-900 dark:text-white">
+                                                {member.displayName || member.username || 'Unknown User'}
+                                            </div>
                                             <div className="text-xs text-gray-500">{member.email}</div>
+                                            {member.jobTitle && (
+                                                <div className="text-xs text-[#008080] mt-0.5 font-medium">{member.jobTitle}</div>
+                                            )}
                                         </div>
                                     </div>
                                 </td>
@@ -110,8 +115,13 @@ export default function MemberManagement({ workspace, currentUserRole, onUpdate 
                                     </div>
                                 </td>
                                 <td className="px-6 py-4">
-                                    <span className="text-sm text-gray-600 dark:text-gray-300 capitalize">
-                                        {member.type}
+                                    <span className={`text-sm font-medium px-2 py-1 rounded-md ${member.type === 'employee'
+                                            ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                                            : member.type === 'freelancer'
+                                                ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
+                                                : 'text-gray-600 dark:text-gray-300'
+                                        }`}>
+                                        {member.type ? (member.type.charAt(0).toUpperCase() + member.type.slice(1)) : 'Member'}
                                     </span>
                                 </td>
                                 <td className="px-6 py-4 text-right">

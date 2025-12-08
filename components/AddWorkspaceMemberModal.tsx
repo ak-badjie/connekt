@@ -126,47 +126,63 @@ export default function AddWorkspaceMemberModal({
         const recruiterName = userProfile?.displayName || userProfile?.username || 'Recruiter';
         const recipientName = selectedUser?.displayName || selectedUser?.username || 'Recipient';
 
-        // Format Work Days (e.g., "Mon, Tue, Wed")
-        const daysMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const formattedWorkDays = workDays.sort().map(d => daysMap[d]).join(', ');
+        // Calculate Hours Per Week
+        const startHour = parseInt(startTime.split(':')[0]);
+        const endHour = parseInt(endTime.split(':')[0]);
+        const dailyHours = Math.max(0, (endHour - startHour) - (breakDuration / 60));
+        const hoursPerWeek = dailyHours * workDays.length;
 
-        return {
+        // Calculate End Date
+        const endDateObj = new Date();
+        endDateObj.setDate(endDateObj.getDate() + 30); // Default 30 days
+        const endDateStr = endDateObj.toISOString().slice(0, 10);
+
+        const commonVariables = {
             workspaceId,
             contractDate: todayStr,
-            clientName: recruiterName,
-            contractorName: recipientName,
-            projectTitle: `Membership at ${workspaceName}`,
-            projectDescription: employmentType === 'employee'
-                ? `Full-time employment as ${jobTitle} at ${workspaceName}`
-                : `Freelance contract with ${workspaceName}`,
-            deliverables: employmentType === 'employee'
-                ? 'As defined by job description and role requirements.'
-                : 'As defined by assigned projects and tasks.',
             startDate: todayStr,
-            duration: 30, // Default to 30 days or open-ended
+            endDate: endDateStr,
+            duration: 30,
             durationUnit: 'days',
-
-            // Payment
             paymentAmount: salary,
             paymentCurrency: currency,
-            paymentType: paymentSchedule, // monthly, weekly
             paymentSchedule: paymentSchedule,
-
-            // Schedule
-            schedule_startTime: startTime,
-            schedule_endTime: endTime,
-            schedule_workDays: formattedWorkDays,
-            schedule_breakDuration: `${breakDuration} minutes`,
-
-            // Penalties
-            condition_penaltyPerLateTask: penaltyPerLateTask > 0
+            noticePeriod: 30,
+            terminationConditions: penaltyPerLateTask > 0
                 ? `${penaltyPerLateTask} ${penaltyUnit === 'percentage' ? '%' : currency} deduction per late task`
                 : 'None',
+        };
 
-            employmentType,
-            jobTitle: employmentType === 'employee' ? jobTitle : undefined,
-            role: 'member'
-        } as Record<string, any>;
+        if (employmentType === 'employee') {
+            return {
+                ...commonVariables,
+                memberType: 'employee',
+                employerName: workspaceName,
+                employeeName: recipientName,
+                jobTitle: jobTitle,
+                jobDescription: `Full-time employment as ${jobTitle} at ${workspaceName}`,
+                jobRequirements: 'As defined by the role description and standard operating procedures.',
+                workLocation: 'Remote / As assigned',
+                hoursPerWeek: hoursPerWeek,
+                benefits: 'Standard workspace benefits apply.',
+                role: 'member'
+            };
+        } else {
+            return {
+                ...commonVariables,
+                memberType: 'freelancer',
+                clientName: workspaceName, // Use workspace name as client for freelancer
+                contractorName: recipientName,
+                projectTitle: `Freelance Engagement: ${workspaceName}`,
+                projectDescription: `Freelance services for ${workspaceName}`,
+                deliverables: 'As defined by assigned projects and tasks.',
+                paymentType: paymentSchedule,
+                paymentMilestones: 'N/A',
+                reviewPeriod: 7,
+                revisionRounds: 2,
+                role: 'member'
+            };
+        }
     };
 
     const openMailWithContract = async (options: { autoStartAI: boolean }) => {

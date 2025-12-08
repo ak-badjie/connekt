@@ -94,6 +94,10 @@ export const ContractSigningService = {
         const usernameForUser = contract.toUsername || 'recipient';
         const emailForUser = contract.toUserEmail || contract.toMailAddress || '';
 
+        // Extract employment details
+        const memberType = terms.memberType || 'employee'; // Default to employee if not specified (legacy fallback)
+        const jobTitle = terms.jobTitle || '';
+
         let projectId = terms.projectId || terms.linkedProjectId || contract.relatedProjectId;
         let workspaceId = terms.workspaceId || terms.linkedWorkspaceId || contract.relatedWorkspaceId;
         const taskId = terms.taskId || terms.linkedTaskId || contract.relatedTaskId;
@@ -112,98 +116,46 @@ export const ContractSigningService = {
                 console.error('Failed to infer project/workspace from task', taskId, inferErr);
             }
         }
-        const linkedChatId = terms.linkedChatId || terms.chatId || terms.teamChatId;
 
-        // Helper to force-add a member with verification (idempotent)
-        const ensureProjectMembership = async (id: string) => {
-            const projectRef = doc(db, 'projects', id);
-            const projectSnap = await getDoc(projectRef);
-            const members = projectSnap.exists() ? projectSnap.data().members || [] : [];
-            const alreadyMember = members.some((m: any) => (m?.userId || m) === userId);
-            if (!alreadyMember) {
-                await updateDoc(projectRef, {
-                    members: arrayUnion({ userId, username: usernameForUser, email: emailForUser, role: 'member', assignedAt: Timestamp.now() }),
-                    memberIds: arrayUnion(userId)
-                });
-            }
-        };
-
-        const ensureWorkspaceMembership = async (id: string) => {
-            const wsRef = doc(db, 'workspaces', id);
-            const wsSnap = await getDoc(wsRef);
-            const members = wsSnap.exists() ? wsSnap.data().members || [] : [];
-            const alreadyMember = members.some((m: any) => (m?.userId || m) === userId);
-            if (!alreadyMember) {
-                await updateDoc(wsRef, {
-                    members: arrayUnion({ userId, username: usernameForUser, email: emailForUser, role: 'member', joinedAt: Timestamp.now() }),
-                    memberIds: arrayUnion(userId)
-                });
-            }
-        };
-
-        // If contract specifies a project, add user to project
+        // 1. Ensure Project Membership
         if (projectId) {
-            console.log(`[ContractSigningService] Adding user ${userId} to project ${projectId}`);
             try {
+                // Using EnhancedProjectService to handle membership logic (idempotency, defaults)
                 await EnhancedProjectService.addMember(projectId, {
                     userId,
-                    username: usernameForUser,
-                    email: emailForUser,
-                    role: roleForUser === 'owner' || roleForUser === 'admin' || roleForUser === 'supervisor' ? 'supervisor' : 'member'
+                    username: usernameForUser || 'Unknown',
+                    email: emailForUser || '',
+                    role: roleForUser === 'owner' || roleForUser === 'admin' || roleForUser === 'supervisor' ? 'supervisor' : 'member',
+                    type: memberType,
+                    jobTitle
                 });
-                // Verify membership and enforce if missing
-                await ensureProjectMembership(projectId);
             } catch (err) {
-                console.error('Failed to add member via project service for contract', contractId, err);
-
-                // Fallback: append member shape directly if service failed (keeps data consistent)
-                try {
-                    await ensureProjectMembership(projectId);
-                } catch (fallbackErr) {
-                    console.error('Project membership fallback failed for contract', contractId, fallbackErr);
-                }
-            }
-
-            // Ensure project chat membership (team chat). Create chat if missing.
-            try {
-                let chat = await ChatService.getConversationByContextId(projectId, 'project');
-                if (!chat) {
-                    try {
-                        const project = await EnhancedProjectService.getProject(projectId);
-                        const title = project?.title || 'Project Chat';
-                        const createdBy = contract.fromUserId;
-                        const newChatId = await ChatService.createConversation({
-                            type: 'project',
-                            title,
-                            description: `Official chat for project: ${title}`,
-                            projectId,
-                            workspaceId: project?.workspaceId,
-                            createdBy,
-                            participants: [
-                                { userId: createdBy, username: contract.fromUsername || 'Owner', role: 'admin' }
-                            ]
-                        });
-                        chat = { id: newChatId } as any;
-                    } catch (createErr) {
-                        console.error('Failed to create missing project chat for contract', contractId, createErr);
-                    }
-                }
-                if (chat?.id) {
-                    await ChatService.addMember(chat.id, {
-                        userId,
-                        username: usernameForUser,
-                        role: roleForUser === 'owner' || roleForUser === 'admin' ? 'admin' : 'member'
-                    });
-                }
-            } catch (err) {
-                console.error('Failed to sync project chat membership for contract', contractId, err);
+                console.error('Failed to add member to project', projectId, err);
             }
         }
 
-        // Handle specific Task Assignment logic
+        // 2. Ensure Workspace Membership
+        if (workspaceId) {
+            try {
+                await WorkspaceService.addMember(workspaceId, {
+                    userId,
+                    username: usernameForUser || 'Unknown',
+                    email: emailForUser || '',
+                    role: roleForUser === 'owner' || roleForUser === 'admin' ? 'admin' : 'member',
+                    type: memberType,
+                    jobTitle
+                });
+            } catch (err) {
+                console.error('Failed to add member to workspace', workspaceId, err);
+            }
+        }
+
+        // 3. Handle specific Task Assignment logic
         if (taskId && contract.type === 'task_assignment') {
             console.log(`[ContractSigningService] Executing task assignment for ${taskId}`);
             try {
+                await TaskService.updateStatus(taskId, 'in-progress');
+
                 const taskRef = doc(db, 'tasks', taskId);
                 await updateDoc(taskRef, {
                     assigneeId: userId,
@@ -213,127 +165,25 @@ export const ContractSigningService = {
                 });
                 console.log(`[ContractSigningService] Task ${taskId} assigned to ${userId}`);
             } catch (err) {
-                console.error('Failed to update task assignment for contract', contractId, err);
-            }
-        } else {
-            console.log('[ContractSigningService] No projectId found in contract terms (skipping project membership)');
-        }
-
-        // If contract specifies a workspace, add user to workspace
-        if (workspaceId) {
-            try {
-                await WorkspaceService.addMember(workspaceId, {
-                    userId,
-                    username: usernameForUser,
-                    email: emailForUser,
-                    role: roleForUser === 'owner' || roleForUser === 'admin' ? 'admin' : 'member'
-                });
-                await ensureWorkspaceMembership(workspaceId);
-            } catch (err) {
-                console.error('Failed to add workspace member for contract', contractId, err);
-                // Fallback: direct write membership if service update fails
-                try {
-                    await ensureWorkspaceMembership(workspaceId);
-                } catch (fallbackErr) {
-                    console.error('Workspace membership fallback failed for contract', contractId, fallbackErr);
-                }
-            }
-
-            try {
-                let chat = await ChatService.getConversationByContextId(workspaceId, 'workspace');
-                if (!chat) {
-                    try {
-                        const workspace = await WorkspaceService.getWorkspace(workspaceId);
-                        const title = workspace?.name || 'Workspace Chat';
-                        const createdBy = contract.fromUserId;
-                        const newChatId = await ChatService.createConversation({
-                            type: 'workspace',
-                            title,
-                            description: `Official chat for workspace: ${title}`,
-                            workspaceId,
-                            createdBy,
-                            participants: [
-                                { userId: createdBy, username: contract.fromUsername || 'Owner', role: 'admin' }
-                            ]
-                        });
-                        chat = { id: newChatId } as any;
-                    } catch (createErr) {
-                        console.error('Failed to create missing workspace chat for contract', contractId, createErr);
-                    }
-                }
-                if (chat?.id) {
-                    await ChatService.addMember(chat.id, {
-                        userId,
-                        username: usernameForUser,
-                        role: roleForUser === 'owner' || roleForUser === 'admin' ? 'admin' : 'member'
-                    });
-                }
-            } catch (err) {
-                console.error('Failed to sync workspace chat membership for contract', contractId, err);
+                console.error('Failed to update task assignment', taskId, err);
             }
         }
-
-        // Add user to explicitly linked/team chat when provided
-        if (linkedChatId) {
-            try {
-                await ChatService.addMember(linkedChatId, {
-                    userId,
-                    username: usernameForUser,
-                    role: roleForUser === 'owner' || roleForUser === 'admin' ? 'admin' : 'member'
-                });
-            } catch (err) {
-                console.error('Failed to sync linked chat membership for contract', contractId, err);
-            }
-        }
-
-        // Reassign task to the signer when contract links to a task
-        if (taskId) {
-            try {
-                const task = await TaskService.getTask(taskId);
-                if (task) {
-                    if (task.assigneeId !== userId) {
-                        await TaskService.reassignTask(taskId, userId, usernameForUser);
-                    }
-                    if (task.status === 'todo') {
-                        await TaskService.updateTaskStatus(taskId, 'in-progress');
-                    }
-                }
-            } catch (err) {
-                console.error('Failed to sync task assignment for contract', contractId, err);
-            }
-        }
-
-        // Store contract reference on user profile
-        const userRef = doc(db, 'users', userId);
-        await updateDoc(userRef, {
-            [`contracts.${contractId}`]: {
-                contractId,
-                type: contract.type,
-                signedAt: serverTimestamp(),
-                status: 'active'
-            }
-        });
-
-        await this.appendAudit(contractId, {
-            by: userId,
-            action: 'access_granted',
-            details: 'Membership and chat access provisioned'
-        });
     },
 
-    /**
-     * Add collaboration hooks (project membership, chat, calendar stubs)
-     */
-    async syncCollaboration(contractId: string, userId: string, username: string, contract: any): Promise<void> {
+    async syncCollaboration(
+        contractId: string,
+        userId: string,
+        username: string,
+        contract: any
+    ): Promise<void> {
         const terms = contract.terms || {};
-        const startDate = terms.startDate || terms.contractDate;
-        const endDate = terms.endDate || terms.dueDate;
+        const title = contract.title || 'Untitled Contract';
 
-        // Project membership via enhanced service (idempotent)
-        let projectId = terms.projectId || terms.linkedProjectId;
-        let workspaceId = terms.workspaceId || terms.linkedWorkspaceId;
+        let projectId = terms.projectId || terms.linkedProjectId || contract.relatedProjectId;
+        let workspaceId = terms.workspaceId || terms.linkedWorkspaceId || contract.relatedWorkspaceId;
         const taskId = terms.taskId || terms.linkedTaskId || contract.relatedTaskId;
-        // Infer from task if missing
+
+        // Re-infer IDs if needed 
         if ((!projectId || !workspaceId) && taskId) {
             try {
                 const t = await TaskService.getTask(taskId);
@@ -341,100 +191,92 @@ export const ContractSigningService = {
                     projectId = projectId || t.projectId;
                     workspaceId = workspaceId || t.workspaceId;
                 }
-            } catch (inferErr) {
-                console.error('Failed to infer project/workspace from task in syncCollaboration', taskId, inferErr);
-            }
-        }
-        if (projectId) {
-            try {
-                const project = await EnhancedProjectService.getProject(projectId);
-                if (project && !project.members?.some((m: any) => m.userId === userId)) {
-                    await EnhancedProjectService.addMember(projectId, {
-                        userId,
-                        username,
-                        email: contract.toUserEmail || '',
-                        role: 'member'
-                    } as any);
-                }
-            } catch (err) {
-                console.error('Failed to sync project membership for contract', contractId, err);
-            }
+            } catch (err) { /* ignore here */ }
         }
 
-        // Workspace membership via service (already handles chat join)
-        if (workspaceId) {
-            try {
-                await WorkspaceService.addMember(workspaceId, {
+        // 1. Chat Sync
+        try {
+            // Check for linked chat
+            const linkedChatId = terms.linkedChatId || terms.chatId || terms.teamChatId;
+            let chatId = linkedChatId;
+
+            if (chatId) {
+                await ChatService.addMember(chatId, {
                     userId,
                     username,
-                    email: contract.toUserEmail || '',
                     role: 'member'
                 });
-            } catch (err) {
-                console.error('Failed to sync workspace membership for contract', contractId, err);
+            } else if (projectId) {
+                // Try to add to project's default chat if accessible? 
+                // Currently ChatService doesn't accept projectId to find chat. 
+                // We'll leave it as is.
             }
+
+        } catch (err) {
+            console.error('Failed to sync chat membership', err);
         }
 
-        // Calendar/meetings sync so both parties see contract timeline in their calendars
-        if (startDate || endDate) {
-            try {
-                const participants = Array.from(new Set([userId, contract.fromUserId].filter(Boolean)));
-                const meetingPayloads = [] as Array<{
-                    title: string;
-                    description?: string;
-                    startTime: number;
-                    endTime?: number;
-                    duration: number;
-                    hostId: string;
-                    hostName: string;
-                    participants: string[];
-                    type: 'video' | 'audio';
-                    projectId?: string;
-                    workspaceId?: string;
-                }>;
+        // 2. Calendar / Meetings
+        try {
+            const participants = Array.from(new Set([userId, contract.fromUserId].filter(Boolean)));
+            const meetingPayloads = [] as Array<{
+                title: string;
+                description?: string;
+                startTime: number;
+                endTime?: number;
+                duration: number;
+                hostId: string;
+                hostName: string;
+                participants: string[];
+                type: 'video' | 'audio';
+                projectId?: string;
+                workspaceId?: string;
+            }>;
 
-                if (startDate) {
-                    const parsed = new Date(startDate);
-                    if (!isNaN(parsed.getTime())) {
-                        meetingPayloads.push({
-                            title: `${contract.title || 'Contract'} kickoff`,
-                            description: 'Auto-created from signed contract',
-                            startTime: parsed.getTime(),
-                            duration: 60,
-                            hostId: contract.fromUserId,
-                            hostName: contract.fromUsername || 'Host',
-                            participants,
-                            type: 'video',
-                            projectId,
-                            workspaceId
-                        });
-                    }
-                }
+            const startDate = terms.startDate || contract.startDate;
+            const endDate = terms.endDate || contract.endDate;
 
-                if (endDate) {
-                    const parsed = new Date(endDate);
-                    if (!isNaN(parsed.getTime())) {
-                        meetingPayloads.push({
-                            title: `${contract.title || 'Contract'} due`,
-                            description: 'Auto-created from signed contract',
-                            startTime: parsed.getTime(),
-                            duration: 30,
-                            hostId: contract.fromUserId,
-                            hostName: contract.fromUsername || 'Host',
-                            participants,
-                            type: 'video',
-                            projectId,
-                            workspaceId
-                        });
-                    }
+            if (startDate) {
+                const parsed = new Date(startDate);
+                if (!isNaN(parsed.getTime())) {
+                    meetingPayloads.push({
+                        title: `${title} kickoff`,
+                        description: 'Auto-created from signed contract',
+                        startTime: parsed.getTime(),
+                        duration: 60,
+                        hostId: contract.fromUserId,
+                        hostName: contract.fromUsername || 'Host',
+                        participants,
+                        type: 'video',
+                        projectId,
+                        workspaceId
+                    });
                 }
-
-                for (const meeting of meetingPayloads) {
-                    await MeetingService.createMeeting(meeting as any);
-                }
-            } catch (err) {
-                console.error('Failed to sync calendar events for contract', contractId, err);
             }
+
+            if (endDate) {
+                const parsed = new Date(endDate);
+                if (!isNaN(parsed.getTime())) {
+                    meetingPayloads.push({
+                        title: `${title} due`,
+                        description: 'Auto-created from signed contract',
+                        startTime: parsed.getTime(),
+                        duration: 30,
+                        hostId: contract.fromUserId,
+                        hostName: contract.fromUsername || 'Host',
+                        participants,
+                        type: 'video',
+                        projectId,
+                        workspaceId
+                    });
+                }
+            }
+
+            for (const meeting of meetingPayloads) {
+                await MeetingService.createMeeting(meeting as any);
+            }
+        } catch (err) {
+            console.error('Failed to sync calendar events for contract', contractId, err);
         }
     },
 
@@ -454,15 +296,19 @@ export const ContractSigningService = {
     async ensureEscrowHold(contractId: string, contract: any): Promise<void> {
         const terms = contract?.terms || {};
 
-        // Escrow is ONLY for ownership/assignment contracts, not simple member invites.
         const roleForUser = terms.roles?.find((r: any) => r.userId === contract?.toUserId)?.role || terms.projectRole;
         const isOwnershipInvite = roleForUser && ['owner', 'admin', 'supervisor'].includes(roleForUser);
         const isAssignmentType = terms.contractType === 'project_assignment' || terms.contractType === 'workspace_assignment';
-        if (!isOwnershipInvite || !isAssignmentType) {
+
+        // Also enforce escrow if it's an employment or freelance contract with a payment amount
+        const memberType = terms.memberType;
+        const isEmployment = memberType === 'employee' || memberType === 'freelancer';
+
+        if (!isOwnershipInvite && !isAssignmentType && !isEmployment) {
             await this.appendAudit(contractId, {
                 by: contract.fromUserId,
-                action: 'escrow_skipped_not_owner_assignment',
-                details: 'Escrow skipped because this is a member/participant invite (not ownership assignment).'
+                action: 'escrow_skipped_not_paying_contract',
+                details: 'Escrow skipped: Not an ownership/assignment or paid employment contract.'
             });
             return;
         }
@@ -470,14 +316,20 @@ export const ContractSigningService = {
         // Amount/currency constraints
         const amount = terms.paymentAmount || terms.projectBudget || terms.totalCost || terms.budgetAmount;
         const currency = terms.paymentCurrency || terms.totalCurrency || terms.currency || terms.budgetCurrency || 'GMD';
+
+        // If amount is missing or zero, skip escrow regardless of type
         if (!amount || amount <= 0) {
+            // For employment, this is expected if it's just an invite without predefined first payment?
+            // But usually for "salary" or "paymentAmount" we expect it.
+            // We'll log it as skipped.
             await this.appendAudit(contractId, {
                 by: contract.fromUserId,
                 action: 'escrow_skipped_no_amount',
-                details: 'Escrow skipped: no positive amount found for ownership assignment.'
+                details: 'Escrow skipped: no positive amount found for contract.'
             });
             return;
         }
+
         if (currency && currency.toUpperCase() !== 'GMD') {
             await this.appendAudit(contractId, {
                 by: contract.fromUserId,

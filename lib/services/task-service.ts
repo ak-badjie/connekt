@@ -212,5 +212,22 @@ export const TaskService = {
         }
 
         await updateDoc(taskRef, updates);
+    },
+
+    /**
+     * Get task statistics for dashboard
+     */
+    async getTaskStats(userId: string, supervisedProjects: string[] = []) {
+        // Simple implementation: fetch all user tasks and aggregate
+        // In a real app, you might use aggregation queries or a dedicated stats document
+        const tasks = await this.getUserTasks(userId);
+
+        return {
+            total: tasks.length,
+            completed: tasks.filter(t => t.status === 'done').length,
+            inProgress: tasks.filter(t => t.status === 'in-progress').length,
+            pending: tasks.filter(t => t.status === 'pending-validation').length,
+            todo: tasks.filter(t => t.status === 'todo').length
+        };
     }
 };
