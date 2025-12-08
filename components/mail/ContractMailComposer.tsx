@@ -30,10 +30,19 @@ interface ContractMailComposerProps {
         autoStart?: boolean;
     };
     recipientEmail?: string;
-    autoSelectTaskId?: string; // Task ID to auto-select and pre-fill
+    autoSelectTaskId?: string;
+    autoSelectProjectId?: string;
+    autoSelectWorkspaceId?: string;
 }
 
-export default function ContractMailComposer({ onContractGenerated, autoAIRequest, recipientEmail, autoSelectTaskId }: ContractMailComposerProps) {
+export default function ContractMailComposer({
+    onContractGenerated,
+    autoAIRequest,
+    recipientEmail,
+    autoSelectTaskId,
+    autoSelectProjectId,
+    autoSelectWorkspaceId
+}: ContractMailComposerProps) {
     const [templates, setTemplates] = useState<ContractTemplate[]>([]);
     const [selectedTemplate, setSelectedTemplate] = useState<ContractTemplate | null>(null);
     const [variables, setVariables] = useState<Record<string, any>>({});
@@ -170,6 +179,26 @@ export default function ContractMailComposer({ onContractGenerated, autoAIReques
             }));
         }
     };
+
+    // Auto-select Workspace
+    useEffect(() => {
+        if (autoSelectWorkspaceId && myWorkspaces.length > 0) {
+            const wsExists = myWorkspaces.find(w => w.id === autoSelectWorkspaceId);
+            if (wsExists) {
+                handleWorkspaceSelect(autoSelectWorkspaceId);
+            }
+        }
+    }, [autoSelectWorkspaceId, myWorkspaces]);
+
+    // Auto-select Project (dependent on workspaceProjects being loaded)
+    useEffect(() => {
+        if (autoSelectProjectId && workspaceProjects.length > 0) {
+            const projExists = workspaceProjects.find(p => p.id === autoSelectProjectId);
+            if (projExists) {
+                handleProjectSelect(autoSelectProjectId);
+            }
+        }
+    }, [autoSelectProjectId, workspaceProjects]);
 
     // Auto-select task(s) when autoSelectTaskId is provided
     useEffect(() => {

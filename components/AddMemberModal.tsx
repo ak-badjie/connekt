@@ -243,6 +243,13 @@ export default function SendProjectInviteModal({
             // Add multi-task selection if tasks are selected
             if (selectedTaskIds.length > 0) {
                 paramsObj.autoSelectTaskIds = selectedTaskIds.join(',');
+                paramsObj.autoSelectProjectId = projectId;
+                // Note: workspaceId is not directly available here in props, but projectId might be enough 
+                // if we fetch workspace from project, OR we can pass it if available. 
+                // For now, let's assume projectId implies workspace context.
+            } else {
+                // Even without tasks, we should pass projectId for context
+                paramsObj.autoSelectProjectId = projectId;
             }
 
             const params = new URLSearchParams(paramsObj);

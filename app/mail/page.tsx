@@ -42,6 +42,8 @@ export default function MailPage() {
         variables?: Record<string, any>;
         autoStart?: boolean;
         autoSelectTaskId?: string;
+        autoSelectProjectId?: string;
+        autoSelectWorkspaceId?: string;
     }>();
 
     // Onboarding state
@@ -85,10 +87,12 @@ export default function MailPage() {
 
         // Support both single task ID and multi-task IDs (comma-separated)
         const autoSelectTaskId = searchParams.get('autoSelectTaskIds') || searchParams.get('autoSelectTaskId') || undefined;
+        const autoSelectProjectId = searchParams.get('autoSelectProjectId') || undefined;
+        const autoSelectWorkspaceId = searchParams.get('autoSelectWorkspaceId') || undefined;
 
         setComposePrefill({ recipient: to, subject, body });
         setActiveCategories(['Contracts']);
-        setAutoContractDraftRequest({ templateId, contractType, brief, variables, autoStart, autoSelectTaskId });
+        setAutoContractDraftRequest({ templateId, contractType, brief, variables, autoStart, autoSelectTaskId, autoSelectProjectId, autoSelectWorkspaceId });
         setIsComposing(true);
     }, [searchParams]);
 

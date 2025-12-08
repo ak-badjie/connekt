@@ -206,7 +206,8 @@ export default function AddWorkspaceMemberModal({
                 contractType: employmentType === 'employee' ? 'job' : 'project',
                 brief: briefLines.join('\n'),
                 autoStart: options.autoStartAI ? '1' : '0',
-                variables: JSON.stringify(variables)
+                variables: JSON.stringify(variables),
+                autoSelectWorkspaceId: workspaceId
             });
 
             const url = `/mail?${params.toString()}`;

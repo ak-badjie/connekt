@@ -230,7 +230,9 @@ export default function AssignTaskModal({
                 brief: briefLines.join('\n'),
                 autoStart: options.autoStartAI ? '1' : '0',
                 variables: JSON.stringify(variables),
-                autoSelectTaskId: taskId // Auto-select this task in the composer
+                autoSelectTaskId: taskId,
+                autoSelectProjectId: projectId,
+                ...(project?.workspaceId ? { autoSelectWorkspaceId: project.workspaceId } : {})
             });
 
             const url = `/mail?${params.toString()}`;

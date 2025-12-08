@@ -41,6 +41,8 @@ interface ComposeModalProps {
         variables?: Record<string, any>;
         autoStart?: boolean;
         autoSelectTaskId?: string;
+        autoSelectProjectId?: string;
+        autoSelectWorkspaceId?: string;
     };
 }
 
@@ -348,6 +350,8 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                                     autoAIRequest={autoContractDraftRequest}
                                     recipientEmail={recipient}
                                     autoSelectTaskId={autoContractDraftRequest?.autoSelectTaskId}
+                                    autoSelectProjectId={autoContractDraftRequest?.autoSelectProjectId}
+                                    autoSelectWorkspaceId={autoContractDraftRequest?.autoSelectWorkspaceId}
                                 />
                             </div>
                         )}
