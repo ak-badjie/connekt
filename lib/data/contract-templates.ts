@@ -165,7 +165,7 @@ Both parties acknowledge they have reviewed and agree to all terms by signing el
 };
 
 export const PROJECT_ADMIN_TEMPLATE: Omit<ContractTemplate, 'id' | 'createdAt' | 'updatedAt'> = {
-    name: 'Project Admin Contract (Temporary Owner)',
+    name: 'Project Admin Contract (Temporal Owner)',
     type: 'project_admin',
     visibility: 'system',
     requiresEscrow: false,
@@ -176,43 +176,43 @@ export const PROJECT_ADMIN_TEMPLATE: Omit<ContractTemplate, 'id' | 'createdAt' |
     },
     bodyTemplate: `# Project Administration: {{projectTitle}}
 
-This Agreement appoints {{contractorName}} as the **Project Administrator (Temporary Owner)** for the project "{{projectTitle}}" by {{clientName}}.
+This Agreement appoints {{contractorName}} as the **Project Administrator (Temporal Owner)** for the project "{{projectTitle}}".
 
-## 1. AUTHORITY AND ROLE
-The Project Administrator is granted full administrative authority ("admin" role) over the project.
-This includes:
-- Managing tasks and timelines.
-- Sub-contracting work and assigning tasks to other members.
-- Setting pricing and budgets for sub-tasks.
-- Managing project resources.
+## 1. AUTHORITY: TEMPORAL OWNER
+The Administrator is granted **Totalitarian Access** to the project for the duration of this contract.
+Rights include:
+- **Task Assignment:** Sole authority to assign tasks to any workspace member.
+- **Resource Management:** Full control over project budget and resources.
+- **Renaming & Structuring:** Authority to rename the project and restructure tasks.
+- **Sub-Contracting:** Power to sub-contract parts of the project.
 
 ## 2. SCOPE AND DELIVERABLES
 **Project:** {{projectTitle}}
 **Objective:** {{projectDescription}}
-**Final Deliverable:** Proof of Project Completion (POP) submitted for Client approval.
+**Final Deliverable:** Verified **Proof of Project Completion (POP)**.
 
 ## 3. COMPENSATION
-**Total Fee:** {{paymentAmount}} {{paymentCurrency}}
-**Payment Condition:** Payment is released upon successful submission and approval of the Proof of Project Completion (POP).
+**Fee:** {{paymentAmount}} {{paymentCurrency}}
+**Payment Condition:** Payment is released STRICTLY upon submission and Client approval of the **Proof of Project Completion (POP)**.
 **Sub-Contracting Budget:** {{subContractingBudget}} (Managed by Administrator)
 
 ## 4. DURATION
 **Start Date:** {{startDate}}
 **Target Completion:** {{endDate}}
 
-## 5. TERMINATION OF AUTHORITY
-Authority is revoked automatically upon contract expiration or termination. The Client retains the right to revoke administrative access at any time for breach of contract.
+## 5. TERMINATION & REVOCATION
+This "Temporal Ownership" is conditional. The Client retains the ultimate right to revoke access at any time if terms are breached or deadlines are missed.
 
 {{terminationConditions}}`,
-    defaultTerms: `1. **Fiduciary Duty:** The Project Administrator agrees to act in the best interest of the Client and project efficiency.
-2. **Sub-Contracting:** The Administrator may assign tasks to third parties within the platform but remains liable for the overall project quality.
-3. **Proof of Completion (POP):** Payment is strictly contingent upon Verified POP. 
-4. **Authority Limits:** Administrator cannot change the Project Ownership permanently or delete the project without Client consent.
-5. **Confidentiality:** Strict confidentiality regarding project stats and trade secrets.
-6. **Payment:** Compensation is transferred upon final POP approval.
-7. **Role Revocation:** The "admin" role is temporary and tied to this contract.
+    defaultTerms: `1. **Temporal Ownership:** Administrator acts as the owner but acknowledges this status is temporary and revocable.
+2. **Proof of Project Completion (POP):** Payment is triggered only by a verified POP.
+3. **Liability:** Administrator assumes responsibility for the quality of all assigned sub-tasks.
+4. **Authority:** Administrator has full rights to manage, rename, and assign within the project scope.
+5. **Confidentiality:** Strict confidentiality regarding all project data.
+6. **Revocation:** Client may revoke "Temporal Owner" status immediately for cause.
+7. **Governing Law:** Governed by the laws of The Gambia.
 
-By signing, the Project Administrator accepts these responsibilities and the temporary delegatory authority.`,
+By signing, the Project Administrator accepts these responsibilities and the conditional authority.`,
     variables: [
         { key: 'contractDate', label: 'Contract Date', type: 'date', required: true },
         { key: 'clientName', label: 'Client Name', type: 'text', required: true },
@@ -229,7 +229,7 @@ By signing, the Project Administrator accepts these responsibilities and the tem
 };
 
 export const TASK_ADMIN_TEMPLATE: Omit<ContractTemplate, 'id' | 'createdAt' | 'updatedAt'> = {
-    name: 'Task Admin Contract (Delegated Authority)',
+    name: 'Task Admin Contract (Task Ownership)',
     type: 'task_admin',
     visibility: 'system',
     requiresEscrow: false,
@@ -240,30 +240,31 @@ export const TASK_ADMIN_TEMPLATE: Omit<ContractTemplate, 'id' | 'createdAt' | 'u
     },
     bodyTemplate: `# Task Administration: {{taskTitle}}
 
-This Agreement appoints {{contractorName}} as the **Task Administrator** for the task "{{taskTitle}}".
+This Agreement appoints {{contractorName}} as the **Task Administrator** for "{{taskTitle}}".
 
-## 1. AUTHORITY
-The Task Administrator is granted "admin" level control over this task and its sub-tasks.
-Authority includes:
-- Breaking down the task into sub-tasks.
-- Assigning sub-tasks to other contributors.
-- Setting pricing for sub-tasks.
-- Submitting final Proof of Completion.
+## 1. AUTHORITY: TOTALITARIAN ACCESS
+The Task Administrator is granted **Totalitarian Access** to this specific task.
+Rights include:
+- **Sub-Tasking:** Authority to break down and create sub-tasks.
+- **Assignment:** Power to assign sub-tasks to other contributors.
+- **Budgeting:** Control over the task's allocated budget.
 
 ## 2. SCOPE
 **Task:** {{taskTitle}}
 **Description:** {{taskDescription}}
+**Final Deliverable:** Verified **Proof of Task Completion (POT)**.
 
 ## 3. COMPENSATION
 **Fee:** {{paymentAmount}} {{paymentCurrency}}
-**Payment Condition:** Payment released upon approval of final Task Completion (POP).
+**Payment Condition:** Payment is released STRICTLY upon submission and approval of the **Proof of Task Completion (POT)**.
 
 ## 4. TIMELINE
 **Deadline:** {{endDate}}`,
-    defaultTerms: `1. **Delegation:** Administrator may delegate parts of the task but ensures final quality.
-2. **Payment:** Contingent on successful completion and approval.
-3. **Liability:** Administrator assumes responsibility for sub-task management.
-4. **Revocation:** Admin rights are revocable by the Client at any time.
+    defaultTerms: `1. **Task Ownership:** Administrator has full control over the execution of this task.
+2. **Proof of Task Completion (POT):** Payment requires a verified POT.
+3. **Sub-Contracting:** Administrator may delegate work but remains the primary responsible party.
+4. **Revocation:** Client may revoke administration rights at any time.
+5. **Standard Terms:** All standard platform terms apply.
 
 By signing, the Task Administrator accepts full responsibility for the task execution.`,
     variables: [

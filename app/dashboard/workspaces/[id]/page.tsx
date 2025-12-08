@@ -158,7 +158,11 @@ export default function WorkspaceDetailPage() {
                         New Project
                     </button>
                     {isOwner && (
-                        <button className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors">
+                        <button
+                            onClick={() => router.push(`/dashboard/workspaces/${workspaceId}/settings`)}
+                            className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
+                            title="Workspace Settings"
+                        >
                             <Settings size={18} />
                         </button>
                     )}

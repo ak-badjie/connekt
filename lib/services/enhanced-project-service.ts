@@ -165,6 +165,20 @@ export const EnhancedProjectService = {
         });
     },
 
+    async addSupervisor(projectId: string, userId: string): Promise<void> {
+        await updateDoc(doc(db, 'projects', projectId), {
+            supervisors: arrayUnion(userId),
+            updatedAt: serverTimestamp()
+        });
+    },
+
+    async removeSupervisor(projectId: string, userId: string): Promise<void> {
+        await updateDoc(doc(db, 'projects', projectId), {
+            supervisors: arrayRemove(userId),
+            updatedAt: serverTimestamp()
+        });
+    },
+
     /**
      * Get project by ID
      */
@@ -448,7 +462,51 @@ export const EnhancedProjectService = {
         const project = await this.getProject(projectId);
         if (!project) return false;
 
-        return project.ownerId === userId || project.assignedOwnerId === userId;
+        // 1. Primary Owner - Always has access
+        if (project.ownerId === userId) return true;
+
+        // 2. Assigned Owner (Temporal) - Check Expiry
+        if (project.assignedOwnerId === userId) {
+            try {
+                // Find the active administration contract for this user and project
+                const contractsRef = collection(db, 'mail_contracts');
+                const q = query(
+                    contractsRef,
+                    where('type', '==', 'project_admin'),
+                    where('relatedEntityId', '==', projectId),
+                    where('toUserId', '==', userId),
+                    where('status', '==', 'accepted')
+                );
+
+                const snapshot = await getDocs(q);
+                if (snapshot.empty) {
+                    // No active contract found, but user is assignedOwner? 
+                    // This implies data inconsistency or expired/revoked but not cleaned up.
+                    // Safe default: Deny access (or allowed if we trust assignedOwnerId more? Secure choice: Deny)
+                    console.warn(`Temporal owner ${userId} has no active contract for project ${projectId}. Denying access.`);
+                    return false;
+                }
+
+                // Check dates
+                const contractData = snapshot.docs[0].data();
+                const now = new Date();
+                const validFrom = contractData.startDate ? new Date(contractData.startDate) : null;
+                const validTo = contractData.endDate ? new Date(contractData.endDate) : null;
+
+                if (validFrom && now < validFrom) return false; // Not started yet
+                if (validTo && now > validTo) {
+                    console.warn(`Temporal owner ${userId} contract expired on ${validTo}. Denying access.`);
+                    return false; // Expired
+                }
+
+                return true;
+            } catch (error) {
+                console.error('Error checking contract validity:', error);
+                return false; // Fail safe
+            }
+        }
+
+        return false;
     },
 
     /**
@@ -521,13 +579,7 @@ export const EnhancedProjectService = {
     /**
      * Update project budget
      */
-    async updateProjectBudget(projectId: string, newBudget: number): Promise<void> {
-        const projectRef = doc(db, 'projects', projectId);
-        await updateDoc(projectRef, {
-            budget: newBudget,
-            updatedAt: serverTimestamp()
-        });
-    },
+
 
     /**
      * Push project to public (Explore page)

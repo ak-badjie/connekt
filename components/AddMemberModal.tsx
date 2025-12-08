@@ -233,7 +233,7 @@ export default function SendProjectInviteModal({
                 to: toAddress,
                 subject,
                 body,
-                templateId: 'Freelance Contract',
+                templateId: 'Freelance Contract (Workspace, Project or Task)',
                 contractType: 'project',
                 brief: briefLines.join('\n'),
                 autoStart: options.autoStartAI ? '1' : '0',

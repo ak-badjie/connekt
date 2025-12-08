@@ -1,16 +1,7 @@
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, addDoc, doc, updateDoc, deleteDoc, getDoc, serverTimestamp, orderBy } from 'firebase/firestore';
-
-export interface Task {
-    id?: string;
-    projectId: string;
-    title: string;
-    description: string;
-    status: 'todo' | 'in-progress' | 'done';
-    assignee?: string; // Username
-    priority: 'low' | 'medium' | 'high';
-    createdAt: any;
-}
+import { Task } from '@/lib/types/workspace.types';
+export type { Task };
 
 export const ProjectService = {
     // Get single project details

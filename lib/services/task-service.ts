@@ -479,5 +479,22 @@ export const TaskService = {
             'pricing.currency': currency,
             updatedAt: serverTimestamp()
         });
+    },
+    /**
+     * Check if user is task admin
+     */
+    async isTaskAdmin(taskId: string, userId: string): Promise<boolean> {
+        const task = await this.getTask(taskId);
+        if (!task) return false;
+        return task.taskAdminId === userId;
+    },
+
+    /**
+     * Check if user is the creator or assigned admin of the task
+     */
+    async canManageTask(taskId: string, userId: string): Promise<boolean> {
+        const task = await this.getTask(taskId);
+        if (!task) return false;
+        return task.createdBy === userId || task.taskAdminId === userId;
     }
 };

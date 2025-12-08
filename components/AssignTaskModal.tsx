@@ -225,8 +225,8 @@ export default function AssignTaskModal({
                 to: toAddress,
                 subject,
                 body,
-                templateId: 'Freelance Contract', // Updated to match new system template
-                contractType: 'project', // Updated to 'project' (Freelance)
+                templateId: 'Freelance Contract (Workspace, Project or Task)',
+                contractType: 'project',
                 brief: briefLines.join('\n'),
                 autoStart: options.autoStartAI ? '1' : '0',
                 variables: JSON.stringify(variables),

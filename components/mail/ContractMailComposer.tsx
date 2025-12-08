@@ -60,6 +60,26 @@ export default function ContractMailComposer({
     const [selectedProjectId, setSelectedProjectId] = useState<string>('');
     const [selectedTaskId, setSelectedTaskId] = useState<string>('');
 
+    const loadTemplates = async () => {
+        try {
+            setTemplates(SYSTEM_TEMPLATES as unknown as ContractTemplate[]);
+            setLoading(false);
+        } catch (error) {
+            console.error('Failed to load templates', error);
+            setLoading(false);
+        }
+    };
+
+    const loadWorkspaces = async () => {
+        if (!user) return;
+        try {
+            const ws = await WorkspaceService.getUserWorkspaces(user.uid);
+            setMyWorkspaces(ws);
+        } catch (e) {
+            console.error('Error loading workspaces', e);
+        }
+    };
+
     useEffect(() => {
         loadTemplates();
         if (user) {
@@ -97,20 +117,10 @@ export default function ContractMailComposer({
         }
     }, [autoAIRequest, templates, autoTriggered]);
 
-    const loadWorkspaces = async () => {
-        if (!user) return;
-        try {
-            const ws = await WorkspaceService.getUserWorkspaces(user.uid);
-            setMyWorkspaces(ws);
-        } catch (e) {
-            console.error('Error loading workspaces', e);
-        }
-    };
-
     const handleWorkspaceSelect = async (wsId: string) => {
         setSelectedWorkspaceId(wsId);
-        setSelectedProjectId(''); // Reset project
-        setSelectedTaskId(''); // Reset task
+        setSelectedProjectId('');
+        setSelectedTaskId('');
         setProjectTasks([]);
 
         // Auto-fill workspace name into variables if applicable
@@ -137,7 +147,7 @@ export default function ContractMailComposer({
 
     const handleProjectSelect = async (pId: string) => {
         setSelectedProjectId(pId);
-        setSelectedTaskId(''); // Reset task
+        setSelectedTaskId('');
         const proj = workspaceProjects.find(p => p.id === pId);
 
         if (proj) {
@@ -184,7 +194,7 @@ export default function ContractMailComposer({
     useEffect(() => {
         if (autoSelectWorkspaceId && myWorkspaces.length > 0) {
             const wsExists = myWorkspaces.find(w => w.id === autoSelectWorkspaceId);
-            if (wsExists) {
+            if (wsExists && selectedWorkspaceId !== autoSelectWorkspaceId) {
                 handleWorkspaceSelect(autoSelectWorkspaceId);
             }
         }
@@ -194,7 +204,7 @@ export default function ContractMailComposer({
     useEffect(() => {
         if (autoSelectProjectId && workspaceProjects.length > 0) {
             const projExists = workspaceProjects.find(p => p.id === autoSelectProjectId);
-            if (projExists) {
+            if (projExists && selectedProjectId !== autoSelectProjectId) {
                 handleProjectSelect(autoSelectProjectId);
             }
         }
@@ -203,23 +213,17 @@ export default function ContractMailComposer({
     // Auto-select task(s) when autoSelectTaskId is provided
     useEffect(() => {
         if (autoSelectTaskId && projectTasks.length > 0) {
-            // Support both single task ID and comma-separated list
             const taskIds = autoSelectTaskId.split(',').filter(id => id.trim());
 
-            // For single task, select it
             if (taskIds.length === 1) {
                 const taskExists = projectTasks.find(t => t.id === taskIds[0]);
-                if (taskExists) {
+                if (taskExists && selectedTaskId !== taskIds[0]) {
                     handleTaskSelect(taskIds[0]);
                 }
             } else if (taskIds.length > 1) {
-                // For multiple tasks, select the first one but aggregate data from all
                 const selectedTasks = projectTasks.filter(t => taskIds.includes(t.id!));
                 if (selectedTasks.length > 0) {
-                    // Select the first task visually
                     setSelectedTaskId(selectedTasks[0].id!);
-
-                    // Aggregate budget and details from all tasks
                     const totalBudget = selectedTasks.reduce((sum, t) => sum + (t.pricing?.amount || 0), 0);
                     const taskTitles = selectedTasks.map(t => t.title).join(', ');
                     const taskDescriptions = selectedTasks.map((t, i) => `${i + 1}. ${t.title}: ${t.description}`).join('\n\n');
@@ -239,16 +243,6 @@ export default function ContractMailComposer({
             }
         }
     }, [autoSelectTaskId, projectTasks]);
-
-    const loadTemplates = async () => {
-        try {
-            setTemplates(SYSTEM_TEMPLATES as unknown as ContractTemplate[]);
-            setLoading(false);
-        } catch (error) {
-            console.error('Failed to load templates', error);
-            setLoading(false);
-        }
-    };
 
     const handleTemplateSelect = (templateId: string) => {
         const template = templates.find(t => t.id === templateId || t.name === templateId);
@@ -272,7 +266,6 @@ export default function ContractMailComposer({
             }
         }
 
-        // Populate form fields with AI-generated data so the user can review before attaching
         setVariables(prev => ({
             ...prev,
             ...contractData.variables
@@ -282,7 +275,6 @@ export default function ContractMailComposer({
     const handleGenerate = () => {
         if (!selectedTemplate) return;
 
-        // Validate required variables
         const missingVars = selectedTemplate.variables
             .filter(v => v.required && !variables[v.key])
             .map(v => v.label);
@@ -293,8 +285,6 @@ export default function ContractMailComposer({
         }
 
         const contractBody = ContractTemplateService.renderTemplate(selectedTemplate.bodyTemplate, variables);
-
-        // Extract terms for the contract object
         const terms = {
             ...variables,
             contractType: selectedTemplate.type
@@ -303,7 +293,7 @@ export default function ContractMailComposer({
         onContractGenerated({
             title: variables.jobTitle || variables.projectTitle || variables.proposalTitle || selectedTemplate.name,
             description: contractBody,
-            defaultTerms: selectedTemplate.defaultTerms, // Include standard terms
+            defaultTerms: selectedTemplate.defaultTerms,
             terms: terms,
             templateId: selectedTemplate.id
         });
@@ -317,8 +307,6 @@ export default function ContractMailComposer({
         <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900 rounded-lg overflow-hidden">
             {/* Header */}
             <div className="p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 space-y-3">
-
-                {/* Manual Context Selector (Compact & At Top) */}
                 <div className="flex gap-4">
                     <div className="flex-1">
                         <label className="block text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400 mb-1">
@@ -351,7 +339,6 @@ export default function ContractMailComposer({
                             ))}
                         </select>
                     </div>
-                    {/* Select Task */}
                     <div className="flex-1">
                         <label className="block text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400 mb-1">
                             Select Task
@@ -393,18 +380,15 @@ export default function ContractMailComposer({
                         <option value="">-- Choose a Template --</option>
                         {templates.filter(t => {
                             if (selectedTaskId) {
-                                // Task Context: Freelance, Task Admin
                                 return ['project', 'task_admin'].includes(t.type);
                             }
                             if (selectedProjectId) {
-                                // Project Context: Freelance, Project Admin
                                 return ['project', 'project_admin'].includes(t.type);
                             }
                             if (selectedWorkspaceId) {
-                                // Workspace Context: Employment, Freelance
                                 return ['job', 'project'].includes(t.type);
                             }
-                            return true; // No context selected
+                            return true;
                         }).map((template, index) => (
                             <option key={template.id || index} value={template.id || template.name}>
                                 {template.name}
@@ -416,7 +400,6 @@ export default function ContractMailComposer({
 
             {selectedTemplate && (
                 <div className="flex-1 flex overflow-hidden">
-                    {/* Left Side: Form Fields */}
                     <div className="w-1/2 p-4 overflow-y-auto border-r border-gray-200 dark:border-gray-700">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                             Contract Details
@@ -463,7 +446,6 @@ export default function ContractMailComposer({
                         </div>
                     </div>
 
-                    {/* Right Side: Live Preview */}
                     <div className="w-1/2 p-4 overflow-y-auto bg-white dark:bg-gray-800">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                             Live Preview
@@ -507,7 +489,6 @@ export default function ContractMailComposer({
                 </div>
             )}
 
-            {/* AI Contract Drafter Modal */}
             {showAIDrafter && user && (
                 <AIContractDrafterModal
                     userId={user.uid}

@@ -14,7 +14,7 @@ interface TaskModalProps {
 export default function TaskModal({ projectId, isOpen, onClose, onTaskCreated }: TaskModalProps) {
     const [title, setTitle] = useState('');
     const [desc, setDesc] = useState('');
-    const [assignee, setAssignee] = useState('');
+    const [assigneeUsername, setAssigneeUsername] = useState('');
     const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
     const [loading, setLoading] = useState(false);
 
@@ -26,15 +26,17 @@ export default function TaskModal({ projectId, isOpen, onClose, onTaskCreated }:
                 projectId,
                 title,
                 description: desc,
-                assignee: assignee.replace('@', ''), // Strip @ if user adds it
+                assigneeUsername: assigneeUsername || undefined,
+                priority,
                 status: 'todo',
-                priority
-            });
+                createdAt: new Date()
+            } as any);
+
             onTaskCreated();
             onClose();
             setTitle('');
             setDesc('');
-            setAssignee('');
+            setAssigneeUsername('');
         } catch (error) {
             console.error(error);
         } finally {
@@ -45,62 +47,89 @@ export default function TaskModal({ projectId, isOpen, onClose, onTaskCreated }:
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <div className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl w-full max-w-lg shadow-xl border border-gray-100 dark:border-zinc-800 animate-in fade-in zoom-in-95 duration-200">
                 <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-zinc-800">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Create New Task</h3>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white">Create New Task</h3>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+                        <X size={20} />
+                    </button>
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Task Title</label>
+                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
+                            Task Title
+                        </label>
                         <input
+                            type="text"
                             required
                             value={title}
-                            onChange={e => setTitle(e.target.value)}
-                            className="w-full px-4 py-2 bg-gray-50 dark:bg-zinc-800 rounded-xl border border-transparent focus:border-[#008080] outline-none"
-                            placeholder="e.g. Design Homepage"
+                            onChange={(e) => setTitle(e.target.value)}
+                            className="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-[#008080]/20 focus:border-[#008080] transition-all"
+                            placeholder="e.g. Design Home Page"
                         />
                     </div>
+
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Description</label>
+                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
+                            Description
+                        </label>
                         <textarea
+                            required
                             value={desc}
-                            onChange={e => setDesc(e.target.value)}
-                            className="w-full px-4 py-2 bg-gray-50 dark:bg-zinc-800 rounded-xl border border-transparent focus:border-[#008080] outline-none h-24 resize-none"
-                            placeholder="Task details..."
+                            onChange={(e) => setDesc(e.target.value)}
+                            rows={3}
+                            className="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-[#008080]/20 focus:border-[#008080] transition-all resize-none"
+                            placeholder="Describe the task details..."
                         />
                     </div>
+
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Assign To (@username)</label>
-                            <input
-                                value={assignee}
-                                onChange={e => setAssignee(e.target.value)}
-                                className="w-full px-4 py-2 bg-gray-50 dark:bg-zinc-800 rounded-xl border border-transparent focus:border-[#008080] outline-none"
-                                placeholder="@username"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Priority</label>
+                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
+                                Priority
+                            </label>
                             <select
                                 value={priority}
-                                onChange={e => setPriority(e.target.value as any)}
-                                className="w-full px-4 py-2 bg-gray-50 dark:bg-zinc-800 rounded-xl border border-transparent focus:border-[#008080] outline-none appearance-none"
+                                onChange={(e) => setPriority(e.target.value as any)}
+                                className="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-[#008080]/20 focus:border-[#008080] transition-all"
                             >
                                 <option value="low">Low</option>
                                 <option value="medium">Medium</option>
                                 <option value="high">High</option>
                             </select>
                         </div>
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
+                                Assignee (Username)
+                            </label>
+                            <input
+                                type="text"
+                                value={assigneeUsername}
+                                onChange={(e) => setAssigneeUsername(e.target.value)}
+                                className="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-[#008080]/20 focus:border-[#008080] transition-all"
+                                placeholder="e.g. johndoe"
+                            />
+                        </div>
                     </div>
-                    <button
-                        disabled={loading}
-                        className="w-full py-3 bg-[#008080] hover:bg-teal-600 text-white rounded-xl font-bold shadow-lg shadow-teal-500/20 transition-all flex items-center justify-center"
-                    >
-                        {loading ? <Loader2 className="animate-spin" /> : 'Create Task'}
-                    </button>
+
+                    <div className="pt-4 flex justify-end gap-3">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="px-5 py-2.5 rounded-xl font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="px-5 py-2.5 bg-[#008080] hover:bg-teal-600 text-white rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-teal-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                            {loading ? <Loader2 className="animate-spin" size={18} /> : 'Create Task'}
+                        </button>
+                    </div>
                 </form>
             </div>
         </div>

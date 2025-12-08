@@ -105,6 +105,7 @@ export interface Task {
     priority: 'low' | 'medium' | 'high' | 'urgent';
     assigneeId?: string;
     assigneeUsername?: string;
+    taskAdminId?: string; // NEW: For Task Admin contracts (Totalitarian Access)
     isReassignable: boolean;
     timeline: TaskTimeline;
     pricing: TaskPricing;
