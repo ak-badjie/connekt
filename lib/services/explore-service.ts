@@ -95,6 +95,36 @@ export const ExploreService = {
     },
 
     /**
+     * Get public jobs with optional filtering
+     */
+    async getPublicJobs(filters?: ExploreFilters, limitCount: number = 20): Promise<any[]> {
+        let q = query(
+            collection(db, 'jobs'),
+            where('isPublic', '==', true),
+            orderBy('createdAt', 'desc'),
+            firestoreLimit(limitCount)
+        );
+
+        const snapshot = await getDocs(q);
+        let jobs = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+
+        // Apply filters (client-side)
+        if (filters) {
+            if (filters.budgetMin !== undefined) {
+                jobs = jobs.filter((j: any) => j.salary >= filters.budgetMin!);
+            }
+            if (filters.budgetMax !== undefined) {
+                jobs = jobs.filter((j: any) => j.salary <= filters.budgetMax!);
+            }
+        }
+
+        return jobs;
+    },
+
+    /**
      * Get public agencies by type
      */
     async getPublicAgencies(

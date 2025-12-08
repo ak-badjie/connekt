@@ -19,6 +19,7 @@ interface MailViewerColumnProps {
     onForward?: (prefill: { recipient?: string; subject?: string; body?: string; contractId?: string }) => void;
     onDelete?: () => void;
     onMarkUnread?: () => void;
+    onResponse?: (mail: MailMessage) => void;
 }
 
 export function MailViewerColumn({
@@ -26,7 +27,8 @@ export function MailViewerColumn({
     onReply,
     onForward,
     onDelete,
-    onMarkUnread
+    onMarkUnread,
+    onResponse
 }: MailViewerColumnProps) {
     const { user } = useAuth();
     const router = useRouter();
@@ -86,6 +88,16 @@ export function MailViewerColumn({
                 {/* Actions */}
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
+                        {/* Response Button for Proposals */}
+                        {(mail as any).category === 'Proposals' && (
+                            <button
+                                onClick={() => onResponse?.(mail)}
+                                className="px-3 py-1.5 bg-teal-600 text-white rounded-lg font-bold text-xs hover:bg-teal-700 transition-colors flex items-center gap-2"
+                            >
+                                <FileText size={14} />
+                                Response
+                            </button>
+                        )}
                         <button
                             onClick={() => {
                                 if (!mail) return;

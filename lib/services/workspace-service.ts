@@ -306,5 +306,17 @@ export const WorkspaceService = {
             id: doc.id,
             ...doc.data()
         } as Workspace));
+    },
+
+    /**
+     * Create a new job posting
+     */
+    async createJob(jobData: any): Promise<string> {
+        const docRef = await addDoc(collection(db, 'jobs'), {
+            ...jobData,
+            createdAt: serverTimestamp(),
+            isPublic: true
+        });
+        return docRef.id;
     }
 };

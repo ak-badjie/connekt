@@ -9,6 +9,7 @@ import { Workspace, Project, WorkspaceMember } from '@/lib/types/workspace.types
 import { Loader2, Folder, Users, Settings, Briefcase, Plus, UserPlus, ArrowLeft } from 'lucide-react';
 import AddWorkspaceMemberModal from '@/components/AddWorkspaceMemberModal';
 import ManageWorkspaceMemberModal from '@/components/ManageWorkspaceMemberModal';
+import CreateJobModal from '@/components/dashboard/workspaces/CreateJobModal';
 
 export default function WorkspaceDetailPage() {
     const params = useParams();
@@ -21,6 +22,7 @@ export default function WorkspaceDetailPage() {
     const [projects, setProjects] = useState<Project[]>([]);
     const [userRole, setUserRole] = useState<'owner' | 'admin' | 'member' | null>(null);
     const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
+    const [isCreateJobModalOpen, setIsCreateJobModalOpen] = useState(false);
 
     // Manage Member State
     const [selectedMember, setSelectedMember] = useState<WorkspaceMember | null>(null);
@@ -142,16 +144,25 @@ export default function WorkspaceDetailPage() {
                 </div>
                 <div className="flex items-center gap-3">
                     {canManage && (
-                        <button
-                            onClick={() => setIsAddMemberModalOpen(true)}
-                            className="px-5 py-2.5 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold text-sm hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors flex items-center gap-2"
-                        >
-                            <UserPlus size={16} />
-                            Invite Members
-                        </button>
+                        <>
+                            <button
+                                onClick={() => setIsCreateJobModalOpen(true)}
+                                className="px-5 py-2.5 bg-teal-600 text-white rounded-xl font-bold text-sm hover:bg-teal-700 transition-colors flex items-center gap-2 shadow-lg shadow-teal-500/20"
+                            >
+                                <Briefcase size={16} />
+                                Post Job
+                            </button>
+                            <button
+                                onClick={() => setIsAddMemberModalOpen(true)}
+                                className="px-5 py-2.5 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold text-sm hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors flex items-center gap-2"
+                            >
+                                <UserPlus size={16} />
+                                Invite Members
+                            </button>
+                        </>
                     )}
                     <button
-                        onClick={() => router.push(`/dashboard/projects/create?workspace=${workspaceId}`)}
+                        onClick={() => router.push(`/dashboard/workspaces/${workspaceId}/settings`)}
                         className="px-5 py-2.5 bg-[#008080] hover:bg-teal-600 text-white rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-teal-500/20"
                     >
                         <Plus size={16} />
@@ -339,6 +350,12 @@ export default function WorkspaceDetailPage() {
                 workspaceId={workspaceId}
                 member={selectedMember}
                 onMemberUpdated={handleMemberUpdated}
+            />
+
+            <CreateJobModal
+                isOpen={isCreateJobModalOpen}
+                onClose={() => setIsCreateJobModalOpen(false)}
+                workspaceId={workspaceId}
             />
         </div>
     );

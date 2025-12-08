@@ -14,6 +14,9 @@ import { AdvertisementBanner } from '@/components/explore/AdvertisementBanner';
 import LoadingScreen from '@/components/ui/LoadingScreen';
 import { useMinimumLoading } from '@/hooks/useMinimumLoading';
 import { useAnimation } from '@/context/AnimationContext';
+import { ComposeModal } from '@/components/mail/ComposeModal';
+import { MailService } from '@/lib/services/mail-service';
+import { toast } from 'react-hot-toast';
 
 export default function ExplorePage() {
     const { user, userProfile } = useAuth();
@@ -23,6 +26,7 @@ export default function ExplorePage() {
     // Data states
     const [projects, setProjects] = useState<Project[]>([]);
     const [tasks, setTasks] = useState<Task[]>([]);
+    const [jobs, setJobs] = useState<any[]>([]);
     const [profiles, setProfiles] = useState<ExtendedUserProfile[]>([]);
     const [agencies, setAgencies] = useState<Agency[]>([]);
 
@@ -44,12 +48,14 @@ export default function ExplorePage() {
             setIsLoading(true);
             try {
                 if (viewMode === 'jobs') {
-                    const [projectData, taskData] = await Promise.all([
+                    const [projectData, taskData, jobData] = await Promise.all([
                         ExploreService.getPublicProjects(filters),
-                        ExploreService.getPublicTasks(filters)
+                        ExploreService.getPublicTasks(filters),
+                        ExploreService.getPublicJobs(filters)
                     ]);
                     setProjects(projectData);
                     setTasks(taskData);
+                    setJobs(jobData);
                 } else {
                     const [profileData, agencyData] = await Promise.all([
                         ExploreService.getPublicUserProfiles(
@@ -131,7 +137,7 @@ export default function ExplorePage() {
                     <div className="flex items-center justify-between mt-6">
                         <h2 className="text-2xl font-black text-gray-900 dark:text-white">
                             {viewMode === 'jobs' ? (
-                                <>{projects.length + tasks.length} Opportunities Available</>
+                                <>{projects.length + tasks.length + jobs.length} Opportunities Available</>
                             ) : (
                                 <>{profiles.length + agencies.length} Talents & Agencies</>
                             )}
@@ -150,6 +156,20 @@ export default function ExplorePage() {
                                     transition={{ duration: 0.3 }}
                                     className="space-y-8"
                                 >
+                                    {/* Jobs Section */}
+                                    {jobs.length > 0 && (
+                                        <div>
+                                            <h3 className="text-xl font-black text-gray-900 dark:text-white mb-4">
+                                                Jobs ({jobs.length})
+                                            </h3>
+                                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                                {jobs.map((job, index) => (
+                                                    <JobCard key={job.id} job={job} index={index} />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* Projects Section */}
                                     {projects.length > 0 && (
                                         <div>
@@ -178,7 +198,7 @@ export default function ExplorePage() {
                                         </div>
                                     )}
 
-                                    {projects.length === 0 && tasks.length === 0 && !isLoading && (
+                                    {projects.length === 0 && tasks.length === 0 && jobs.length === 0 && !isLoading && (
                                         <EmptyState mode="jobs" />
                                     )}
                                 </motion.div>

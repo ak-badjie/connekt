@@ -16,7 +16,7 @@ export interface MailAddress {
 /**
  * Mail Categories
  */
-export type MailCategory = 'Projects' | 'Clients' | 'Personal' | 'Important' | 'Contracts';
+export type MailCategory = 'Projects' | 'Clients' | 'Personal' | 'Important' | 'Contracts' | 'Proposals';
 
 /**
  * Mail Signature

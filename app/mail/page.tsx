@@ -9,6 +9,7 @@ import { MailService, type MailMessage } from '@/lib/services/mail-service';
 import { ContractMailService } from '@/lib/services/contract-mail-service';
 import { StorageQuotaService } from '@/lib/services/storage-quota-service';
 import { ComposeModal } from '@/components/mail/ComposeModal';
+import { ContractDrafterModal } from '@/components/mail/ContractDrafterModal';
 import { MailHeader } from '@/components/mail/MailHeader';
 import { MailPrimarySidebar } from '@/components/mail/MailPrimarySidebar';
 import { MailListColumn } from '@/components/mail/MailListColumn';
@@ -49,6 +50,9 @@ export default function MailPage() {
     // Onboarding state
     const [showIntro, setShowIntro] = useState(false);
     const [introStep, setIntroStep] = useState(0);
+
+    const [isContractDrafterOpen, setIsContractDrafterOpen] = useState(false);
+    const [contractResponseRecipient, setContractResponseRecipient] = useState<string>('');
 
     useEffect(() => {
         if (user) {
@@ -95,6 +99,24 @@ export default function MailPage() {
         setAutoContractDraftRequest({ templateId, contractType, brief, variables, autoStart, autoSelectTaskId, autoSelectProjectId, autoSelectWorkspaceId });
         setIsComposing(true);
     }, [searchParams]);
+
+    const handleResponse = (mail: MailMessage) => {
+        setComposePrefill({
+            recipient: mail.senderUsername,
+            subject: `Response to Proposal: ${mail.subject}`,
+            body: `Thank you for your proposal. We are pleased to offer you the contract.`
+        });
+        
+        setAutoContractDraftRequest({
+            templateId: 'job_contract',
+            contractType: 'job',
+            autoStart: true,
+            variables: {
+                jobTitle: mail.subject.replace('Proposal: ', '')
+            }
+        });
+        setIsComposing(true);
+    };
 
     const checkOnboarding = async () => {
         if (!user) return;
@@ -589,6 +611,7 @@ export default function MailPage() {
                         await MailService.markAsUnread(selectedMail.id);
                         await loadMails();
                     }}
+                    onResponse={handleResponse}
                 />
             </div>
 
