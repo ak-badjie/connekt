@@ -327,25 +327,7 @@ export const EnhancedProjectService = {
         });
     },
 
-    /**
-     * Add supervisor to project
-     */
-    async addSupervisor(projectId: string, userId: string): Promise<void> {
-        await updateDoc(doc(db, 'projects', projectId), {
-            supervisors: arrayUnion(userId),
-            updatedAt: serverTimestamp()
-        });
-    },
 
-    /**
-     * Remove supervisor from project
-     */
-    async removeSupervisor(projectId: string, userId: string): Promise<void> {
-        await updateDoc(doc(db, 'projects', projectId), {
-            supervisors: arrayRemove(userId),
-            updatedAt: serverTimestamp()
-        });
-    },
 
     /**
      * Add member to project
@@ -601,5 +583,20 @@ export const EnhancedProjectService = {
             isPublic: false,
             publishedAt: null
         });
-    }
+    },
+
+    /**
+     * Get Project Members
+     */
+    async getProjectMembers(projectId: string): Promise<ProjectMember[]> {
+        const docRef = doc(db, 'projects', projectId);
+        const docSnap = await getDoc(docRef);
+
+        if (!docSnap.exists()) return [];
+
+        const data = docSnap.data();
+        return data.members || [];
+    },
+
+
 };

@@ -10,6 +10,9 @@ import { useAuth } from '@/context/AuthContext';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import TaskModal from '@/components/projects/TaskModal';
+import { ComposeModal } from '@/components/mail/ComposeModal';
+import AskForHelpModal from '@/components/projects/AskForHelpModal';
+import { HelpCircle, Globe } from 'lucide-react';
 
 export default function ProjectWorkspace() {
     const params = useParams();
@@ -26,6 +29,10 @@ export default function ProjectWorkspace() {
     const [selectedTaskForSubmit, setSelectedTaskForSubmit] = useState<Task | null>(null);
     const [selectedTaskForReview, setSelectedTaskForReview] = useState<Task | null>(null);
     const [reviewContractId, setReviewContractId] = useState<string>('');
+
+    // Ask For Help State
+    const [isAskHelpOpen, setIsAskHelpOpen] = useState(false);
+    const [selectedTaskForHelp, setSelectedTaskForHelp] = useState<Task | null>(null);
 
     const findContractForTask = async (taskId: string) => {
         try {
@@ -53,6 +60,11 @@ export default function ProjectWorkspace() {
             console.error('No active contract found for this task.');
             alert('No active contract found for this task. Cannot process review.');
         }
+    };
+
+    const handleAskForHelp = (task: Task) => {
+        setSelectedTaskForHelp(task);
+        setIsAskHelpOpen(true);
     };
 
     const loadData = async () => {
@@ -168,6 +180,12 @@ export default function ProjectWorkspace() {
                                             <h4 className="font-bold text-sm text-gray-900 dark:text-white mb-1">{task.title}</h4>
                                             <p className="text-xs text-gray-500 line-clamp-2 mb-3">{task.description}</p>
 
+                                            {(task.isPublic) && (
+                                                <div className="absolute top-2 right-2 text-amber-500" title="Publicly Listed">
+                                                    <Globe size={14} />
+                                                </div>
+                                            )}
+
                                             {(task as any).status === 'pending-validation' && (
                                                 <div className="mb-2 px-2 py-1 bg-amber-50 text-amber-600 text-[10px] font-bold rounded border border-amber-100 flex items-center gap-1">
                                                     <Clock size={10} /> Review Pending
@@ -176,6 +194,16 @@ export default function ProjectWorkspace() {
 
                                             {/* Action Buttons */}
                                             <div className="flex gap-1 mt-2 opacity-100 justify-end">
+                                                {(isOwner || isSupervisor || isAssignee) && task.status !== 'done' && !task.isPublic && (
+                                                    <button
+                                                        onClick={() => handleAskForHelp(task)}
+                                                        className="px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-600 rounded text-xs font-bold flex items-center gap-1 hover:bg-purple-200"
+                                                        title="Ask For Help / Hire"
+                                                    >
+                                                        <HelpCircle size={12} /> Need Help?
+                                                    </button>
+                                                )}
+
                                                 {canSubmit && (
                                                     <button
                                                         onClick={() => setSelectedTaskForSubmit(task)}
@@ -230,6 +258,16 @@ export default function ProjectWorkspace() {
                 pot={selectedTaskForReview?.proofOfTask!}
                 onReviewComplete={loadData}
             />
+
+            <AskForHelpModal
+                isOpen={isAskHelpOpen}
+                onClose={() => setIsAskHelpOpen(false)}
+                task={selectedTaskForHelp!}
+                projectId={projectId}
+                onHelpRequested={loadData}
+            />
+
+            {/* KEEP generic ComposeModal if required for other things, but removing specific AskForHelp triggers */}
         </div>
     );
 }
