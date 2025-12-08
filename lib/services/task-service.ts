@@ -229,5 +229,32 @@ export const TaskService = {
             pending: tasks.filter(t => t.status === 'pending-validation').length,
             todo: tasks.filter(t => t.status === 'todo').length
         };
+    },
+
+    /**
+     * Get Proofs of Task to review for a supervisor
+     */
+    async getPotsToReview(userId: string, supervisedProjectIds: string[]): Promise<ProofOfTask[]> {
+        if (!supervisedProjectIds.length) return [];
+
+        // Firestore 'in' query is limited to 10 items.
+        // For production, batches would be needed. For now, slice to 10.
+        const q = query(
+            collection(db, 'tasks'),
+            where('projectId', 'in', supervisedProjectIds.slice(0, 10)),
+            where('status', '==', 'pending-validation'),
+            orderBy('updatedAt', 'desc')
+        );
+
+        const snapshot = await getDocs(q);
+        const tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
+
+        // Extract the proofs
+        return tasks
+            .filter(t => t.proofOfTask)
+            .map(t => ({
+                ...t.proofOfTask!,
+                submittedByUsername: t.assigneeUsername || 'Unknown'
+            }));
     }
 };

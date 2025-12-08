@@ -77,6 +77,7 @@ export interface ProjectMember {
     email: string;
     role: 'owner' | 'supervisor' | 'member';
     type: 'employee' | 'freelancer'; // NEW
+    jobTitle?: string; // NEW
     assignedAt: any; // Timestamp | Date | FieldValue
 }
 

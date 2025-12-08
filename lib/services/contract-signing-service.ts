@@ -314,7 +314,10 @@ export const ContractSigningService = {
         }
 
         // Amount/currency constraints
-        const amount = terms.paymentAmount || terms.projectBudget || terms.totalCost || terms.budgetAmount;
+        let amount = terms.paymentAmount || terms.projectBudget || terms.totalCost || terms.budgetAmount;
+        if (typeof amount === 'string') {
+            amount = parseFloat(amount);
+        }
         const currency = terms.paymentCurrency || terms.totalCurrency || terms.currency || terms.budgetCurrency || 'GMD';
 
         // If amount is missing or zero, skip escrow regardless of type

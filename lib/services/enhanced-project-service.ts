@@ -339,7 +339,8 @@ export const EnhancedProjectService = {
             username: string;
             email: string;
             role: 'supervisor' | 'member';
-            type: 'employee' | 'freelancer'; // NEW
+            type: 'employee' | 'freelancer';
+            jobTitle?: string;
         }
     ): Promise<void> {
         const projectMember: ProjectMember = {
@@ -348,6 +349,7 @@ export const EnhancedProjectService = {
             email: member.email,
             role: member.role,
             type: member.type,
+            jobTitle: member.jobTitle,
             assignedAt: Timestamp.now()
         };
 

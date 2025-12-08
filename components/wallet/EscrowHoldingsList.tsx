@@ -92,7 +92,7 @@ export function EscrowHoldingsList({ holdings, isLoading = false }: EscrowHoldin
                         {/* Amount */}
                         <div className="mb-4">
                             <div className="text-3xl font-black text-gray-900 dark:text-white mb-1">
-                                D{holding.amount.toFixed(2)}
+                                D{(Number(holding.amount) || 0).toFixed(2)}
                             </div>
                             <div className="text-xs text-gray-500 font-medium">{holding.currency}</div>
                         </div>
