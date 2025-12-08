@@ -125,6 +125,19 @@ export const TaskService = {
     },
 
     /**
+     * Get tasks created by a user
+     */
+    async getCreatedTasks(userId: string): Promise<Task[]> {
+        const q = query(
+            collection(db, 'tasks'),
+            where('createdBy', '==', userId),
+            orderBy('createdAt', 'desc')
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
+    },
+
+    /**
      * Update task status
      */
     async updateStatus(taskId: string, status: Task['status']) {

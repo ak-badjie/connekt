@@ -35,7 +35,11 @@ export default function AgencyDashboardPage() {
         activeTasks: 0,
         potsPending: 0,
         teamMembers: 0,
-        storageUsed: 0
+        storageUsed: 0,
+        // New stats
+        tasksCreated: 0,
+        talentsManaged: 0,
+        activeJobs: 0
     });
 
     // Modal state
@@ -66,15 +70,28 @@ export default function AgencyDashboardPage() {
                         TaskService.getAgencyTasks(agencyData.id!)
                     ]);
 
+                    // Fetch created tasks for stats
+                    const createdTasks = await TaskService.getCreatedTasks(agencyData.ownerId); // Assuming owner creates tasks for agency
+
                     const activeTasks = tasks.filter(t => t.status === 'in-progress');
                     const potsPending = tasks.filter(t => t.status === 'pending-validation');
+                    const activeJobs = projects.filter(p => p.status === 'active');
+
+                    // Calculate Talents Managed (Unique members in projects)
+                    const uniqueMembers = new Set<string>();
+                    projects.forEach(p => {
+                        p.members.forEach(m => uniqueMembers.add(m.userId));
+                    });
 
                     setStats({
                         totalProjects: projects.length,
                         activeTasks: activeTasks.length,
                         potsPending: potsPending.length,
                         teamMembers: agencyData.members.length,
-                        storageUsed: quota ? StorageQuotaService.bytesToGB(quota.usedSpace) : 0
+                        storageUsed: quota ? StorageQuotaService.bytesToGB(quota.usedSpace) : 0,
+                        tasksCreated: createdTasks.length,
+                        talentsManaged: uniqueMembers.size,
+                        activeJobs: activeJobs.length
                     });
 
                     // Store data for modal
@@ -130,44 +147,87 @@ export default function AgencyDashboardPage() {
 
             {/* Row 1: Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatsCard
-                    title="Total Projects"
-                    value={stats.totalProjects}
-                    trend="All agency projects"
-                    trendValue=""
-                    color="green"
-                    onClick={() => handleStatClick('projects')}
-                    icon={Briefcase}
-                />
-                <StatsCard
-                    title="Active Tasks"
-                    value={stats.activeTasks}
-                    trend="Currently in progress"
-                    trendValue=""
-                    color="white"
-                    onClick={() => handleStatClick('tasks')}
-                    icon={CheckSquare}
-                    showMiniChart={true}
-                    chartData={[2, 4, 3, 6, 5, 7, 4]}
-                />
-                <StatsCard
-                    title="POTs Pending Review"
-                    value={stats.potsPending}
-                    trend="Awaiting validation"
-                    trendValue=""
-                    color="white"
-                    onClick={() => handleStatClick('pots-pending')}
-                    icon={FileCheck}
-                    showMiniChart={true}
-                    chartData={[1, 3, 2, 5, 4, 3, 2]}
-                />
-                <div className="h-full">
-                    <StorageQuota
-                        usedSpace={storageQuota?.usedSpace || 0}
-                        totalQuota={storageQuota?.totalQuota || 1073741824}
-                        filesCount={storageQuota?.filesCount || 0}
-                    />
-                </div>
+                {agency?.agencyType === 'recruiter_collective' ? (
+                    <>
+                        <StatsCard
+                            title="Projects Created"
+                            value={stats.totalProjects}
+                            trend="Total projects"
+                            trendValue={`${stats.activeJobs} active`}
+                            color="green"
+                            onClick={() => handleStatClick('projects')}
+                            icon={Briefcase}
+                        />
+                        <StatsCard
+                            title="Tasks Created"
+                            value={stats.tasksCreated}
+                            trend="Total tasks assigned"
+                            trendValue=""
+                            color="white"
+                            onClick={() => {}}
+                            icon={CheckSquare}
+                        />
+                        <StatsCard
+                            title="Talents Managed"
+                            value={stats.talentsManaged}
+                            trend="Unique talents"
+                            trendValue=""
+                            color="white"
+                            onClick={() => {}}
+                            icon={Users}
+                        />
+                        <StatsCard
+                            title="Task Validations"
+                            value={stats.potsPending}
+                            trend="Submissions to validate"
+                            trendValue={stats.potsPending > 0 ? '⚠️ Action needed' : ''}
+                            color="white"
+                            onClick={() => handleStatClick('pots-pending')}
+                            icon={FileCheck}
+                        />
+                    </>
+                ) : (
+                    <>
+                        <StatsCard
+                            title="Total Projects"
+                            value={stats.totalProjects}
+                            trend="All agency projects"
+                            trendValue=""
+                            color="green"
+                            onClick={() => handleStatClick('projects')}
+                            icon={Briefcase}
+                        />
+                        <StatsCard
+                            title="Active Tasks"
+                            value={stats.activeTasks}
+                            trend="Currently in progress"
+                            trendValue=""
+                            color="white"
+                            onClick={() => handleStatClick('tasks')}
+                            icon={CheckSquare}
+                            showMiniChart={true}
+                            chartData={[2, 4, 3, 6, 5, 7, 4]}
+                        />
+                        <StatsCard
+                            title="POTs Pending Review"
+                            value={stats.potsPending}
+                            trend="Awaiting validation"
+                            trendValue=""
+                            color="white"
+                            onClick={() => handleStatClick('pots-pending')}
+                            icon={FileCheck}
+                            showMiniChart={true}
+                            chartData={[1, 3, 2, 5, 4, 3, 2]}
+                        />
+                        <div className="h-full">
+                            <StorageQuota
+                                usedSpace={storageQuota?.usedSpace || 0}
+                                totalQuota={storageQuota?.totalQuota || 1073741824}
+                                filesCount={storageQuota?.filesCount || 0}
+                            />
+                        </div>
+                    </>
+                )}
             </div>
 
             {/* Agency Overview */}

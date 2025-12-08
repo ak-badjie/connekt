@@ -47,6 +47,7 @@ export default function OnboardingPage() {
                 username: username.toLowerCase(),
                 connectMail: connectMail,
                 role,
+                title: role === 'recruiter' ? 'Recruiter' : 'Virtual Assistant',
                 onboardingCompleted: true,
                 updatedAt: serverTimestamp(),
                 email: user.email,

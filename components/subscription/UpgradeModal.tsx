@@ -122,6 +122,7 @@ export default function UpgradeModal({ isOpen, onClose, onSuccess }: UpgradeModa
         ],
         [SubscriptionTier.PRO_PLUS]: [
             'All Pro features',
+            'Verification Badge',
             'Talent pool management',
             'Client dashboards',
             'White-label branding',

@@ -27,6 +27,8 @@ import {
 
 import { ExtendedAgencyProfile } from '@/lib/types/profile.types';
 import { ProfileService } from '@/lib/services/profile-service';
+import { TaskService } from '@/lib/services/task-service';
+import { EnhancedProjectService } from '@/lib/services/enhanced-project-service';
 import { ReviewSection } from './ReviewSection';
 import { PrivacySettingsPanel } from './PrivacySettingsPanel';
 import { DraggableSection } from './DraggableSection';
@@ -44,6 +46,17 @@ export function AgencyProfile({ agency: initialAgency, isOwner }: AgencyProfileP
     const [showPrivacySettings, setShowPrivacySettings] = useState(false);
     const [isFollowing, setIsFollowing] = useState(false);
     const [activeForm, setActiveForm] = useState<'portfolio' | 'custom' | null>(null);
+    
+    // Stats State
+    const [stats, setStats] = useState({
+        projectsCreated: 0,
+        tasksCreated: 0,
+        talentsManaged: 0,
+        activeJobs: 0,
+        teamSize: 0,
+        projectsManaged: 0,
+        tasksCompleted: 0
+    });
 
     // Section Order State
     const [sectionOrder, setSectionOrder] = useState<string[]>([]);
@@ -68,6 +81,46 @@ export function AgencyProfile({ agency: initialAgency, isOwner }: AgencyProfileP
         if (!isOwner && agency.id) {
             ProfileService.incrementProfileViews(agency.id);
         }
+
+        // Fetch Agency Stats
+        const fetchStats = async () => {
+            if (!agency.id) return;
+            try {
+                const [projects, tasks] = await Promise.all([
+                    EnhancedProjectService.getAgencyProjects(agency.id),
+                    TaskService.getAgencyTasks(agency.id)
+                ]);
+
+                // For Recruiters: Created Tasks (by owner/admins)
+                // We approximate by using agency owner ID or just all tasks in agency context
+                // Since TaskService.getAgencyTasks returns tasks associated with agency, we can use that.
+                
+                const createdTasks = await TaskService.getCreatedTasks(agency.ownerId);
+
+                const activeJobs = projects.filter(p => p.status === 'active');
+                const completedTasks = tasks.filter(t => t.status === 'done' || t.status === 'paid');
+
+                // Talents Managed (Unique members in projects)
+                const uniqueMembers = new Set<string>();
+                projects.forEach(p => {
+                    p.members.forEach(m => uniqueMembers.add(m.userId));
+                });
+
+                setStats({
+                    projectsCreated: projects.length,
+                    tasksCreated: createdTasks.length,
+                    talentsManaged: uniqueMembers.size,
+                    activeJobs: activeJobs.length,
+                    teamSize: agency.members?.length || 0,
+                    projectsManaged: projects.length,
+                    tasksCompleted: completedTasks.length
+                });
+            } catch (error) {
+                console.error("Error fetching agency stats", error);
+            }
+        };
+        fetchStats();
+
     }, [agency.id, isOwner]);
 
     const handleDragEnd = async (event: DragEndEvent) => {
@@ -576,6 +629,87 @@ export function AgencyProfile({ agency: initialAgency, isOwner }: AgencyProfileP
                                         {agency.stats?.timeOnPlatform || 0} days
                                     </span>
                                 </div>
+
+                                {agency.agencyType === 'recruiter_collective' ? (
+                                    <>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                                                <Briefcase className="w-4 h-4" />
+                                                Projects Created
+                                            </span>
+                                            <span className="font-semibold text-gray-900 dark:text-white">
+                                                {stats.projectsCreated}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                                                <CheckCircle2 className="w-4 h-4" />
+                                                Tasks Created
+                                            </span>
+                                            <span className="font-semibold text-gray-900 dark:text-white">
+                                                {stats.tasksCreated}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                                                <Users className="w-4 h-4" />
+                                                Talents Managed
+                                            </span>
+                                            <span className="font-semibold text-gray-900 dark:text-white">
+                                                {stats.talentsManaged}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                                                <Briefcase className="w-4 h-4" />
+                                                Active Jobs
+                                            </span>
+                                            <span className="font-semibold text-gray-900 dark:text-white">
+                                                {stats.activeJobs}
+                                            </span>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                                                <Briefcase className="w-4 h-4" />
+                                                Projects Managed
+                                            </span>
+                                            <span className="font-semibold text-gray-900 dark:text-white">
+                                                {stats.projectsManaged}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                                                <Users className="w-4 h-4" />
+                                                Team Size
+                                            </span>
+                                            <span className="font-semibold text-gray-900 dark:text-white">
+                                                {stats.teamSize}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                                                <CheckCircle2 className="w-4 h-4" />
+                                                Tasks Completed
+                                            </span>
+                                            <span className="font-semibold text-gray-900 dark:text-white">
+                                                {stats.tasksCompleted}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                                                <Star className="w-4 h-4" />
+                                                Average Rating
+                                            </span>
+                                            <span className="font-semibold text-amber-500">
+                                                {agency.stats?.averageRating?.toFixed(1) || 'N/A'} ★
+                                            </span>
+                                        </div>
+                                    </>
+                                )}
+
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
                                         <TrendingUp className="w-4 h-4" />

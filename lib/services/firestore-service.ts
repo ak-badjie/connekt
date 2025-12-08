@@ -26,7 +26,7 @@ export interface UserProfile {
     email?: string;
     displayName?: string;
     photoURL?: string;
-    role: 'employer' | 'va' | 'agency' | 'admin';
+    role: 'employer' | 'va' | 'agency' | 'admin' | 'recruiter';
     subRole?: string; // For admin users
     bio?: string;
     skills?: string[];

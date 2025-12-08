@@ -127,6 +127,7 @@ export default function SubscriptionManagement() {
         ],
         [SubscriptionTier.PRO_PLUS]: [
             'All Pro features',
+            'Verification Badge',
             'Talent pool management',
             'Client dashboards',
             'White-label options',

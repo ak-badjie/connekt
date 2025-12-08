@@ -107,6 +107,7 @@ export const ProfileService = {
                 displayName: basicData.displayName,
                 photoURL: basicData.photoURL,
                 role: basicData.role,
+                title: basicData.title || (basicData.role === 'recruiter' ? 'Recruiter' : 'Virtual Assistant'),
                 skills: basicData.skills || [],
                 experience: [],
                 education: [],

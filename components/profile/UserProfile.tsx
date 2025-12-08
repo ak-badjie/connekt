@@ -9,7 +9,7 @@ import {
     Star, Github, Linkedin, Twitter, Globe, Camera, Video,
     Award, Users, TrendingUp, Clock, Target, Play, Settings,
     Plus, Link as LinkIcon, Heart, MessageCircle, GripVertical, Sparkles,
-    FileText, Lightbulb, ChevronDown
+    FileText, Lightbulb, ChevronDown, BadgeCheck, CheckSquare
 } from 'lucide-react';
 import {
     DndContext,
@@ -29,6 +29,8 @@ import {
 
 import { ExtendedUserProfile } from '@/lib/types/profile.types';
 import { ProfileService } from '@/lib/services/profile-service';
+import { TaskService } from '@/lib/services/task-service';
+import { SubscriptionTier } from '@/lib/types/subscription-tiers.types';
 import { ReviewSection } from './ReviewSection';
 import { PrivacySettingsPanel } from './PrivacySettingsPanel';
 import { DraggableSection } from './DraggableSection';
@@ -60,6 +62,12 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
     const [isEditingBio, setIsEditingBio] = useState(false);
     const [bioText, setBioText] = useState(user.bio || '');
     const [bioError, setBioError] = useState<string | null>(null);
+    
+    // Recruiter Stats State
+    const [recruiterStats, setRecruiterStats] = useState({
+        tasksCreated: 0,
+        talentsWorkedWith: 0
+    });
 
     // AI Access Hook
     const aiAccess = useAIAccess();
@@ -86,6 +94,10 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
         // Load projects and tasks
         loadProjects();
         loadTasks();
+        
+        if (user.role === 'recruiter') {
+            loadRecruiterData();
+        }
 
         // Increment profile views if not owner
         if (!isOwner) {
@@ -96,11 +108,39 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
     const loadProjects = async () => {
         const projectsData = await ProfileService.getUserProjects(user.uid);
         setProjects(projectsData);
+        return projectsData; // Return for chaining
     };
 
     const loadTasks = async () => {
         const tasksData = await ProfileService.getUserTasks(user.username);
         setTasks(tasksData);
+    };
+
+    const loadRecruiterData = async () => {
+        try {
+            // Fetch created tasks
+            const createdTasks = await TaskService.getCreatedTasks(user.uid);
+            
+            // Calculate talents (needs projects)
+            // We can re-fetch or wait for projects state, but safer to fetch here or use the result of loadProjects if we chained it.
+            // Since we can't easily chain in useEffect without refactoring, let's just fetch projects again or rely on the service cache if any (none here).
+            // Actually, let's just fetch projects here again to be safe and independent, or use the service.
+            const projectsData = await ProfileService.getUserProjects(user.uid);
+            
+            const uniqueMembers = new Set<string>();
+            projectsData.forEach((p: any) => {
+                if (p.members) {
+                    p.members.forEach((m: any) => uniqueMembers.add(m.userId));
+                }
+            });
+
+            setRecruiterStats({
+                tasksCreated: createdTasks.length,
+                talentsWorkedWith: uniqueMembers.size
+            });
+        } catch (error) {
+            console.error("Error loading recruiter stats", error);
+        }
     };
 
     const handleDragEnd = async (event: DragEndEvent) => {
@@ -213,6 +253,8 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
                 );
 
             case 'education':
+                // Hide Education for Agencies
+                if ((user as any).agencyType) return null;
                 return (
                     <DraggableSection key={sectionId} id={sectionId} isOwner={isOwner} title="Education">
                         <div className="profile-section">
@@ -257,24 +299,47 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
                 );
 
             case 'projects':
+                const isRecruiter = user.role === 'recruiter';
+                const isAgency = !!(user as any).agencyType;
+                const sectionTitle = isRecruiter ? "Active Job Postings" : isAgency ? "Agency Portfolio" : "Projects";
+                
+                // For recruiters, filter to show only active projects (jobs)
+                const displayProjects = isRecruiter 
+                    ? projects.filter(p => p.status === 'active') 
+                    : projects;
+
                 return (
-                    <DraggableSection key={sectionId} id={sectionId} isOwner={isOwner} title="Projects">
+                    <DraggableSection key={sectionId} id={sectionId} isOwner={isOwner} title={sectionTitle}>
                         <div className="profile-section">
                             <div className="flex items-center justify-between mb-6">
                                 <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                                     <Briefcase className="w-6 h-6 text-teal-600" />
-                                    Projects
+                                    {sectionTitle}
                                 </h3>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {projects.map((project) => (
+                                {displayProjects.map((project) => (
                                     <div key={project.id} className="glass-card p-4 rounded-xl">
-                                        <h4 className="font-bold text-gray-900 dark:text-white">{project.title}</h4>
+                                        <div className="flex justify-between items-start mb-2">
+                                            <h4 className="font-bold text-gray-900 dark:text-white">{project.title}</h4>
+                                            {isRecruiter && (
+                                                <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
+                                                    Hiring
+                                                </span>
+                                            )}
+                                        </div>
                                         <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">{project.description}</p>
+                                        {isRecruiter && project.budget && (
+                                            <div className="mt-3 text-sm font-medium text-teal-600">
+                                                Budget: ${project.budget}
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
-                                {projects.length === 0 && (
-                                    <p className="text-gray-500 italic text-center py-8 col-span-2">No projects to display.</p>
+                                {displayProjects.length === 0 && (
+                                    <p className="text-gray-500 italic text-center py-8 col-span-2">
+                                        {isRecruiter ? "No active job postings." : "No projects to display."}
+                                    </p>
                                 )}
                             </div>
                         </div>
@@ -291,6 +356,41 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
                             averageRating={user.stats.averageRating}
                             totalRatings={user.stats.totalRatings}
                         />
+                    </DraggableSection>
+                );
+
+            case 'members':
+                // Only for Agencies
+                if (!(user as any).agencyType) return null;
+                return (
+                    <DraggableSection key={sectionId} id={sectionId} isOwner={isOwner} title="Agency Members">
+                        <div className="profile-section">
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                                <Users className="w-6 h-6 text-teal-600" />
+                                Agency Members
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {/* Mock Members for now - In real app, map through user.members */}
+                                {(user as any).members?.map((member: any, idx: number) => (
+                                    <div key={idx} className="glass-card p-4 rounded-xl flex items-center gap-4">
+                                        <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden relative">
+                                            {member.photoURL ? (
+                                                <Image src={member.photoURL} alt={member.name} fill className="object-cover" />
+                                            ) : (
+                                                <span className="text-lg font-bold">{member.name?.[0]}</span>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-gray-900 dark:text-white">{member.name}</h4>
+                                            <p className="text-sm text-teal-600">{member.role}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                                {(!(user as any).members || (user as any).members.length === 0) && (
+                                    <p className="text-gray-500 italic">No members visible.</p>
+                                )}
+                            </div>
+                        </div>
                     </DraggableSection>
                 );
 
@@ -382,16 +482,22 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
                             {/* Name & Title */}
                             <div className="mb-4">
                                 <div className="flex items-center gap-3">
-                                    <h1 className="text-4xl font-bold text-white drop-shadow-lg">
+                                    <h1 className="text-4xl font-bold text-white drop-shadow-lg flex items-center gap-2">
                                         {user.displayName}
+                                        {/* Verification Badge - Only for Pro Plus */}
+                                        {user.subscription?.tier === SubscriptionTier.PRO_PLUS && (
+                                            <BadgeCheck className="w-8 h-8 text-blue-500 fill-white" />
+                                        )}
                                     </h1>
-                                    {/* PRO Badge */}
-                                    <span className="px-3 py-1 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-sm font-bold rounded-full shadow-lg">
-                                        PRO ⚡
-                                    </span>
+                                    {/* PRO Badge - For Pro and Pro Plus */}
+                                    {(user.subscription?.tier === SubscriptionTier.PRO || user.subscription?.tier === SubscriptionTier.PRO_PLUS) && (
+                                        <span className="px-3 py-1 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-sm font-bold rounded-full shadow-lg">
+                                            PRO ⚡
+                                        </span>
+                                    )}
                                 </div>
                                 <p className="text-lg text-white/90 font-medium mt-1 drop-shadow">
-                                    {user.title || 'Connekt Member'}
+                                    {user.title || (user.role === 'recruiter' ? 'Recruiter' : user.role === 'va' ? 'Virtual Assistant' : 'Connekt Member')}
                                 </p>
                                 {user.location && (
                                     <div className="flex items-center gap-2 text-white/80 mt-2">
@@ -587,15 +693,97 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
                                         {calculatePlatformTime()} days
                                     </span>
                                 </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
-                                        <Star className="w-4 h-4" />
-                                        Average Rating
-                                    </span>
-                                    <span className="font-semibold text-amber-500">
-                                        {user.stats.averageRating.toFixed(1)} ★
-                                    </span>
-                                </div>
+                                
+                                {/* Recruiter Specific Stats */}
+                                {user.role === 'recruiter' && (
+                                    <>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                                                <Briefcase className="w-4 h-4" />
+                                                Projects Created
+                                            </span>
+                                            <span className="font-semibold text-gray-900 dark:text-white">
+                                                {projects.length}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                                                <CheckSquare className="w-4 h-4" />
+                                                Tasks Created
+                                            </span>
+                                            <span className="font-semibold text-gray-900 dark:text-white">
+                                                {recruiterStats.tasksCreated}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                                                <Users className="w-4 h-4" />
+                                                Talents Worked With
+                                            </span>
+                                            <span className="font-semibold text-gray-900 dark:text-white">
+                                                {recruiterStats.talentsWorkedWith}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                                                <Briefcase className="w-4 h-4" />
+                                                Active Jobs
+                                            </span>
+                                            <span className="font-semibold text-gray-900 dark:text-white">
+                                                {projects.filter(p => p.status === 'active').length}
+                                            </span>
+                                        </div>
+                                    </>
+                                )}
+
+                                {/* Agency Specific Stats */}
+                                {(user as any).agencyType && (
+                                    <>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                                                <Users className="w-4 h-4" />
+                                                Team Size
+                                            </span>
+                                            <span className="font-semibold text-gray-900 dark:text-white">
+                                                {(user as any).members?.length || 0}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                                                <Briefcase className="w-4 h-4" />
+                                                Projects Managed
+                                            </span>
+                                            <span className="font-semibold text-gray-900 dark:text-white">
+                                                {projects.length}
+                                            </span>
+                                        </div>
+                                    </>
+                                )}
+
+                                {/* VA Specific Stats (Default) */}
+                                {user.role !== 'recruiter' && !(user as any).agencyType && (
+                                    <>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                                                <Star className="w-4 h-4" />
+                                                Average Rating
+                                            </span>
+                                            <span className="font-semibold text-amber-500">
+                                                {user.stats.averageRating.toFixed(1)} ★
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                                                <Award className="w-4 h-4" />
+                                                Tasks Completed
+                                            </span>
+                                            <span className="font-semibold text-gray-900 dark:text-white">
+                                                {user.stats.tasksCompleted}
+                                            </span>
+                                        </div>
+                                    </>
+                                )}
+
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
                                         <TrendingUp className="w-4 h-4" />
@@ -603,15 +791,6 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
                                     </span>
                                     <span className="font-semibold text-gray-900 dark:text-white">
                                         {user.stats.profileViews || 0}
-                                    </span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
-                                        <Award className="w-4 h-4" />
-                                        Tasks Completed
-                                    </span>
-                                    <span className="font-semibold text-gray-900 dark:text-white">
-                                        {user.stats.tasksCompleted}
                                     </span>
                                 </div>
                             </div>
@@ -723,7 +902,8 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
                             )}
                         </div>
 
-                        {/* Skills */}
+                        {/* Skills - Hidden for Recruiters */}
+                        {user.role !== 'recruiter' && (
                         <div className="profile-section">
                             <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Skills & Expertise</h3>
 
@@ -769,6 +949,7 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
                                 )}
                             </div>
                         </div>
+                        )}
 
                         {/* Social Links */}
                         <div className="profile-section">
