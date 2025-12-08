@@ -226,7 +226,8 @@ export const MailService = {
         recipientUsername: string,
         subject: string,
         body: string,
-        contractId?: string
+        contractId?: string,
+        category?: MailCategory
     ) {
         const fromAddress: MailAddress = {
             address: `${senderUsername}@connekt.com`,
@@ -242,7 +243,7 @@ export const MailService = {
             subject,
             body,
             undefined, // attachments
-            undefined, // category
+            category, // category
             undefined, // signatureId
             contractId, // Pass contractId through
             senderId

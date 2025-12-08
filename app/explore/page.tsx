@@ -465,3 +465,91 @@ function EmptyState({ mode }: { mode: 'jobs' | 'people' }) {
         </div>
     );
 }
+
+function JobCard({ job, index }: { job: any; index: number }) {
+    const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
+    const { user } = useAuth();
+
+    const handleSendProposal = async (
+        recipient: string,
+        subject: string,
+        body: string,
+        attachments?: any[],
+        category?: string,
+        signatureId?: string,
+        contractData?: any
+    ) => {
+        if (!user) return;
+        try {
+            await MailService.sendMail(
+                user.uid,
+                user.email?.split('@')[0] || 'user',
+                user.displayName || 'User',
+                job.ownerUsername,
+                subject,
+                body,
+                undefined,
+                'Proposals'
+            );
+            toast.success('Proposal sent!');
+            setIsApplyModalOpen(false);
+        } catch (error) {
+            console.error('Error sending proposal:', error);
+            toast.error('Failed to send proposal');
+        }
+    };
+
+    return (
+        <>
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className="bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-gray-200 dark:border-zinc-800 hover:border-teal-500/50 transition-all group relative overflow-hidden"
+            >
+                <div className="flex justify-between items-start mb-4">
+                    <div>
+                        <h3 className="font-bold text-lg text-gray-900 dark:text-white group-hover:text-teal-500 transition-colors">
+                            {job.title}
+                        </h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mt-1">
+                            {job.description}
+                        </p>
+                    </div>
+                    <span className="px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400 text-xs font-bold whitespace-nowrap">
+                        {job.type === 'job' ? 'Full-time' : job.type === 'project' ? 'Project' : 'Task'}
+                    </span>
+                </div>
+
+                <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mb-6">
+                    <div className="flex items-center gap-1.5">
+                        <DollarSign size={14} />
+                        <span>{job.currency} {job.salary}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                        <Briefcase size={14} />
+                        <span className="capitalize">{job.paymentSchedule}</span>
+                    </div>
+                </div>
+
+                <button
+                    onClick={() => setIsApplyModalOpen(true)}
+                    className="w-full py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-bold text-sm hover:bg-teal-600 dark:hover:bg-teal-400 dark:hover:text-white transition-all"
+                >
+                    Apply Now
+                </button>
+            </motion.div>
+
+            <ComposeModal
+                isOpen={isApplyModalOpen}
+                onClose={() => setIsApplyModalOpen(false)}
+                initialData={{
+                    recipient: job.ownerUsername,
+                    subject: `Proposal: ${job.title}`,
+                    body: `Hi,\n\nI am interested in the position of ${job.title}.\n\n[Your proposal details here]\n\nBest regards,`
+                }}
+                onSend={handleSendProposal}
+            />
+        </>
+    );
+}
