@@ -185,6 +185,29 @@ export function MailViewerColumn({
                 </div>
             </div>
 
+            {/* Proposal Banner */}
+            {(mail as any).category === 'Proposals' && (
+                <div className="mx-6 mt-6 p-4 bg-gradient-to-r from-teal-50 to-white dark:from-teal-900/20 dark:to-zinc-900 border border-teal-100 dark:border-teal-800 rounded-xl flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-full bg-teal-100 dark:bg-teal-900/50 flex items-center justify-center flex-shrink-0">
+                        <FileText className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+                    </div>
+                    <div className="flex-1">
+                        <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-1">
+                            Job Proposal
+                        </h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                            This is an application for a posted position. Review the details below and click "Response" to send a contract offer.
+                        </p>
+                    </div>
+                    <button
+                        onClick={() => onResponse?.(mail)}
+                        className="px-4 py-2 bg-teal-600 text-white text-sm font-bold rounded-lg hover:bg-teal-700 transition-colors shadow-lg shadow-teal-500/20"
+                    >
+                        Send Contract
+                    </button>
+                </div>
+            )}
+
             {/* Mail Body */}
             <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
                 <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-3 prose-p:leading-relaxed">

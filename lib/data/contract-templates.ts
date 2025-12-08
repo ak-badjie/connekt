@@ -282,9 +282,103 @@ By signing, the Task Administrator accepts full responsibility for the task exec
 /**
  * All system templates
  */
+export const JOB_PROPOSAL_TEMPLATE: Omit<ContractTemplate, 'id' | 'createdAt' | 'updatedAt'> = {
+    name: 'Job Proposal (Employment)',
+    type: 'general', // General mail type, but specific use case
+    visibility: 'system',
+    headerConfig: { showConnektLogo: true, showCoatOfArms: false, showGambianFlag: false },
+    bodyTemplate: `# Application: {{jobTitle}}
+
+**Applicant:** {{applicantName}}
+**Key Skills:** {{skills}}
+
+## Cover Letter
+{{coverLetter}}
+
+## Proposed Terms
+- **Availability:** {{availability}}
+- **Expected Salary:** {{proposedRate}}
+- **Experience:** {{experience}} years
+
+I have reviewed the job requirements and believe I am a strong fit for this position.`,
+    defaultTerms: `Professional Proposal Terms:
+1. This proposal is valid for 14 days.
+2. The applicant confirms the accuracy of the provided information.`,
+    variables: [
+        { key: 'applicantName', label: 'Full Name', type: 'text', required: true },
+        { key: 'jobTitle', label: 'Job Title', type: 'text', required: true },
+        { key: 'skills', label: 'Key Skills', type: 'text', required: true },
+        { key: 'coverLetter', label: 'Cover Letter', type: 'text', required: true },
+        { key: 'proposedRate', label: 'Expected Salary', type: 'currency', required: true },
+        { key: 'availability', label: 'Availability (Start Date)', type: 'date', required: true },
+        { key: 'experience', label: 'Years of Experience', type: 'number', required: true }
+    ]
+};
+
+export const PROJECT_PROPOSAL_TEMPLATE: Omit<ContractTemplate, 'id' | 'createdAt' | 'updatedAt'> = {
+    name: 'Project Proposal (Freelance)',
+    type: 'general',
+    visibility: 'system',
+    headerConfig: { showConnektLogo: true, showCoatOfArms: false, showGambianFlag: false },
+    bodyTemplate: `# Proposal: {{projectTitle}}
+
+**Freelancer:** {{applicantName}}
+
+## Approach & Methodology
+{{approach}}
+
+## Timeline & Milestones
+{{timeline}}
+
+## Financial Bid
+**Total Bid:** {{proposedRate}}
+**Payment Terms:** {{paymentTerms}}
+
+I am ready to deliver high-quality results for this project.`,
+    defaultTerms: `Standard Project Proposal Terms.`,
+    variables: [
+        { key: 'applicantName', label: 'Freelancer Name', type: 'text', required: true },
+        { key: 'projectTitle', label: 'Project Title', type: 'text', required: true },
+        { key: 'approach', label: 'Approach / Methodology', type: 'text', required: true },
+        { key: 'timeline', label: 'Proposed Timeline', type: 'text', required: true },
+        { key: 'proposedRate', label: 'Total Bid Amount', type: 'currency', required: true },
+        { key: 'paymentTerms', label: 'Payment Terms', type: 'text', required: true }
+    ]
+};
+
+export const TASK_PROPOSAL_TEMPLATE: Omit<ContractTemplate, 'id' | 'createdAt' | 'updatedAt'> = {
+    name: 'Task Bid',
+    type: 'general',
+    visibility: 'system',
+    headerConfig: { showConnektLogo: true, showCoatOfArms: false, showGambianFlag: false },
+    bodyTemplate: `# Bid for Task: {{taskTitle}}
+
+**Bidder:** {{applicantName}}
+
+**Bid Amount:** {{proposedRate}}
+**Delivery Date:** {{deliveryDate}}
+
+## Notes
+{{notes}}`,
+    defaultTerms: `Task Bid Terms.`,
+    variables: [
+        { key: 'applicantName', label: 'Your Name', type: 'text', required: true },
+        { key: 'taskTitle', label: 'Task Title', type: 'text', required: true },
+        { key: 'proposedRate', label: 'Bid Amount', type: 'currency', required: true },
+        { key: 'deliveryDate', label: 'Delivery Date', type: 'date', required: true },
+        { key: 'notes', label: 'Notes (Optional)', type: 'text', required: false }
+    ]
+};
+
+/**
+ * All system templates
+ */
 export const SYSTEM_TEMPLATES = [
     JOB_CONTRACT_TEMPLATE,
     FREELANCE_CONTRACT_TEMPLATE,
     PROJECT_ADMIN_TEMPLATE,
-    TASK_ADMIN_TEMPLATE
+    TASK_ADMIN_TEMPLATE,
+    JOB_PROPOSAL_TEMPLATE,
+    PROJECT_PROPOSAL_TEMPLATE,
+    TASK_PROPOSAL_TEMPLATE
 ];

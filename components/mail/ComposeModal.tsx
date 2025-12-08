@@ -80,10 +80,25 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
         }
     }, [initialData]);
 
-    // Auto-open contract mode when a deep-link provides contract drafting data
+    // Auto-open contract mode or proposal mode when a deep-link provides data
     useEffect(() => {
         if (isOpen && autoContractDraftRequest) {
-            if (autoContractDraftRequest.contractType === 'general') {
+            const { variables } = autoContractDraftRequest;
+
+            if (variables?.isProposal && variables.proposalContext) {
+                setMode('proposal');
+                // Auto-select the correct proposal template based on job type
+                let templateId = 'job_proposal'; // default
+                const jobType = variables.proposalContext.jobType;
+
+                if (jobType === 'project') templateId = 'project_proposal';
+                if (jobType === 'task') templateId = 'task_proposal';
+
+                setContractData({
+                    templateId,
+                    terms: variables, // Pass full variables including context
+                });
+            } else if (autoContractDraftRequest.contractType === 'general') {
                 setMode('proposal');
             } else {
                 setMode('contract');
@@ -358,7 +373,18 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                         {mode === 'proposal' && (
                             <div className="h-full overflow-y-auto">
                                 <ProposalComposer
-                                    onProposalGenerated={handleProposalGenerated}
+                                    initialData={contractData?.terms}
+                                    templateId={contractData?.templateId}
+                                    onProposalGenerated={(proposalData) => {
+                                        // ProposalComposer returns formatted markdown in proposalData.description (usually) 
+                                        // or we construct it. Let's assume it returns structured data we can use.
+                                        // Actually, let's just use the description if available, or title.
+                                        // But wait, the previous code used proposalContent (string). 
+                                        // Let's check ProposalComposer implementation.
+                                        // It seems onProposalGenerated returns { title, description, terms, ... }
+                                        // So we should setBody(proposalData.description)
+                                        setBody(proposalData.description || '');
+                                    }}
                                     autoAIRequest={autoContractDraftRequest}
                                 />
                             </div>

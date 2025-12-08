@@ -101,18 +101,45 @@ export default function MailPage() {
     }, [searchParams]);
 
     const handleResponse = (mail: MailMessage) => {
+        // Parse the mail body/subject to guess context if variables aren't explicit
+        // In a real scenario, we'd have metadata attached. For now, we infer from subject.
+        const subject = mail.subject;
+        let templateId = 'job_contract'; // Default
+        let contractType = 'job';
+
+        if (subject.toLowerCase().includes('project')) {
+            templateId = 'project_proposal'; // Actually we want the CONTRACT template, so 'freelance_contract' (which has type 'project')
+            contractType = 'project';
+            // Mapping to the system template names/types we added
+        } else if (subject.toLowerCase().includes('task')) {
+            templateId = 'task_admin'; // Or similar
+            contractType = 'task';
+        }
+
+        // We can try to extract variables from the body markdown if possible, 
+        // but for now we'll pre-fill what we know.
+
         setComposePrefill({
             recipient: mail.senderUsername,
-            subject: `Response to Proposal: ${mail.subject}`,
-            body: `Thank you for your proposal. We are pleased to offer you the contract.`
+            subject: `Contract Offer: ${mail.subject.replace('Proposal: ', '')}`,
+            body: `Hi,\n\nWe were impressed by your proposal. Please review the attached contract offer.\n\nBest regards,`
         });
-        
+
         setAutoContractDraftRequest({
-            templateId: 'job_contract',
-            contractType: 'job',
+            templateId: contractType === 'project' ? 'Freelance Contract (Workspace, Project or Task)' : 'job_contract',
+            // We use the Name or ID. Let's use the Name from SYSTEM_TEMPLATES in contract-templates.ts
+            // Actually checking contract-templates.ts:
+            // JOB -> 'Employment Contract' (type: job)
+            // FREELANCE -> 'Freelance Contract (Workspace, Project or Task)' (type: project)
+
+            contractType: contractType,
             autoStart: true,
             variables: {
-                jobTitle: mail.subject.replace('Proposal: ', '')
+                jobTitle: mail.subject.replace('Proposal: ', ''),
+                // We could infer candidate name from mail.senderName
+                employeeName: mail.senderName,
+                contractorName: mail.senderName,
+                // We'll leave the rest for the user to fill or AI to deduce
             }
         });
         setIsComposing(true);

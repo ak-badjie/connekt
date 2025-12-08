@@ -25,12 +25,14 @@ interface ProposalComposerProps {
         variables?: Record<string, any>;
         autoStart?: boolean;
     };
+    initialData?: Record<string, any>;
+    templateId?: string;
 }
 
-export default function ProposalComposer({ onProposalGenerated, autoAIRequest }: ProposalComposerProps) {
+export default function ProposalComposer({ onProposalGenerated, autoAIRequest, initialData, templateId }: ProposalComposerProps) {
     const [templates, setTemplates] = useState<ContractTemplate[]>([]);
     const [selectedTemplate, setSelectedTemplate] = useState<ContractTemplate | null>(null);
-    const [variables, setVariables] = useState<Record<string, any>>({});
+    const [variables, setVariables] = useState<Record<string, any>>(initialData || {});
     const [loading, setLoading] = useState(true);
     const [showAIDrafter, setShowAIDrafter] = useState(false);
     const { user } = useAuth();
@@ -39,6 +41,14 @@ export default function ProposalComposer({ onProposalGenerated, autoAIRequest }:
     useEffect(() => {
         loadTemplates();
     }, []);
+
+    // Effect to handle passed templateId prop
+    useEffect(() => {
+        if (templateId && templates.length > 0) {
+            const t = templates.find(temp => temp.id === templateId || temp.name === templateId || temp.type === templateId);
+            if (t) setSelectedTemplate(t);
+        }
+    }, [templateId, templates]);
 
     useEffect(() => {
         if (!autoAIRequest || !templates.length) return;

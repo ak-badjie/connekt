@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { ExploreService, ExploreFilters } from '@/lib/services/explore-service';
+import { useRouter } from 'next/navigation';
 import { Project, Task } from '@/lib/types/workspace.types';
 import { ExtendedUserProfile } from '@/lib/types/profile.types';
 import { Agency } from '@/lib/services/agency-service';
@@ -14,8 +15,8 @@ import { AdvertisementBanner } from '@/components/explore/AdvertisementBanner';
 import LoadingScreen from '@/components/ui/LoadingScreen';
 import { useMinimumLoading } from '@/hooks/useMinimumLoading';
 import { useAnimation } from '@/context/AnimationContext';
-import { ComposeModal } from '@/components/mail/ComposeModal';
-import { MailService } from '@/lib/services/mail-service';
+// import { ComposeModal } from '@/components/mail/ComposeModal';
+// import { MailService } from '@/lib/services/mail-service';
 import { toast } from 'react-hot-toast';
 
 export default function ExplorePage() {
@@ -467,89 +468,91 @@ function EmptyState({ mode }: { mode: 'jobs' | 'people' }) {
 }
 
 function JobCard({ job, index }: { job: any; index: number }) {
-    const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
-    const { user } = useAuth();
+    const router = useRouter();
 
-    const handleSendProposal = async (
-        recipient: string,
-        subject: string,
-        body: string,
-        attachments?: any[],
-        category?: string,
-        signatureId?: string,
-        contractData?: any
-    ) => {
-        if (!user) return;
-        try {
-            await MailService.sendMail(
-                user.uid,
-                user.email?.split('@')[0] || 'user',
-                user.displayName || 'User',
-                job.ownerUsername,
-                subject,
-                body,
-                undefined,
-                'Proposals'
-            );
-            toast.success('Proposal sent!');
-            setIsApplyModalOpen(false);
-        } catch (error) {
-            console.error('Error sending proposal:', error);
-            toast.error('Failed to send proposal');
+    const handleApply = (withAI: boolean = false) => {
+        const params = new URLSearchParams();
+        params.set('compose', '1');
+        params.set('to', job.ownerUsername);
+        params.set('subject', `Proposal: ${job.title}`);
+
+        // Construct detailed job context for the proposal/AI
+        const proposalContext = {
+            jobId: job.id,
+            jobTitle: job.title,
+            jobType: job.type || 'job',
+            description: job.description,
+            budget: job.salary ? `${job.salary} ${job.currency}` : 'Negotiable',
+            paymentSchedule: job.paymentSchedule,
+            requirements: job.requirements || '', // Assuming job object might have this
+            skills: job.skills || [],
+            ownerUsername: job.ownerUsername
+        };
+
+        params.set('variables', JSON.stringify({
+            isProposal: true,
+            proposalContext: proposalContext,
+            useAI: withAI // Explicit flag for AI usage
+        }));
+
+        if (withAI) {
+            params.set('autoStart', '1'); // Trigger auto-start mechanisms in Mail
+        } else {
+            params.set('autoStart', '0'); // Prevent auto-start for standard apply
         }
+
+        router.push(`/mail?${params.toString()}`);
     };
 
     return (
-        <>
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className="bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-gray-200 dark:border-zinc-800 hover:border-teal-500/50 transition-all group relative overflow-hidden"
-            >
-                <div className="flex justify-between items-start mb-4">
-                    <div>
-                        <h3 className="font-bold text-lg text-gray-900 dark:text-white group-hover:text-teal-500 transition-colors">
-                            {job.title}
-                        </h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mt-1">
-                            {job.description}
-                        </p>
-                    </div>
-                    <span className="px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400 text-xs font-bold whitespace-nowrap">
-                        {job.type === 'job' ? 'Full-time' : job.type === 'project' ? 'Project' : 'Task'}
-                    </span>
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.05 }}
+            className="bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-gray-200 dark:border-zinc-800 hover:border-teal-500/50 transition-all group relative overflow-hidden"
+        >
+            <div className="flex justify-between items-start mb-4">
+                <div>
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white group-hover:text-teal-500 transition-colors">
+                        {job.title}
+                    </h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mt-1">
+                        {job.description}
+                    </p>
                 </div>
+                <span className="px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400 text-xs font-bold whitespace-nowrap">
+                    {job.type === 'job' ? 'Full-time' : job.type === 'project' ? 'Project' : 'Task'}
+                </span>
+            </div>
 
-                <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mb-6">
-                    <div className="flex items-center gap-1.5">
-                        <DollarSign size={14} />
-                        <span>{job.currency} {job.salary}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                        <Briefcase size={14} />
-                        <span className="capitalize">{job.paymentSchedule}</span>
-                    </div>
+            <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mb-6">
+                <div className="flex items-center gap-1.5">
+                    <DollarSign size={14} />
+                    <span>{job.currency} {job.salary}</span>
                 </div>
+                <div className="flex items-center gap-1.5">
+                    <Briefcase size={14} />
+                    <span className="capitalize">{job.paymentSchedule}</span>
+                </div>
+            </div>
 
+            <div className="flex flex-col gap-2">
                 <button
-                    onClick={() => setIsApplyModalOpen(true)}
-                    className="w-full py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-bold text-sm hover:bg-teal-600 dark:hover:bg-teal-400 dark:hover:text-white transition-all"
+                    onClick={() => handleApply(false)}
+                    className="w-full py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-bold text-sm hover:bg-teal-600 dark:hover:bg-teal-400 dark:hover:text-white transition-all shadow-lg hover:shadow-teal-500/20"
                 >
                     Apply Now
                 </button>
-            </motion.div>
-
-            <ComposeModal
-                isOpen={isApplyModalOpen}
-                onClose={() => setIsApplyModalOpen(false)}
-                initialData={{
-                    recipient: job.ownerUsername,
-                    subject: `Proposal: ${job.title}`,
-                    body: `Hi,\n\nI am interested in the position of ${job.title}.\n\n[Your proposal details here]\n\nBest regards,`
-                }}
-                onSend={handleSendProposal}
-            />
-        </>
+                <button
+                    onClick={() => handleApply(true)}
+                    className="w-full py-2.5 bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-xl font-bold text-sm hover:from-teal-600 hover:to-teal-700 transition-all shadow-lg shadow-teal-500/20 flex items-center justify-center gap-2"
+                >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L14.4 7.2L20 8L16 12L17.2 17.6L12 14.8L6.8 17.6L8 12L4 8L9.6 7.2L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    Apply with AI
+                </button>
+            </div>
+        </motion.div>
     );
 }
