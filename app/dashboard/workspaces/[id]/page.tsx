@@ -6,23 +6,34 @@ import { useAuth } from '@/context/AuthContext';
 import { WorkspaceService } from '@/lib/services/workspace-service';
 import { EnhancedProjectService } from '@/lib/services/enhanced-project-service';
 import { Workspace, Project, WorkspaceMember } from '@/lib/types/workspace.types';
-import { Loader2, Folder, Users, Settings, Briefcase, Plus, UserPlus, ArrowLeft } from 'lucide-react';
+import { Loader2, Folder, Users, Settings, Briefcase, Plus, UserPlus, ArrowLeft, X, DollarSign } from 'lucide-react';
 import AddWorkspaceMemberModal from '@/components/AddWorkspaceMemberModal';
 import ManageWorkspaceMemberModal from '@/components/ManageWorkspaceMemberModal';
 import CreateJobModal from '@/components/dashboard/workspaces/CreateJobModal';
+import DeleteConfirmationModal from '@/components/ui/DeleteConfirmationModal';
+import { toast } from 'react-hot-toast';
 
 export default function WorkspaceDetailPage() {
     const params = useParams();
     const router = useRouter();
-    const { user, userProfile } = useAuth();
+    const { user } = useAuth();
     const workspaceId = params.id as string;
 
     const [loading, setLoading] = useState(true);
     const [workspace, setWorkspace] = useState<Workspace | null>(null);
     const [projects, setProjects] = useState<Project[]>([]);
+    const [jobs, setJobs] = useState<any[]>([]);
     const [userRole, setUserRole] = useState<'owner' | 'admin' | 'member' | null>(null);
     const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
     const [isCreateJobModalOpen, setIsCreateJobModalOpen] = useState(false);
+
+    // Edit Job State
+    const [jobToEdit, setJobToEdit] = useState<any | null>(null);
+    const [isEditJobModalOpen, setIsEditJobModalOpen] = useState(false);
+
+    // Delete Job State
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [jobToDelete, setJobToDelete] = useState<any>(null);
 
     // Manage Member State
     const [selectedMember, setSelectedMember] = useState<WorkspaceMember | null>(null);
@@ -54,6 +65,13 @@ export default function WorkspaceDetailPage() {
                     }
 
                     setProjects(projectsData);
+
+                    // Fetch Jobs if Owner/Admin
+                    if (role === 'owner' || role === 'admin') {
+                        const jobsData = await WorkspaceService.getWorkspaceJobs(workspaceId);
+                        setJobs(jobsData);
+                    }
+
                 } catch (error) {
                     console.error('Error fetching workspace:', error);
                 } finally {
@@ -63,6 +81,34 @@ export default function WorkspaceDetailPage() {
             fetchData();
         }
     }, [user, workspaceId]);
+
+    const handleJobCreated = () => {
+        if (workspaceId) {
+            WorkspaceService.getWorkspaceJobs(workspaceId).then(setJobs);
+        }
+    };
+
+    const handleEditJob = (job: any) => {
+        setJobToEdit(job);
+        setIsEditJobModalOpen(true);
+    };
+
+    const handleDeleteJob = async (job: any) => {
+        setJobToDelete(job);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDeleteJob = async () => {
+        if (!jobToDelete) return;
+        try {
+            await WorkspaceService.deleteJob(jobToDelete.id);
+            setJobs(prev => prev.filter(j => j.id !== jobToDelete.id)); // Optimistic update
+            toast.success('Opportunity deleted successfully');
+        } catch (error) {
+            console.error('Failed to delete job', error);
+            toast.error('Failed to delete opportunity');
+        }
+    };
 
     const handleMemberAdded = () => {
         if (workspaceId) {
@@ -82,6 +128,9 @@ export default function WorkspaceDetailPage() {
             setIsManageMemberModalOpen(true);
         }
     };
+
+    const isOwner = userRole === 'owner';
+    const canManage = userRole === 'owner' || userRole === 'admin';
 
     if (loading) {
         return (
@@ -113,18 +162,8 @@ export default function WorkspaceDetailPage() {
         );
     }
 
-    const isOwner = userRole === 'owner';
-    const canManage = userRole === 'owner' || userRole === 'admin';
-
     return (
         <div className="max-w-[1400px] mx-auto space-y-6">
-            {/* ... (Header, Stats, Projects Section) ... same as before, skipping redundant replaces for clarity if possible, 
-                 but replace_file_content needs context. I will assume Header/Stats/Projects are unchanged and only focus on the whole file or appropriate chunks.
-                 Actually, since I need to hook up the modal and click handler, I will replace the whole return block related to members to be safe, 
-                 or better, replace the file to ensure all imports and state are clean. 
-                 But wait, I will try to be surgical.
-            */}
-
             {/* Header */}
             <div className="flex items-start justify-between">
                 <div className="flex items-center gap-4">
@@ -229,22 +268,85 @@ export default function WorkspaceDetailPage() {
                 </div>
             </div>
 
+            {/* Jobs Section (Owner/Admin Only) */}
+            {(userRole === 'owner' || userRole === 'admin') && (
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                        <Briefcase className="text-[#008080]" size={28} />
+                        Hosted Opportunities
+                    </h2>
+                    {jobs.length === 0 ? (
+                        <div className="bg-white/60 dark:bg-zinc-900/60 rounded-2xl border border-dashed border-gray-300 dark:border-zinc-700 p-8 text-center mb-8">
+                            <p className="text-gray-500 mb-4">No active opportunities posted yet.</p>
+                            <button
+                                onClick={() => setIsCreateJobModalOpen(true)}
+                                className="px-5 py-2.5 bg-white dark:bg-zinc-800 text-[#008080] border border-[#008080] rounded-xl font-bold hover:bg-teal-50 dark:hover:bg-zinc-700 transition-all text-sm inline-flex items-center gap-2"
+                            >
+                                <Plus size={16} />
+                                Post Opportunity
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+                            {jobs.map(job => (
+                                <div
+                                    key={job.id}
+                                    className="group bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 p-5 shadow-sm hover:shadow-md transition-all relative overflow-hidden"
+                                >
+                                    <div className="flex justify-between items-start mb-3">
+                                        <div className="bg-teal-50 dark:bg-teal-900/20 text-[#008080] dark:text-teal-400 px-2 py-1 rounded-md text-xs font-bold uppercase tracking-wider">
+                                            {job.type}
+                                        </div>
+                                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleEditJob(job); }}
+                                                className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                                title="Edit"
+                                            >
+                                                <Settings size={16} />
+                                            </button>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleDeleteJob(job); }}
+                                                className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                                title="Delete"
+                                            >
+                                                <X size={16} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2 line-clamp-1">{job.title}</h3>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 line-clamp-2 h-10">
+                                        {job.description}
+                                    </p>
+                                    <div className="flex items-center gap-1 text-sm font-bold text-gray-900 dark:text-white">
+                                        <DollarSign size={14} className="text-[#008080]" />
+                                        {job.salary} {job.currency}
+                                        <span className="text-gray-400 font-normal text-xs ml-1">/ {job.paymentSchedule}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* Projects Section */}
             <div>
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                    <Briefcase className="text-[#008080]" size={28} />
-                    Projects in this Workspace
-                </h2>
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <Folder className="text-[#008080]" size={28} />
+                        Projects
+                    </h2>
+                </div>
+
                 {projects.length === 0 ? (
-                    <div className="bg-white/60 dark:bg-zinc-900/60 rounded-2xl border border-gray-200 dark:border-zinc-800 p-12 text-center">
-                        <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center">
-                            <Briefcase size={40} className="text-gray-400" />
+                    <div className="text-center py-12 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl rounded-2xl border border-dashed border-gray-300 dark:border-zinc-700">
+                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center">
+                            <Folder size={32} className="text-gray-400" />
                         </div>
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                            No projects yet
-                        </h3>
-                        <p className="text-gray-500 dark:text-gray-400 mb-6">
-                            Create your first project in this workspace
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">No Projects Yet</h3>
+                        <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-sm mx-auto">
+                            Start organizing your work by creating your first project in this workspace.
                         </p>
                         <button
                             onClick={() => router.push(`/dashboard/projects/create?workspace=${workspaceId}`)}
@@ -354,8 +456,33 @@ export default function WorkspaceDetailPage() {
 
             <CreateJobModal
                 isOpen={isCreateJobModalOpen}
-                onClose={() => setIsCreateJobModalOpen(false)}
+                onClose={() => {
+                    setIsCreateJobModalOpen(false);
+                    handleJobCreated(); // Refresh list on close/submit
+                }}
                 workspaceId={workspaceId}
+            />
+
+            {/* Edit Job Modal */}
+            <CreateJobModal
+                isOpen={isEditJobModalOpen}
+                onClose={() => {
+                    setIsEditJobModalOpen(false);
+                    setJobToEdit(null);
+                    handleJobCreated();
+                }}
+                workspaceId={workspaceId}
+                jobToEdit={jobToEdit}
+            />
+
+            {/* Delete Confirmation Modal */}
+            <DeleteConfirmationModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={confirmDeleteJob}
+                title="Delete Opportunity?"
+                message="This will permanently remove this job posting. All active applications and proposals linked to this opportunity will be archived. This action cannot be undone."
+                itemType="Opportunity"
             />
         </div>
     );

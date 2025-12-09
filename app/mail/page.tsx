@@ -101,23 +101,33 @@ export default function MailPage() {
     }, [searchParams]);
 
     const handleResponse = (mail: MailMessage) => {
-        // Parse the mail body/subject to guess context if variables aren't explicit
-        // In a real scenario, we'd have metadata attached. For now, we infer from subject.
+        // Extract context from the proposal metadata if available
+        const terms = (mail as any).contractData?.terms || {};
         const subject = mail.subject;
-        let templateId = 'job_contract'; // Default
+
+        // Default Logic
+        let templateId = 'Employment Contract'; // Name from SYSTEM_TEMPLATES default
         let contractType = 'job';
+        let projectId = terms.linkedProjectId || '';
+        let taskId = terms.linkedTaskId || '';
 
-        if (subject.toLowerCase().includes('project')) {
-            templateId = 'project_proposal'; // Actually we want the CONTRACT template, so 'freelance_contract' (which has type 'project')
-            contractType = 'project';
-            // Mapping to the system template names/types we added
-        } else if (subject.toLowerCase().includes('task')) {
-            templateId = 'task_admin'; // Or similar
-            contractType = 'task';
+        // Priority 1: Explicit Links in Metadata
+        if (taskId) {
+            templateId = 'Task Admin Contract (Task Ownership)';
+            contractType = 'task_admin';
+        } else if (projectId) {
+            templateId = 'Project Admin Contract (Temporal Owner)';
+            contractType = 'project_admin';
         }
-
-        // We can try to extract variables from the body markdown if possible, 
-        // but for now we'll pre-fill what we know.
+        // Priority 2: Subject Line Inference (Fallback)
+        else if (subject.toLowerCase().includes('project')) {
+            templateId = 'Project Admin Contract (Temporal Owner)';
+            contractType = 'project_admin';
+        } else if (subject.toLowerCase().includes('task')) {
+            // If we infer task but have no ID, we might still want a task contract
+            templateId = 'Task Admin Contract (Task Ownership)';
+            contractType = 'task_admin';
+        }
 
         setComposePrefill({
             recipient: mail.senderUsername,
@@ -126,20 +136,19 @@ export default function MailPage() {
         });
 
         setAutoContractDraftRequest({
-            templateId: contractType === 'project' ? 'Freelance Contract (Workspace, Project or Task)' : 'job_contract',
-            // We use the Name or ID. Let's use the Name from SYSTEM_TEMPLATES in contract-templates.ts
-            // Actually checking contract-templates.ts:
-            // JOB -> 'Employment Contract' (type: job)
-            // FREELANCE -> 'Freelance Contract (Workspace, Project or Task)' (type: project)
-
+            templateId: templateId,
             contractType: contractType,
             autoStart: true,
             variables: {
                 jobTitle: mail.subject.replace('Proposal: ', ''),
-                // We could infer candidate name from mail.senderName
                 employeeName: mail.senderName,
                 contractorName: mail.senderName,
-                // We'll leave the rest for the user to fill or AI to deduce
+                // Pass key IDs for auto-association
+                projectId: projectId,
+                taskId: taskId,
+                workspaceId: terms.autoSelectWorkspaceId || '', // If we saved this too
+                // Copy brief/description if available to help AI fill role description
+                roleDescription: terms.description || (mail as any).contractData?.description || ''
             }
         });
         setIsComposing(true);

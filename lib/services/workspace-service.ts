@@ -318,5 +318,39 @@ export const WorkspaceService = {
             isPublic: true
         });
         return docRef.id;
+    },
+
+    /**
+     * Get jobs for a specific workspace
+     */
+    async getWorkspaceJobs(workspaceId: string): Promise<any[]> {
+        const q = query(
+            collection(db, 'jobs'),
+            where('workspaceId', '==', workspaceId),
+            orderBy('createdAt', 'desc')
+        );
+
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+    },
+
+    /**
+     * Delete a job
+     */
+    async deleteJob(jobId: string): Promise<void> {
+        await deleteDoc(doc(db, 'jobs', jobId));
+    },
+
+    /**
+     * Update a job
+     */
+    async updateJob(jobId: string, updates: any): Promise<void> {
+        await updateDoc(doc(db, 'jobs', jobId), {
+            ...updates,
+            updatedAt: serverTimestamp()
+        });
     }
 };

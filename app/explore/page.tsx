@@ -18,6 +18,7 @@ import { useAnimation } from '@/context/AnimationContext';
 // import { ComposeModal } from '@/components/mail/ComposeModal';
 // import { MailService } from '@/lib/services/mail-service';
 import { toast } from 'react-hot-toast';
+import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
 
 export default function ExplorePage() {
     const { user, userProfile } = useAuth();
@@ -469,14 +470,24 @@ function EmptyState({ mode }: { mode: 'jobs' | 'people' }) {
 
 function JobCard({ job, index }: { job: any; index: number }) {
     const router = useRouter();
+    const { user, userProfile } = useAuth();
 
     const handleApply = (withAI: boolean = false) => {
         const params = new URLSearchParams();
         params.set('compose', '1');
-        params.set('to', job.ownerUsername);
+
+        // Priority: 1. Saved Connekt Email, 2. Constructed Connekt Email, 3. Fallback to regular email
+        let recipient = (job as any).ownerConnektEmail;
+        if (!recipient && (job as any).ownerUsername) {
+            recipient = `${(job as any).ownerUsername}@connekt.com`;
+        }
+        if (!recipient) {
+            recipient = job.ownerEmail;
+        }
+
+        params.set('to', recipient);
         params.set('subject', `Proposal: ${job.title}`);
 
-        // Construct detailed job context for the proposal/AI
         const proposalContext = {
             jobId: job.id,
             jobTitle: job.title,
@@ -484,22 +495,30 @@ function JobCard({ job, index }: { job: any; index: number }) {
             description: job.description,
             budget: job.salary ? `${job.salary} ${job.currency}` : 'Negotiable',
             paymentSchedule: job.paymentSchedule,
-            requirements: job.requirements || '', // Assuming job object might have this
-            skills: job.skills || [],
-            ownerUsername: job.ownerUsername
+            requirements: (job as any).requirements || '',
+            ownerUsername: (job as any).ownerUsername
         };
+
+        const contractorName = userProfile?.displayName || user?.displayName || user?.email?.split('@')[0];
 
         params.set('variables', JSON.stringify({
             isProposal: true,
             proposalContext: proposalContext,
-            useAI: withAI // Explicit flag for AI usage
+            applicantName: contractorName, // Pre-fill name (templates expect 'applicantName')
+            jobTitle: job.title, // Explicitly pass for AI
+            useAI: withAI
         }));
 
         if (withAI) {
-            params.set('autoStart', '1'); // Trigger auto-start mechanisms in Mail
+            params.set('autoStart', '1');
         } else {
-            params.set('autoStart', '0'); // Prevent auto-start for standard apply
+            params.set('autoStart', '0');
         }
+
+        // Add auto-select params for Mail context
+        if (job.workspaceId) params.set('autoSelectWorkspaceId', job.workspaceId);
+        if (job.projectId) params.set('autoSelectProjectId', job.projectId);
+        if (job.taskId) params.set('autoSelectTaskId', job.taskId);
 
         router.push(`/mail?${params.toString()}`);
     };
@@ -511,19 +530,21 @@ function JobCard({ job, index }: { job: any; index: number }) {
             transition={{ delay: index * 0.05 }}
             className="bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-gray-200 dark:border-zinc-800 hover:border-teal-500/50 transition-all group relative overflow-hidden"
         >
-            <div className="flex justify-between items-start mb-4">
-                <div>
-                    <h3 className="font-bold text-lg text-gray-900 dark:text-white group-hover:text-teal-500 transition-colors">
-                        {job.title}
-                    </h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mt-1">
-                        {job.description}
-                    </p>
+            <Link href={`/explore/job/${job.id}`}>
+                <div className="flex justify-between items-start mb-4 cursor-pointer">
+                    <div>
+                        <h3 className="font-bold text-lg text-gray-900 dark:text-white group-hover:text-teal-500 transition-colors">
+                            {job.title}
+                        </h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mt-1">
+                            {job.description}
+                        </p>
+                    </div>
+                    <span className="px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400 text-xs font-bold whitespace-nowrap">
+                        {job.type === 'job' ? 'Full-time' : job.type === 'project' ? 'Project' : 'Task'}
+                    </span>
                 </div>
-                <span className="px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400 text-xs font-bold whitespace-nowrap">
-                    {job.type === 'job' ? 'Full-time' : job.type === 'project' ? 'Project' : 'Task'}
-                </span>
-            </div>
+            </Link>
 
             <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mb-6">
                 <div className="flex items-center gap-1.5">
@@ -539,17 +560,15 @@ function JobCard({ job, index }: { job: any; index: number }) {
             <div className="flex flex-col gap-2">
                 <button
                     onClick={() => handleApply(false)}
-                    className="w-full py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-bold text-sm hover:bg-teal-600 dark:hover:bg-teal-400 dark:hover:text-white transition-all shadow-lg hover:shadow-teal-500/20"
+                    className="w-full py-2.5 bg-[#008080] text-white rounded-xl font-bold text-sm hover:bg-teal-700 transition-all shadow-lg hover:shadow-teal-500/20"
                 >
                     Apply Now
                 </button>
                 <button
                     onClick={() => handleApply(true)}
-                    className="w-full py-2.5 bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-xl font-bold text-sm hover:from-teal-600 hover:to-teal-700 transition-all shadow-lg shadow-teal-500/20 flex items-center justify-center gap-2"
+                    className="w-full py-2.5 bg-white dark:bg-zinc-800 text-[#008080] border-2 border-[#008080] rounded-xl font-bold text-sm hover:bg-teal-50 dark:hover:bg-zinc-700 transition-all shadow-lg shadow-teal-500/20 flex items-center justify-center gap-2"
                 >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2L14.4 7.2L20 8L16 12L17.2 17.6L12 14.8L6.8 17.6L8 12L4 8L9.6 7.2L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
+                    <ConnektAIIcon className="w-4 h-4 text-[#008080]" />
                     Apply with AI
                 </button>
             </div>

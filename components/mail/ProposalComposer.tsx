@@ -42,10 +42,16 @@ export default function ProposalComposer({ onProposalGenerated, autoAIRequest, i
         loadTemplates();
     }, []);
 
-    // Effect to handle passed templateId prop
+    // Effect to handle passed templateId prop with mapping for System Templates
     useEffect(() => {
         if (templateId && templates.length > 0) {
-            const t = templates.find(temp => temp.id === templateId || temp.name === templateId || temp.type === templateId);
+            // Map generic IDs to System Template Names
+            let targetName = templateId;
+            if (templateId === 'job_proposal') targetName = 'Job Proposal (Employment)';
+            if (templateId === 'project_proposal') targetName = 'Project Proposal (Freelance)';
+            if (templateId === 'task_proposal') targetName = 'Task Bid';
+
+            const t = templates.find(temp => temp.id === templateId || temp.name === targetName || temp.type === templateId);
             if (t) setSelectedTemplate(t);
         }
     }, [templateId, templates]);
@@ -54,7 +60,13 @@ export default function ProposalComposer({ onProposalGenerated, autoAIRequest, i
         if (!autoAIRequest || !templates.length) return;
 
         if (autoAIRequest.templateId) {
-            const template = templates.find(t => t.id === autoAIRequest.templateId || t.name === autoAIRequest.templateId);
+            // Map generic IDs to System Template Names
+            let targetName = autoAIRequest.templateId;
+            if (autoAIRequest.templateId === 'job_proposal') targetName = 'Job Proposal (Employment)';
+            if (autoAIRequest.templateId === 'project_proposal') targetName = 'Project Proposal (Freelance)';
+            if (autoAIRequest.templateId === 'task_proposal') targetName = 'Task Bid';
+
+            const template = templates.find(t => t.id === autoAIRequest.templateId || t.name === targetName);
             if (template) {
                 setSelectedTemplate(template);
             }
@@ -73,7 +85,7 @@ export default function ProposalComposer({ onProposalGenerated, autoAIRequest, i
     const loadTemplates = () => {
         try {
             const proposalTemplates = (SYSTEM_TEMPLATES as unknown as ContractTemplate[]).filter(t =>
-                t.name.toLowerCase().includes('proposal') || t.type === 'general'
+                t.name.toLowerCase().includes('proposal') || t.name.includes('Bid') || t.type === 'general'
             );
             setTemplates(proposalTemplates);
             setLoading(false);
@@ -144,6 +156,17 @@ export default function ProposalComposer({ onProposalGenerated, autoAIRequest, i
         return <div className="p-4 text-center">Loading proposal templates...</div>;
     }
 
+    // Determine context name (Job/Project/Task Title)
+    // We try to find it in the variables passed from ExplorePage
+    const contextName = variables.proposalContext?.jobTitle ||
+        variables.jobTitle ||
+        variables.projectTitle ||
+        variables.taskTitle ||
+        variables.proposalContext?.title || '';
+
+    // Determine context type for label
+    const contextType = variables.proposalContext?.jobType || 'Job';
+
     return (
         <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900 rounded-lg overflow-hidden">
             {/* Header */}
@@ -182,6 +205,19 @@ export default function ProposalComposer({ onProposalGenerated, autoAIRequest, i
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                             Proposal Details
                         </h3>
+
+                        {/* Read-Only Context Field */}
+                        {contextName && (
+                            <div className="mb-6 p-3 bg-teal-50 dark:bg-teal-900/20 rounded-lg border border-teal-100 dark:border-teal-900/30">
+                                <label className="block text-xs font-bold text-teal-700 dark:text-teal-400 uppercase tracking-wide mb-1">
+                                    Applying To ({contextType})
+                                </label>
+                                <div className="font-bold text-gray-900 dark:text-white">
+                                    {contextName}
+                                </div>
+                            </div>
+                        )}
+
                         <div className="space-y-4">
                             {selectedTemplate.variables.map((variable) => (
                                 <div key={variable.key}>
@@ -195,6 +231,14 @@ export default function ProposalComposer({ onProposalGenerated, autoAIRequest, i
                                             className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                                             value={variables[variable.key] || ''}
                                             onChange={(e) => handleVariableChange(variable.key, e.target.value)}
+                                        />
+                                    ) : variable.type === 'number' || variable.type === 'currency' ? (
+                                        <input
+                                            type="number"
+                                            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                            value={variables[variable.key] || ''}
+                                            onChange={(e) => handleVariableChange(variable.key, e.target.value)}
+                                            placeholder={variable.type === 'currency' ? '0.00' : ''}
                                         />
                                     ) : variable.type === 'number' || variable.type === 'currency' ? (
                                         <input

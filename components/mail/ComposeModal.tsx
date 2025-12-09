@@ -198,7 +198,18 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
         if (!subject) setSubject(data.title);
         setContractData({
             templateId: data.templateId,
-            terms: data.terms,
+            terms: {
+                ...data.terms,
+                // Persist context IDs from the initial request if available
+                ...(autoContractDraftRequest?.variables?.proposalContext ? {
+                    linkedJobId: autoContractDraftRequest.variables.proposalContext.jobId,
+                    linkedProjectId: autoContractDraftRequest.variables.proposalContext.projectId || autoContractDraftRequest.variables.proposalContext.jobId, // Fallback if needed
+                    linkedTaskId: autoContractDraftRequest.variables.proposalContext.taskId
+                } : {}),
+                // Also check direct autoSelect params if they were passed in variables
+                ...(autoContractDraftRequest?.variables?.autoSelectProjectId ? { linkedProjectId: autoContractDraftRequest.variables.autoSelectProjectId } : {}),
+                ...(autoContractDraftRequest?.variables?.autoSelectTaskId ? { linkedTaskId: autoContractDraftRequest.variables.autoSelectTaskId } : {})
+            },
             defaultTerms: data.defaultTerms,
             description: data.description
         });

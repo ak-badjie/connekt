@@ -16,6 +16,7 @@ export interface WorkspaceMember {
 export interface JobTemplate {
     id?: string;
     workspaceId: string;
+    ownerEmail?: string;
     title: string;
     description: string;
     type: 'job' | 'project' | 'task'; // CHANGED: Strict types

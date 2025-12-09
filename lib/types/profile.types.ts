@@ -111,6 +111,7 @@ export interface ProfileStats {
 export interface ExtendedUserProfile {
     uid: string;
     username: string;
+    connectMail?: string; // Explicitly from profile
     email?: string;
     displayName: string;
     photoURL?: string;
