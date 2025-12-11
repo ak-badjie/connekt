@@ -100,18 +100,42 @@ export default function ContractMailComposer({
     useEffect(() => {
         if (!autoAIRequest || !templates.length) return;
 
+        // A. Select Template
         if (autoAIRequest.templateId) {
-            const template = templates.find(t => t.id === autoAIRequest.templateId || t.name === autoAIRequest.templateId);
+            console.log('Auto-selecting Template:', autoAIRequest.templateId);
+            // Fuzzy match logic to find the best system template
+            const targetId = autoAIRequest.templateId.toLowerCase();
+            const template = templates.find(t => 
+                t.id === autoAIRequest.templateId || 
+                t.name.toLowerCase().includes(targetId) ||
+                t.name === autoAIRequest.templateId ||
+                t.type === targetId.toLowerCase() ||
+                (targetId.includes('job') && t.type === 'job') ||
+                (targetId.includes('employment') && t.type === 'job') ||
+                (targetId.includes('project') && t.type === 'project') ||
+                (targetId.includes('task') && t.type === 'project')
+            );
+            
             if (template) {
+                console.log('Template matched:', template.name);
                 setSelectedTemplate(template);
+            } else {
+                console.warn('No template found for:', autoAIRequest.templateId);
             }
         }
 
+        // B. Inject Variables
         if (autoAIRequest.variables) {
-            setVariables(prev => ({ ...prev, ...autoAIRequest.variables }));
+            console.log('Injecting variables:', autoAIRequest.variables);
+            setVariables(prev => ({
+                ...prev,
+                ...autoAIRequest.variables
+            }));
         }
 
+        // Only show AI modal if explicitly asked (autoStart: true)
         if (autoAIRequest.autoStart && !autoTriggered) {
+            console.log('Auto-starting AI drafter');
             setAutoTriggered(true);
             setShowAIDrafter(true);
         }
@@ -195,6 +219,7 @@ export default function ContractMailComposer({
         if (autoSelectWorkspaceId && myWorkspaces.length > 0) {
             const wsExists = myWorkspaces.find(w => w.id === autoSelectWorkspaceId);
             if (wsExists && selectedWorkspaceId !== autoSelectWorkspaceId) {
+                console.log('Auto-selecting Workspace:', autoSelectWorkspaceId);
                 handleWorkspaceSelect(autoSelectWorkspaceId);
             }
         }
@@ -205,6 +230,7 @@ export default function ContractMailComposer({
         if (autoSelectProjectId && workspaceProjects.length > 0) {
             const projExists = workspaceProjects.find(p => p.id === autoSelectProjectId);
             if (projExists && selectedProjectId !== autoSelectProjectId) {
+                console.log('Auto-selecting Project:', autoSelectProjectId);
                 handleProjectSelect(autoSelectProjectId);
             }
         }

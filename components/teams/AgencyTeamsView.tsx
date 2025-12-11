@@ -40,9 +40,9 @@ export function AgencyTeamsView() {
     }, [user]);
 
     return (
-        <div className="h-full flex flex-col md:flex-row rounded-2xl overflow-hidden border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
+        <div className="h-full flex flex-col md:flex-row rounded-3xl overflow-hidden border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xl">
             {/* Left Panel - List */}
-            <div className={`w-full md:w-80 border-r border-gray-200 dark:border-zinc-800 flex flex-col ${selectedConversationId ? 'hidden md:flex' : 'flex'}`}>
+            <div className={`w-full md:w-80 lg:w-96 border-r border-gray-200 dark:border-zinc-800 flex flex-col ${selectedConversationId ? 'hidden md:flex' : 'flex'}`}>
                 {/* Header & Tabs */}
                 <div className="p-4 border-b border-gray-200 dark:border-zinc-800">
                     <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Teams</h2>
@@ -138,14 +138,18 @@ export function AgencyTeamsView() {
                         onBack={() => setSelectedConversationId(null)}
                     />
                 ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 dark:bg-zinc-900/50 text-gray-400 p-8 text-center">
-                        <div className="w-24 h-24 bg-gray-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-6">
-                            <Users size={48} className="opacity-20" />
+                    <div className="flex-1 flex flex-col items-center justify-center bg-[#f0f2f5] dark:bg-[#202c33] text-gray-500 p-8 text-center">
+                        <div className="w-24 h-24 bg-gray-200 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-6">
+                            <MessageSquare size={40} className="text-[#008080]" />
                         </div>
-                        <h3 className="text-xl font-bold text-gray-600 dark:text-gray-300 mb-2">ConnektTeams</h3>
-                        <p className="text-sm max-w-xs mx-auto">
+                        <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-2">ConnektTeams</h2>
+                        <p className="text-sm max-w-md text-center">
                             Select a group to start chatting or manage your team members from the sidebar.
                         </p>
+                        <div className="mt-8 flex items-center gap-2 text-xs text-gray-400">
+                            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                            End-to-end encrypted
+                        </div>
                     </div>
                 )}
             </div>

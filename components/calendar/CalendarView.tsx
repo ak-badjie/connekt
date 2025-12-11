@@ -31,7 +31,8 @@ interface CalendarEvent {
     priority?: string;
 }
 
-import { ScheduleMeetingModal } from './ScheduleMeetingModal';
+import { CreateEventModal } from './CreateEventModal';
+import { VideoConferenceOverlay } from '../conference/VideoConferenceOverlay';
 
 export function CalendarView({ agencyId }: { agencyId?: string }) {
     const { user } = useAuth();
@@ -40,6 +41,8 @@ export function CalendarView({ agencyId }: { agencyId?: string }) {
     const [events, setEvents] = useState<CalendarEvent[]>([]);
     const [loading, setLoading] = useState(true);
     const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+    const [isVideoOpen, setIsVideoOpen] = useState(false);
+    const [activeMeeting, setActiveMeeting] = useState<CalendarEvent | null>(null);
 
     useEffect(() => {
         const fetchEvents = async () => {
@@ -49,7 +52,8 @@ export function CalendarView({ agencyId }: { agencyId?: string }) {
                 // Fetch tasks based on context (Agency or User)
                 let tasks: Task[] = [];
                 if (agencyId) {
-                    tasks = await TaskService.getAgencyTasks(agencyId);
+                    // TODO: Implement getAgencyTasks method
+                    tasks = [];
                 } else {
                     tasks = await TaskService.getUserTasks(user.uid);
                 }
@@ -111,15 +115,39 @@ export function CalendarView({ agencyId }: { agencyId?: string }) {
         return events.filter(event => isSameDay(event.date, day));
     };
 
+    const handleJoinMeeting = (event: CalendarEvent) => {
+        setActiveMeeting(event);
+        setIsVideoOpen(true);
+    };
+
+    // Animation Variants
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        visible: { 
+            opacity: 1, 
+            transition: { staggerChildren: 0.03 } 
+        }
+    };
+
+    const dayVariants = {
+        hidden: { opacity: 0, scale: 0.9 },
+        visible: { opacity: 1, scale: 1 }
+    };
+
     return (
-        <div className="flex flex-col h-full bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden border border-gray-200 dark:border-zinc-800 shadow-sm">
+        <div className="flex flex-col h-full bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden border border-gray-200 dark:border-zinc-800 shadow-xl">
             {/* Header */}
-            <div className="p-6 border-b border-gray-200 dark:border-zinc-800 flex items-center justify-between">
+            <div className="p-8 border-b border-gray-100 dark:border-zinc-800 flex items-center justify-between bg-white/50 dark:bg-zinc-900/50 backdrop-blur-sm">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                    <motion.h2 
+                        key={currentDate.toString()}
+                        initial={{ y: -20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight"
+                    >
                         {format(currentDate, "MMMM yyyy")}
-                    </h2>
-                    <p className="text-sm text-gray-500">Manage your schedule and meetings</p>
+                    </motion.h2>
+                    <p className="text-sm text-gray-500 mt-1">Manage your schedule and meetings</p>
                 </div>
                 <div className="flex items-center gap-4">
                     <div className="flex bg-gray-100 dark:bg-zinc-800 rounded-lg p-1">
@@ -133,13 +161,15 @@ export function CalendarView({ agencyId }: { agencyId?: string }) {
                             <ChevronRight size={20} />
                         </button>
                     </div>
-                    <button
+                    <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
                         onClick={() => setIsScheduleModalOpen(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-[#008080] text-white rounded-xl hover:bg-teal-600 transition-colors shadow-lg shadow-teal-500/20"
+                        className="flex items-center gap-2 px-6 py-3 bg-[#008080] text-white rounded-2xl hover:bg-teal-600 transition-all shadow-lg shadow-teal-500/20 font-bold"
                     >
                         <Plus size={20} />
-                        <span className="font-bold text-sm">New Event</span>
-                    </button>
+                        <span>Create Event</span>
+                    </motion.button>
                 </div>
             </div>
 
@@ -156,7 +186,12 @@ export function CalendarView({ agencyId }: { agencyId?: string }) {
                     </div>
 
                     {/* Days Grid */}
-                    <div className="grid grid-cols-7 gap-4 auto-rows-fr flex-1">
+                    <motion.div 
+                        variants={containerVariants}
+                        initial="hidden"
+                        animate="visible"
+                        className="grid grid-cols-7 gap-3 auto-rows-fr flex-1"
+                    >
                         {days.map((day, i) => {
                             const isSelected = isSameDay(day, selectedDate);
                             const isCurrentMonth = isSameMonth(day, monthStart);
@@ -164,113 +199,137 @@ export function CalendarView({ agencyId }: { agencyId?: string }) {
                             const isTodayDate = isToday(day);
 
                             return (
-                                <div
+                                <motion.div
                                     key={i}
+                                    variants={dayVariants}
+                                    whileHover={{ scale: 1.02, zIndex: 10 }}
                                     onClick={() => onDateClick(day)}
-                                    className={`min-h-[100px] p-3 rounded-2xl border transition-all cursor-pointer relative group ${isSelected
-                                        ? 'border-[#008080] bg-teal-50/50 dark:bg-teal-900/10 ring-2 ring-[#008080]/20'
-                                        : 'border-gray-100 dark:border-zinc-800 hover:border-gray-300 dark:hover:border-zinc-700 bg-white dark:bg-zinc-900'
-                                        } ${!isCurrentMonth ? 'opacity-40' : ''}`}
+                                    className={`relative min-h-[120px] p-4 rounded-3xl border transition-all cursor-pointer group 
+                                        ${isSelected
+                                            ? 'border-[#008080] bg-teal-50/50 dark:bg-teal-900/10 ring-4 ring-[#008080]/10'
+                                            : 'border-gray-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:shadow-xl dark:hover:bg-zinc-800/50'
+                                        } ${!isCurrentMonth ? 'opacity-30 grayscale' : ''}`}
                                 >
-                                    <div className="flex justify-between items-start mb-2">
-                                        <span className={`text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full ${isTodayDate
-                                            ? 'bg-[#008080] text-white'
-                                            : isSelected ? 'text-[#008080]' : 'text-gray-700 dark:text-gray-300'
-                                            }`}>
-                                            {format(day, dateFormat)}
-                                        </span>
-                                        {dayEvents.length > 0 && (
-                                            <span className="w-2 h-2 rounded-full bg-[#008080]"></span>
-                                        )}
-                                    </div>
+                                    {/* Date Number */}
+                                    <span className={`text-sm font-bold w-8 h-8 flex items-center justify-center rounded-full mb-2 
+                                        ${isTodayDate
+                                            ? 'bg-[#008080] text-white shadow-md shadow-teal-500/30'
+                                            : 'text-gray-500'}`}>
+                                        {format(day, dateFormat)}
+                                    </span>
 
-                                    <div className="space-y-1">
+                                    {/* Event Dots/Pills */}
+                                    <div className="space-y-1.5">
                                         {dayEvents.slice(0, 3).map((event, idx) => (
-                                            <div
+                                            <motion.div
+                                                initial={{ opacity: 0, x: -10 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ delay: idx * 0.1 }}
                                                 key={idx}
-                                                className={`text-[10px] px-2 py-1 rounded-md truncate font-medium ${event.type === 'meeting'
-                                                    ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
-                                                    : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
-                                                    }`}
+                                                className={`text-[10px] px-2 py-1 rounded-md truncate font-bold flex items-center gap-1
+                                                    ${event.type === 'meeting'
+                                                        ? 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300'
+                                                        : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'}`}
                                             >
+                                                {event.type === 'meeting' && <Video size={10} />}
                                                 {event.title}
-                                            </div>
+                                            </motion.div>
                                         ))}
-                                        {dayEvents.length > 3 && (
-                                            <div className="text-[10px] text-gray-400 pl-1">
-                                                +{dayEvents.length - 3} more
-                                            </div>
-                                        )}
                                     </div>
-                                </div>
+                                </motion.div>
                             );
                         })}
-                    </div>
+                    </motion.div>
                 </div>
 
                 {/* Sidebar Details */}
-                <div className="w-80 border-l border-gray-200 dark:border-zinc-800 p-6 bg-gray-50/50 dark:bg-zinc-900/50 overflow-y-auto">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
+                <div className="w-96 border-l border-gray-200 dark:border-zinc-800 bg-gray-50/80 dark:bg-zinc-900/80 backdrop-blur-xl p-6 overflow-y-auto">
+                    <motion.h3 
+                        key={selectedDate.toString()}
+                        initial={{ x: 20, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        className="text-xl font-bold text-gray-900 dark:text-white mb-6"
+                    >
                         {format(selectedDate, "EEEE, MMMM do")}
-                    </h3>
-                    <p className="text-sm text-gray-500 mb-6">
-                        {getEventsForDay(selectedDate).length} events scheduled
-                    </p>
-
+                    </motion.h3>
                     <div className="space-y-4">
-                        {getEventsForDay(selectedDate).length === 0 ? (
-                            <div className="text-center py-10 text-gray-400">
-                                <CalendarIcon size={40} className="mx-auto mb-3 opacity-20" />
-                                <p className="text-sm">No events for this day</p>
-                                <button className="mt-4 text-[#008080] text-xs font-bold hover:underline">
-                                    + Add Event
-                                </button>
-                            </div>
-                        ) : (
-                            getEventsForDay(selectedDate).map(event => (
-                                <div key={event.id} className="p-4 bg-white dark:bg-zinc-800 rounded-xl border border-gray-200 dark:border-zinc-700 shadow-sm">
-                                    <div className="flex items-start justify-between mb-2">
-                                        <div className={`p-2 rounded-lg ${event.type === 'meeting'
-                                            ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30'
-                                            : 'bg-amber-100 text-amber-600 dark:bg-amber-900/30'
-                                            }`}>
-                                            {event.type === 'meeting' ? <Video size={18} /> : <AlertCircle size={18} />}
-                                        </div>
-                                        <span className="text-xs font-bold text-gray-400">
-                                            {format(event.date, 'h:mm a')}
-                                        </span>
-                                    </div>
-                                    <h4 className="font-bold text-gray-900 dark:text-white mb-1">{event.title}</h4>
-
-                                    {event.type === 'deadline' && (
-                                        <div className="flex items-center gap-2 mt-2">
-                                            <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase font-bold ${event.priority === 'high' ? 'bg-red-100 text-red-700' :
-                                                event.priority === 'medium' ? 'bg-orange-100 text-orange-700' :
-                                                    'bg-green-100 text-green-700'
+                        <AnimatePresence mode='popLayout'>
+                            {getEventsForDay(selectedDate).length === 0 ? (
+                                <motion.div 
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    className="text-center py-10 text-gray-400"
+                                >
+                                    <CalendarIcon size={40} className="mx-auto mb-3 opacity-20" />
+                                    <p className="text-sm">No events for this day</p>
+                                    <button 
+                                        onClick={() => setIsScheduleModalOpen(true)}
+                                        className="mt-4 text-[#008080] text-xs font-bold hover:underline"
+                                    >
+                                        + Add Event
+                                    </button>
+                                </motion.div>
+                            ) : (
+                                getEventsForDay(selectedDate).map((event) => (
+                                    <motion.div
+                                        key={event.id}
+                                        layout
+                                        initial={{ scale: 0.9, opacity: 0 }}
+                                        animate={{ scale: 1, opacity: 1 }}
+                                        exit={{ scale: 0.9, opacity: 0 }}
+                                        className="bg-white dark:bg-zinc-800 p-5 rounded-2xl border border-gray-100 dark:border-zinc-700 shadow-sm hover:shadow-md transition-shadow"
+                                    >
+                                        <div className="flex justify-between items-start mb-3">
+                                            <div className={`p-2.5 rounded-xl ${event.type === 'meeting'
+                                                ? 'bg-purple-100 text-purple-600 dark:bg-purple-500/20 dark:text-purple-300'
+                                                : 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-300'
                                                 }`}>
-                                                {event.priority || 'Normal'}
+                                                {event.type === 'meeting' ? <Video size={20} /> : <AlertCircle size={20} />}
+                                            </div>
+                                            <span className="text-xs font-bold bg-gray-100 dark:bg-zinc-700 px-2 py-1 rounded-md text-gray-500">
+                                                {format(event.date, 'h:mm a')}
                                             </span>
-                                            <span className="text-[10px] text-gray-500 capitalize">{event.status}</span>
                                         </div>
-                                    )}
+                                        
+                                        <h4 className="font-bold text-gray-900 dark:text-white text-lg mb-1">{event.title}</h4>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Team Design Sync • Project Alpha</p>
 
-                                    {event.type === 'meeting' && (
-                                        <button className="w-full mt-3 py-2 bg-[#008080] text-white text-xs font-bold rounded-lg hover:bg-teal-600 transition-colors">
-                                            Join Meeting
-                                        </button>
-                                    )}
-                                </div>
-                            ))
-                        )}
+                                        {event.type === 'meeting' && (
+                                            <motion.button
+                                                whileHover={{ scale: 1.02 }}
+                                                whileTap={{ scale: 0.98 }}
+                                                onClick={() => handleJoinMeeting(event)}
+                                                className="w-full py-2.5 bg-[#008080] text-white text-sm font-bold rounded-xl shadow-lg shadow-teal-500/20 flex items-center justify-center gap-2 group"
+                                            >
+                                                <Video size={16} className="group-hover:animate-pulse" />
+                                                Join Meeting
+                                            </motion.button>
+                                        )}
+                                    </motion.div>
+                                ))
+                            )}
+                        </AnimatePresence>
                     </div>
                 </div>
             </div>
 
 
-            <ScheduleMeetingModal
+            <CreateEventModal
                 isOpen={isScheduleModalOpen}
                 onClose={() => setIsScheduleModalOpen(false)}
                 selectedDate={selectedDate}
+                agencyId={agencyId}
+            />
+
+            <VideoConferenceOverlay 
+                isOpen={isVideoOpen}
+                onClose={() => setIsVideoOpen(false)}
+                meetingTitle={activeMeeting?.title || "Team Meeting"}
+                participants={[
+                    { id: '1', name: 'You', isMuted: false },
+                    { id: '2', name: 'Sarah Connor', isMuted: true },
+                    { id: '3', name: 'John Doe', isMuted: false }
+                ]}
             />
         </div >
     );

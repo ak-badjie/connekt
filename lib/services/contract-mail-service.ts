@@ -16,6 +16,21 @@ import type { Contract, ContractType, ContractTerms, ContractStatus } from '@/li
 import { MailService } from './mail-service';
 import { WalletService } from './wallet-service';
 
+const removeUndefined = (obj: any): any => {
+    if (obj === null || obj === undefined) return undefined;
+    if (typeof obj !== 'object') return obj;
+    if (Array.isArray(obj)) return obj.map(removeUndefined);
+
+    // Preserve Firestore types and Dates
+    if (obj instanceof Date || obj instanceof Timestamp) return obj;
+
+    return Object.fromEntries(
+        Object.entries(obj)
+            .map(([k, v]) => [k, removeUndefined(v)])
+            .filter(([_, v]) => v !== undefined)
+    );
+};
+
 /**
  * Service for handling contract-based mail operations
  * Contracts are used for all two-party interactions in ConnektMail
@@ -56,7 +71,8 @@ export const ContractMailService = {
             ...(expiresIn && { expiresAt: new Date(Date.now() + expiresIn * 24 * 60 * 60 * 1000) })
         };
 
-        const contractRef = await addDoc(collection(db, 'contracts'), contract);
+        const sanitizedContract = removeUndefined(contract);
+        const contractRef = await addDoc(collection(db, 'contracts'), sanitizedContract);
         return contractRef.id;
     },
 
@@ -95,7 +111,8 @@ export const ContractMailService = {
             ...(expiresIn && { expiresAt: new Date(Date.now() + expiresIn * 24 * 60 * 60 * 1000) })
         };
 
-        const contractRef = await addDoc(collection(db, 'contracts'), contract);
+        const sanitizedContract = removeUndefined(contract);
+        const contractRef = await addDoc(collection(db, 'contracts'), sanitizedContract);
         const contractId = contractRef.id;
 
         // Send notification mail
@@ -426,7 +443,7 @@ export const ContractMailService = {
         await this.appendAudit(contractId, {
             by: submitterUserId,
             action: 'milestone_submitted',
-            details: `Milestone ${milestone.title || milestone.id} submitted` ,
+            details: `Milestone ${milestone.title || milestone.id} submitted`,
             meta: { milestoneId }
         });
     },

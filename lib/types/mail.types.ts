@@ -258,6 +258,7 @@ export interface ContractTerms {
     // Linking
     linkedProjectId?: string;
     linkedWorkspaceId?: string;
+    linkedTaskId?: string;
     linkedChatId?: string;
 
     // Roles

@@ -5,6 +5,7 @@ import { X, Send, Paperclip, Image as ImageIcon, Video, FileText, Link as LinkIc
 import { AdvancedRichTextEditor } from './AdvancedRichTextEditor';
 import ContractMailComposer from './ContractMailComposer';
 import ProposalComposer from './ProposalComposer';
+import { ProposalViewer } from '@/components/contracts/ProposalViewer';
 import { Signature } from '@/lib/services/mail-service';
 import { Attachment, StorageService } from '@/lib/services/storage-service';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -33,6 +34,7 @@ interface ComposeModalProps {
         recipient?: string;
         subject?: string;
         body?: string;
+        isProposalResponse?: boolean; // New Flag
     };
     autoContractDraftRequest?: {
         templateId?: string;
@@ -47,6 +49,9 @@ interface ComposeModalProps {
 }
 
 export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures = [], initialData, autoContractDraftRequest }: ComposeModalProps) {
+    if (isOpen) {
+        console.log('ComposeModal Open. Data:', { initialData, autoContractDraftRequest });
+    }
     const [recipient, setRecipient] = useState(initialData?.recipient || '');
     const [subject, setSubject] = useState(initialData?.subject || '');
     const [body, setBody] = useState(initialData?.body || '');
@@ -65,6 +70,8 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
         defaultTerms?: string;
         description?: string;
         contractId?: string;
+        type?: 'contract' | 'proposal';
+        title?: string; // Add title field
     } | null>(null);
     const [showAIComposer, setShowAIComposer] = useState(false);
     const [isFullScreen, setIsFullScreen] = useState(false);
@@ -77,34 +84,28 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
             setRecipient(initialData.recipient || '');
             setSubject(initialData.subject || '');
             setBody(initialData.body || '');
+
+            // If replying to a proposal, switch to Contract mode automatically
+            if (initialData.isProposalResponse) {
+                setMode('contract');
+            }
         }
     }, [initialData]);
 
-    // Auto-open contract mode or proposal mode when a deep-link provides data
+    // Determine default mode based on request and auto-open contract drafter
     useEffect(() => {
         if (isOpen && autoContractDraftRequest) {
-            const { variables } = autoContractDraftRequest;
+            console.log('Auto-opening Contract Drafter with:', autoContractDraftRequest);
+            const { variables, contractType } = autoContractDraftRequest;
 
-            if (variables?.isProposal && variables.proposalContext) {
-                setMode('proposal');
-                // Auto-select the correct proposal template based on job type
-                let templateId = 'job_proposal'; // default
-                const jobType = variables.proposalContext.jobType;
-
-                if (jobType === 'project') templateId = 'project_proposal';
-                if (jobType === 'task') templateId = 'task_proposal';
-
-                setContractData({
-                    templateId,
-                    terms: variables, // Pass full variables including context
-                });
-            } else if (autoContractDraftRequest.contractType === 'general') {
+            if (variables?.isProposal || contractType === 'general' || contractType?.includes('proposal')) {
                 setMode('proposal');
             } else {
                 setMode('contract');
             }
         }
     }, [autoContractDraftRequest, isOpen]);
+
 
     // Set default signature
     useEffect(() => {
@@ -180,7 +181,9 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
             templateId: data.templateId,
             terms: data.terms,
             defaultTerms: data.defaultTerms,
-            description: data.description
+            description: data.description,
+            type: 'contract',
+            title: data.title
         });
         // Switch back to normal mode to review and send
         setMode('email');
@@ -195,11 +198,12 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
         templateId?: string;
         defaultTerms?: string;
     }) => {
-        if (!subject) setSubject(data.title);
+        // Save the generated proposal data
         setContractData({
             templateId: data.templateId,
             terms: {
                 ...data.terms,
+                proposal: true, // Mark terms as proposal for identification
                 // Persist context IDs from the initial request if available
                 ...(autoContractDraftRequest?.variables?.proposalContext ? {
                     linkedJobId: autoContractDraftRequest.variables.proposalContext.jobId,
@@ -211,10 +215,22 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                 ...(autoContractDraftRequest?.variables?.autoSelectTaskId ? { linkedTaskId: autoContractDraftRequest.variables.autoSelectTaskId } : {})
             },
             defaultTerms: data.defaultTerms,
-            description: data.description
+            description: data.description,
+            type: 'proposal',
+            title: data.title
         });
-        setMode('email');
+
+        // Set Email Metadata
         setCategory('Proposals');
+        if (!subject) setSubject(data.title);
+
+        // Auto-fill body if empty
+        if (!body || body.trim() === '') {
+            setBody(`Dear Hiring Manager,\n\nPlease find attached my proposal regarding "${data.title}".\n\nI look forward to discussing how I can contribute to your project.\n\nBest regards,`);
+        }
+
+        // CRITICAL: Switch view back to Email
+        setMode('email');
     };
 
     const handleSend = async () => {
@@ -275,7 +291,7 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
         }
     };
 
-    const isProposalAttachment = !!contractData?.terms?.proposal;
+    const isProposalAttachment = contractData?.type === 'proposal' || contractData?.terms?.proposal;
 
     if (!isOpen) return null;
 
@@ -384,19 +400,10 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
                         {mode === 'proposal' && (
                             <div className="h-full overflow-y-auto">
                                 <ProposalComposer
-                                    initialData={contractData?.terms}
-                                    templateId={contractData?.templateId}
-                                    onProposalGenerated={(proposalData) => {
-                                        // ProposalComposer returns formatted markdown in proposalData.description (usually) 
-                                        // or we construct it. Let's assume it returns structured data we can use.
-                                        // Actually, let's just use the description if available, or title.
-                                        // But wait, the previous code used proposalContent (string). 
-                                        // Let's check ProposalComposer implementation.
-                                        // It seems onProposalGenerated returns { title, description, terms, ... }
-                                        // So we should setBody(proposalData.description)
-                                        setBody(proposalData.description || '');
-                                    }}
+                                    onProposalGenerated={handleProposalGenerated}
                                     autoAIRequest={autoContractDraftRequest}
+                                    templateId={autoContractDraftRequest?.templateId}
+                                    initialData={autoContractDraftRequest?.variables}
                                 />
                             </div>
                         )}
@@ -603,24 +610,41 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
 
                 {
                     showContractPreview && contractData && (
-                        <UnifiedContractViewer
-                            contractId={contractData.contractId || 'draft-contract'}
-                            contract={{
-                                type: (contractData.terms?.contractType as string) || 'draft',
-                                title: subject || contractData.terms?.jobTitle || contractData.terms?.projectTitle || 'Draft Contract',
-                                description: contractData.description || '',
-                                terms: contractData.terms || {},
-                                defaultTerms: contractData.defaultTerms,
-                                status: 'pending',
-                                fromUserId: user?.uid || '',
-                                fromUsername: 'You',
-                                toUserId: recipient || 'recipient',
-                                toUsername: recipient || 'Recipient',
-                            }}
-                            isOpen={showContractPreview}
-                            onClose={() => setShowContractPreview(false)}
-                            canSign={false}
-                        />
+                        isProposalAttachment ? (
+                            <ProposalViewer
+                                proposal={{
+                                    title: contractData.title || subject || contractData.terms?.jobTitle || 'Proposal',
+                                    description: contractData.description || '',
+                                    terms: contractData.terms || {},
+                                    status: 'draft',
+                                    fromUserId: user?.uid || '',
+                                    fromUsername: 'You',
+                                    toUserId: recipient || 'recipient',
+                                    toUsername: recipient || 'Recipient',
+                                }}
+                                isOpen={showContractPreview}
+                                onClose={() => setShowContractPreview(false)}
+                            />
+                        ) : (
+                            <UnifiedContractViewer
+                                contractId={contractData.contractId || 'draft-contract'}
+                                contract={{
+                                    type: (contractData.terms?.contractType as string) || 'draft',
+                                    title: contractData.title || subject || contractData.terms?.jobTitle || contractData.terms?.projectTitle || 'Draft Contract',
+                                    description: contractData.description || '',
+                                    terms: contractData.terms || {},
+                                    defaultTerms: contractData.defaultTerms,
+                                    status: 'pending',
+                                    fromUserId: user?.uid || '',
+                                    fromUsername: 'You',
+                                    toUserId: recipient || 'recipient',
+                                    toUsername: recipient || 'Recipient',
+                                }}
+                                isOpen={showContractPreview}
+                                onClose={() => setShowContractPreview(false)}
+                                canSign={false}
+                            />
+                        )
                     )
                 }
             </div >

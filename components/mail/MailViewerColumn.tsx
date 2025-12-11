@@ -7,6 +7,7 @@ import ReactMarkdown from 'react-markdown';
 import type { MailMessage } from '@/lib/services/mail-service';
 import Image from 'next/image';
 import { UnifiedContractViewer } from '@/components/contracts/UnifiedContractViewer';
+import { ProposalViewer } from '@/components/contracts/ProposalViewer';
 import { ContractSigningService } from '@/lib/services/contract-signing-service';
 import { ContractMailService } from '@/lib/services/contract-mail-service';
 import toast from 'react-hot-toast';
@@ -15,11 +16,25 @@ import { useAuth } from '@/context/AuthContext';
 
 interface MailViewerColumnProps {
     mail: MailMessage | null;
-    onReply?: (prefill: { recipient?: string; subject?: string; body?: string; contractId?: string }) => void;
+    onReply?: (prefill: { 
+        recipient?: string; 
+        subject?: string; 
+        body?: string; 
+        contractId?: string; 
+        isProposalResponse?: boolean;
+        autoContractDraftRequest?: {
+            templateId?: string;
+            contractType?: string;
+            variables?: Record<string, any>;
+            autoStart?: boolean;
+            autoSelectProjectId?: string;
+            autoSelectWorkspaceId?: string;
+            autoSelectTaskId?: string;
+        };
+    }) => void;
     onForward?: (prefill: { recipient?: string; subject?: string; body?: string; contractId?: string }) => void;
     onDelete?: () => void;
     onMarkUnread?: () => void;
-    onResponse?: (mail: MailMessage) => void;
 }
 
 export function MailViewerColumn({
@@ -27,36 +42,46 @@ export function MailViewerColumn({
     onReply,
     onForward,
     onDelete,
-    onMarkUnread,
-    onResponse
+    onMarkUnread
 }: MailViewerColumnProps) {
     const { user } = useAuth();
     const router = useRouter();
     const [showContractViewer, setShowContractViewer] = useState(false);
-    const [loadedContract, setLoadedContract] = useState<any | null>(null);
-    const [loadingContract, setLoadingContract] = useState(false);
-    // Load the full contract by ID when viewer opens
-    useEffect(() => {
-        const load = async () => {
-            if (!showContractViewer || !hasContract) return;
-            const contractId = (mail as any).contractId as string;
-            setLoadingContract(true);
-            try {
-                const c = await ContractSigningService.getContract(contractId);
-                setLoadedContract(c);
-            } catch (err: any) {
-                console.error('Failed to load contract', err);
-                toast.error(err?.message || 'Failed to load contract');
-            } finally {
-                setLoadingContract(false);
-            }
-        };
-        load();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [showContractViewer]);
+    const [showProposalViewer, setShowProposalViewer] = useState(false);
+    const [loadedDocument, setLoadedDocument] = useState<any | null>(null);
+    const [loadingDoc, setLoadingDoc] = useState(false);
 
-    // Check if this mail has a contract
-    const hasContract = (mail as any)?.contractId;
+    // Check if this mail has an attachment
+    const hasAttachment = (mail as any)?.contractId;
+
+    // Load document data when viewer requested
+    const loadDocument = async (contractId: string) => {
+        setLoadingDoc(true);
+        try {
+            const docData = await ContractSigningService.getContract(contractId);
+            setLoadedDocument(docData);
+            
+            // Determine which viewer to open based on data
+            if (docData?.terms?.proposal) {
+                setShowProposalViewer(true);
+            } else {
+                setShowContractViewer(true);
+            }
+        } catch (err: any) {
+            console.error('Failed to load document', err);
+            toast.error('Failed to load attachment');
+        } finally {
+            setLoadingDoc(false);
+        }
+    };
+
+    const handleViewAttachment = () => {
+        const id = (mail as any).contractId;
+        if (id) loadDocument(id);
+    };
+
+    // Determine if the attachment label should say "Contract" or "Proposal"
+    const isLikelyProposal = mail?.category === 'Proposals' || mail?.subject?.toLowerCase().includes('proposal');
 
     if (!mail) {
         return (
@@ -88,16 +113,6 @@ export function MailViewerColumn({
                 {/* Actions */}
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
-                        {/* Response Button for Proposals */}
-                        {(mail as any).category === 'Proposals' && (
-                            <button
-                                onClick={() => onResponse?.(mail)}
-                                className="px-3 py-1.5 bg-teal-600 text-white rounded-lg font-bold text-xs hover:bg-teal-700 transition-colors flex items-center gap-2"
-                            >
-                                <FileText size={14} />
-                                Response
-                            </button>
-                        )}
                         <button
                             onClick={() => {
                                 if (!mail) return;
@@ -185,90 +200,73 @@ export function MailViewerColumn({
                 </div>
             </div>
 
-            {/* Proposal Banner */}
-            {(mail as any).category === 'Proposals' && (
-                <div className="mx-6 mt-6 p-4 bg-gradient-to-r from-teal-50 to-white dark:from-teal-900/20 dark:to-zinc-900 border border-teal-100 dark:border-teal-800 rounded-xl flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-full bg-teal-100 dark:bg-teal-900/50 flex items-center justify-center flex-shrink-0">
-                        <FileText className="w-5 h-5 text-teal-600 dark:text-teal-400" />
-                    </div>
-                    <div className="flex-1">
-                        <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-1">
-                            Job Proposal
-                        </h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                            This is an application for a posted position. Review the details below and click "Response" to send a contract offer.
-                        </p>
-                    </div>
-                    <button
-                        onClick={() => onResponse?.(mail)}
-                        className="px-4 py-2 bg-teal-600 text-white text-sm font-bold rounded-lg hover:bg-teal-700 transition-colors shadow-lg shadow-teal-500/20"
-                    >
-                        Send Contract
-                    </button>
-                </div>
-            )}
-
             {/* Mail Body */}
             <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
                 <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-3 prose-p:leading-relaxed">
                     <ReactMarkdown>{mail.body}</ReactMarkdown>
                 </div>
 
-                {/* Contract Action Button */}
-                {hasContract && (
-                    <div className="mt-8 p-6 bg-gradient-to-r from-teal-50 to-teal-100 dark:from-teal-900/20 dark:to-teal-800/20 rounded-xl border-2 border-teal-200 dark:border-teal-700">
+                {/* Attachment Card */}
+                {hasAttachment && (
+                    <div className="mt-8 p-6 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-zinc-800 dark:to-zinc-800/50 rounded-xl border-2 border-dashed border-gray-200 dark:border-zinc-700">
                         <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 bg-teal-600 rounded-lg flex items-center justify-center">
+                            <div className="flex items-center gap-4">
+                                <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${isLikelyProposal ? 'bg-teal-600' : 'bg-blue-600'}`}>
                                     <FileText className="w-6 h-6 text-white" />
                                 </div>
                                 <div>
-                                    <h4 className="font-bold text-gray-900 dark:text-white">Contract Attached</h4>
+                                    <h4 className="font-bold text-gray-900 dark:text-white">
+                                        {isLikelyProposal ? 'Attached Proposal' : 'Attached Contract'}
+                                    </h4>
                                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                                        This email contains a legal contract for your review
+                                        {isLikelyProposal 
+                                            ? 'Review the proposal terms and reply with a contract.' 
+                                            : 'Review and sign the attached legal contract.'}
                                     </p>
                                 </div>
                             </div>
                             <button
-                                onClick={() => setShowContractViewer(true)}
-                                className="px-6 py-3 bg-gradient-to-r from-teal-600 to-teal-700 text-white font-bold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
+                                onClick={handleViewAttachment}
+                                disabled={loadingDoc}
+                                className="px-6 py-2.5 bg-white dark:bg-zinc-700 border border-gray-200 dark:border-zinc-600 text-gray-900 dark:text-white font-medium rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-zinc-600 transition-all"
                             >
-                                View Contract
+                                {loadingDoc ? 'Loading...' : `View ${isLikelyProposal ? 'Proposal' : 'Contract'}`}
                             </button>
                         </div>
                     </div>
                 )}
-
-                {/* Attachments Section (if any) */}
-                {/* TODO: Add attachments display when implemented */}
             </div>
 
-            {/* Contract Viewer Modal (Unified) */}
-            {hasContract && user && (
+            {/* Contract Viewer (Strictly for Contracts) */}
+            {showContractViewer && loadedDocument && (
                 <UnifiedContractViewer
                     contractId={(mail as any).contractId}
-                    contract={loadedContract || {
-                        type: 'general',
-                        title: mail.subject || 'Contract',
-                        description: mail.body || '',
-                        terms: {},
-                        status: 'pending',
-                        fromUserId: mail.senderId,
-                        fromUsername: mail.senderUsername,
-                        toUserId: mail.recipientId,
-                        toUsername: mail.recipientUsername,
-                    }}
+                    contract={loadedDocument}
                     isOpen={showContractViewer}
                     onClose={() => setShowContractViewer(false)}
-                    onSign={async (contractId: string, fullName: string) => {
-                        try {
-                            await ContractSigningService.signContract(contractId, user.uid, mail.recipientUsername, fullName);
-                            toast.success('Contract signed successfully.');
-                        } catch (err: any) {
-                            toast.error(err?.message || 'Failed to sign contract');
-                        }
+                    onSign={async (contractId, fullName) => {
+                        await ContractSigningService.signContract(contractId, user!.uid, mail.recipientUsername, fullName);
+                        toast.success('Signed successfully');
                     }}
-                    canSign={user.uid === (mail as any).recipientId && (loadedContract?.status === 'pending')}
+                    canSign={user?.uid === (mail as any).recipientId && loadedDocument.status === 'pending'}
+                />
+            )}
+
+            {/* Proposal Viewer (For Proposals) */}
+            {showProposalViewer && loadedDocument && (
+                <ProposalViewer
+                    proposalId={(mail as any).contractId}
+                    proposal={loadedDocument}
+                    isOpen={showProposalViewer}
+                    onClose={() => setShowProposalViewer(false)}
+                    onReplyWithContract={(payload) => {
+                        onReply?.({
+                            recipient: payload.recipient || mail.senderAddress,
+                            subject: payload.subject,
+                            body: payload.body,
+                            autoContractDraftRequest: payload.autoContractDraftRequest
+                        });
+                    }}
                 />
             )}
         </div>

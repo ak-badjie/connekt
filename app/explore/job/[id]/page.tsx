@@ -12,10 +12,11 @@ import Link from 'next/link';
 import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
 import LoadingScreen from '@/components/ui/LoadingScreen';
 import { formatDistanceToNow } from 'date-fns';
+import { TEMPLATE_IDS, CONTRACT_TYPES } from '@/lib/constants/contracts';
 
 export default function JobDetailsPage({ params }: { params: Promise<{ id: string }> }) {
     const router = useRouter();
-    const { user } = useAuth();
+    const { user, userProfile } = useAuth();
     // Unwrap params using React.use()
     const { id } = use(params);
 
@@ -59,45 +60,77 @@ export default function JobDetailsPage({ params }: { params: Promise<{ id: strin
 
         const params = new URLSearchParams();
         params.set('compose', '1');
-        params.set('to', job.ownerEmail || (job as any).ownerUsername);
+        // FIX: Use Connekt Mail Address format
+        params.set('to', `${(job as any).ownerUsername}@connekt.com`);
         params.set('subject', `Proposal: ${job.title}`);
 
+        // Context for AI
         const proposalContext = {
             jobId: job.id,
             jobTitle: job.title,
             jobType: job.type || 'job',
-            description: job.description,
+            // Ensure we don't accidentally pass projectId for standard jobs
+            projectId: job.type === 'project' ? job.id : undefined,
             budget: job.salary ? `${job.salary} ${job.currency}` : 'Negotiable',
-            paymentSchedule: job.paymentSchedule,
-            requirements: (job as any).requirements || '',
-            ownerUsername: (job as any).ownerUsername
         };
 
-        const brief = `I am applying for the position of ${job.title}.
-        
-Job Details:
-Title: ${job.title}
-Type: ${job.type || 'job'}
-Budget: ${job.salary ? `${job.salary} ${job.currency}` : 'Negotiable'}
-Description: ${job.description}
-Requirements: ${(job as any).requirements || 'N/A'}
+        // The "Brief" is what fills the AI text box initially
+        const brief = `JOB TITLE: ${job.title} (${job.type || 'job'})
+BUDGET: ${job.salary ? `${job.salary} ${job.currency}` : 'Negotiable'}
+SCHEDULE: ${job.paymentSchedule || 'To be discussed'}
+
+JOB DESCRIPTION:
+${job.description}
+
+REQUIREMENTS:
+${Array.isArray((job as any).requirements) ? (job as any).requirements.join('\n- ') : (job as any).requirements || 'N/A'}
+
+MY PROFILE:
+Applicant: ${user?.displayName || 'Your Name'}
+Email: ${user?.email || 'your.email@example.com'}
 `;
+
         params.set('brief', brief);
 
+        // Pass detailed variables for Composer state
         params.set('variables', JSON.stringify({
-            isProposal: true,
+            isProposal: true, // IMPORTANT FLAG
             proposalContext: proposalContext,
-            useAI: withAI
+            brief: brief, // Redundant but safe
+            autoStart: withAI, // Triggers modal open
+            // Explicitly set linked Workspace ID for later contract generation
+            workspaceId: job.workspaceId,
+
+            // Standard Contract Variables
+            clientName: (job as any).ownerName || (job as any).ownerUsername || 'Client',
+            contractorName: userProfile?.displayName || userProfile?.username || 'Contractor',
+            applicantName: userProfile?.displayName || userProfile?.username || 'Contractor', // NEW: Required by templates
+            jobTitle: job.title,
+            projectTitle: job.title,
+            taskTitle: job.title,
         }));
+
+        // Mapping Job Type to Template ID
+        // job -> job_proposal
+        // project -> project_proposal
+        // task -> task_proposal
+        // job -> job_proposal
+        // project -> project_proposal
+        // task -> task_proposal
+        let templateId: string = TEMPLATE_IDS.JOB_PROPOSAL;
+        if (job.type === CONTRACT_TYPES.PROJECT) templateId = TEMPLATE_IDS.PROJECT_PROPOSAL;
+        if (job.type === CONTRACT_TYPES.TASK) templateId = TEMPLATE_IDS.TASK_PROPOSAL;
+
+        params.set('templateId', templateId);
+        params.set('contractType', CONTRACT_TYPES.PROPOSAL); // CRITICAL: Tells modal this is a proposal
 
         if (withAI) {
             params.set('autoStart', '1');
-        } else {
-            params.set('autoStart', '0');
         }
 
         // Add auto-select params for Mail context
         if (job.workspaceId) params.set('autoSelectWorkspaceId', job.workspaceId);
+        // FIX: Strict check to only set project ID if it is actually a project type
         if (job.type === 'project' && job.id) params.set('autoSelectProjectId', job.id);
         if (job.type === 'task' && job.id) params.set('autoSelectTaskId', job.id);
 

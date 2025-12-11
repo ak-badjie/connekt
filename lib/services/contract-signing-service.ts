@@ -16,6 +16,7 @@ import { WorkspaceService } from './workspace-service';
 import { WalletService } from './wallet-service';
 import { TaskService } from './task-service';
 import { MeetingService } from './meeting-service';
+import { CONTRACT_TYPES } from '@/lib/constants/contracts';
 
 export const ContractSigningService = {
     /**
@@ -104,6 +105,18 @@ export const ContractSigningService = {
 
         console.log('[ContractSigningService] IDs identified:', { projectId, workspaceId, taskId, terms });
 
+        // Detect contract type to determine access strategy
+        const contractType = terms.contractType || contract.type;
+        const isEmploymentContract = contractType === CONTRACT_TYPES.JOB ||
+            contractType === 'job' ||
+            memberType === 'employee';
+
+        console.log('[ContractSigningService] Contract type analysis:', {
+            contractType,
+            memberType,
+            isEmploymentContract
+        });
+
         // Infer project/workspace IDs from task when missing
         if ((!projectId || !workspaceId) && taskId) {
             try {
@@ -117,9 +130,10 @@ export const ContractSigningService = {
             }
         }
 
-        // 1. Ensure Project Membership
-        if (projectId) {
+        // 1. Ensure Project Membership (SKIP for Employment/Job contracts)
+        if (projectId && !isEmploymentContract) {
             try {
+                console.log('[ContractSigningService] Adding user to project:', projectId);
                 // Using EnhancedProjectService to handle membership logic (idempotency, defaults)
                 await EnhancedProjectService.addMember(projectId, {
                     userId,
@@ -132,6 +146,8 @@ export const ContractSigningService = {
             } catch (err) {
                 console.error('Failed to add member to project', projectId, err);
             }
+        } else if (projectId && isEmploymentContract) {
+            console.log('[ContractSigningService] Skipping project addition for employment contract. User will be added to workspace only.');
         }
 
         // 2. Ensure Workspace Membership

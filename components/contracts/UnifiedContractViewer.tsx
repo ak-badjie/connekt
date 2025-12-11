@@ -198,7 +198,6 @@ export function UnifiedContractViewer({
 
     const isSigned = contract.status === 'signed';
     const isRecipient = user?.uid === contract.toUserId;
-    const isProposal = !!contract?.terms?.proposal;
     const milestones = contract?.terms?.milestones || [];
     const escrowId = contract.escrowId;
 
@@ -216,9 +215,9 @@ export function UnifiedContractViewer({
                         <div className="flex items-center gap-3">
                             <FileText className="text-[#008080]" size={24} />
                             <div>
-                                <h2 className="text-xl font-bold text-gray-900 dark:text-white">{isProposal ? 'Proposal Viewer' : 'Contract Viewer'}</h2>
+                                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Contract Viewer</h2>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                                    {(isProposal ? 'PROPOSAL' : contract.type.replace(/_/g, ' ').toUpperCase())}
+                                    {contract.type.replace(/_/g, ' ').toUpperCase()}
                                 </p>
                             </div>
                         </div>
@@ -252,7 +251,7 @@ export function UnifiedContractViewer({
                         <div className="mb-8 pb-6 border-b-2 border-gray-300 dark:border-zinc-700">
                             <GambianLegalHeader size="medium" showConnektLogo showCoatOfArms showGambianFlag />
                             <div className="mt-6 text-center space-y-1">
-                                <p className="text-xs uppercase tracking-[0.2em] text-gray-500">{isProposal ? 'Proposal' : 'Contract'} Document</p>
+                                <p className="text-xs uppercase tracking-[0.2em] text-gray-500">Contract Document</p>
                                 <h1 className="text-2xl font-bold text-center text-gray-900 dark:text-white">
                                     {contract.title}
                                 </h1>

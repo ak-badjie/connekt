@@ -5,7 +5,7 @@ import { X, MessageSquare, Briefcase, Globe, Users, Check } from 'lucide-react';
 import { Task, ProjectMember, WorkspaceMember } from '@/lib/types/workspace.types';
 import { EnhancedProjectService } from '@/lib/services/enhanced-project-service';
 import { TaskService } from '@/lib/services/task-service';
-import { ComposeModal } from '@/components/mail/ComposeModal';
+import { useAuth } from '@/context/AuthContext';
 
 interface AskForHelpModalProps {
     isOpen: boolean;
@@ -20,11 +20,8 @@ export default function AskForHelpModal({ isOpen, onClose, task, projectId, onHe
     const [helpType, setHelpType] = useState<'free' | 'paid-internal' | 'paid-public' | null>(null);
     const [members, setMembers] = useState<ProjectMember[]>([]);
     const [selectedMember, setSelectedMember] = useState<ProjectMember | null>(null);
+    const { user, userProfile } = useAuth();
     const [loading, setLoading] = useState(false);
-
-    // Compose State
-    const [isComposeOpen, setIsComposeOpen] = useState(false);
-    const [composeData, setComposeData] = useState<any>(null);
 
     useEffect(() => {
         if (isOpen && projectId) {
@@ -54,33 +51,48 @@ export default function AskForHelpModal({ isOpen, onClose, task, projectId, onHe
     };
 
     const handleMemberSubmit = () => {
-        if (!selectedMember) return;
+        if (!selectedMember || !userProfile) return;
+
+        const recipientEmail = selectedMember.email;
+        const senderUsername = userProfile.username || 'User';
 
         if (helpType === 'free') {
             // Open Compose for simple message
-            setComposeData({
-                recipientEmail: selectedMember.email,
-                subject: `Help Request: ${task.title}`,
-                body: `Hey ${selectedMember.username}, I need some help with the task "${task.title}". Can you assist?`
+            const subject = `Help Request: ${task.title}`;
+            const body = `Hey ${selectedMember.username}, I need some help with the task "${task.title}". Can you assist?`;
+
+            const params = new URLSearchParams({
+                compose: '1',
+                to: recipientEmail,
+                subject,
+                body
             });
-            setIsComposeOpen(true);
+
+            window.open(`/mail?${params.toString()}`, '_blank', 'noopener,noreferrer');
+            onClose();
         } else if (helpType === 'paid-internal') {
-            // Open Compose with Contract
-            setComposeData({
-                recipientEmail: selectedMember.email,
-                autoContractDraftRequest: {
-                    templateId: 'Task Admin Contract (Task Ownership)',
-                    variables: {
-                        taskTitle: task.title,
-                        taskDescription: task.description,
-                        paymentAmount: task.pricing?.amount || 0,
-                        endDate: task.timeline?.dueDate
-                    },
-                    autoStart: true,
-                    autoSelectTaskId: task.id
-                }
+            console.log('AskForHelp: Starting internal contract draft for', selectedMember.username);
+
+            // Contract Variables
+            const variables = {
+                taskTitle: task.title,
+                taskDescription: task.description,
+                paymentAmount: task.pricing?.amount || 0,
+                endDate: task.timeline?.dueDate
+            };
+
+            const params = new URLSearchParams({
+                compose: '1',
+                to: recipientEmail,
+                templateId: 'Task Admin Contract (Task Ownership)',
+                contractType: 'task_admin',
+                variables: JSON.stringify(variables),
+                autoStart: '1',
+                autoSelectTaskId: task.id || ''
             });
-            setIsComposeOpen(true);
+
+            window.open(`/mail?${params.toString()}`, '_blank', 'noopener,noreferrer');
+            onClose();
         }
     };
 
@@ -234,25 +246,7 @@ export default function AskForHelpModal({ isOpen, onClose, task, projectId, onHe
                 </div>
             </div>
 
-            {/* Internal Compose Modal */}
-            <ComposeModal
-                isOpen={isComposeOpen}
-                onClose={() => {
-                    setIsComposeOpen(false);
-                    onClose();
-                }}
-                initialData={{
-                    recipient: composeData?.recipientEmail,
-                    subject: composeData?.subject,
-                    body: composeData?.body
-                }}
-                autoContractDraftRequest={composeData?.autoContractDraftRequest}
-                onSend={async () => {
-                    onHelpRequested();
-                    setIsComposeOpen(false);
-                    onClose();
-                }}
-            />
+
         </div>
     );
 }

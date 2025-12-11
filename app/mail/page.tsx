@@ -20,6 +20,17 @@ import type { MailAddress, MailCategory } from '@/lib/types/mail.types';
 import ConnektMailLogo from '@/components/branding/ConnektMailLogo';
 import { useMinimumLoading } from '@/hooks/useMinimumLoading';
 
+type AutoContractDraftRequest = {
+    templateId?: string;
+    contractType?: string;
+    brief?: string;
+    variables?: Record<string, any>;
+    autoStart?: boolean;
+    autoSelectTaskId?: string;
+    autoSelectProjectId?: string;
+    autoSelectWorkspaceId?: string;
+};
+
 export default function MailPage() {
     const { user } = useAuth();
     const searchParams = useSearchParams();
@@ -36,16 +47,7 @@ export default function MailPage() {
     const [storageUsedGB, setStorageUsedGB] = useState(0);
     const [storageTotalGB, setStorageTotalGB] = useState(1.0);
     const [composePrefill, setComposePrefill] = useState<{ recipient?: string; subject?: string; body?: string }>();
-    const [autoContractDraftRequest, setAutoContractDraftRequest] = useState<{
-        templateId?: string;
-        contractType?: string;
-        brief?: string;
-        variables?: Record<string, any>;
-        autoStart?: boolean;
-        autoSelectTaskId?: string;
-        autoSelectProjectId?: string;
-        autoSelectWorkspaceId?: string;
-    }>();
+    const [autoContractDraftRequest, setAutoContractDraftRequest] = useState<AutoContractDraftRequest>();
 
     // Onboarding state
     const [showIntro, setShowIntro] = useState(false);
@@ -77,7 +79,7 @@ export default function MailPage() {
         const contractType = searchParams.get('contractType') || undefined;
         const brief = searchParams.get('brief') || undefined;
         const autoStartParam = searchParams.get('autoStart');
-        const autoStart = autoStartParam === null ? true : autoStartParam !== '0';
+        const autoStart = autoStartParam === '1';
 
         let variables: Record<string, any> | undefined;
         const rawVars = searchParams.get('variables');
@@ -330,17 +332,31 @@ export default function MailPage() {
         contractType?: string;
         brief?: string;
         category?: MailCategory;
+        autoContractDraftRequest?: AutoContractDraftRequest;
     }) => {
         setComposePrefill({ recipient: prefill.recipient, subject: prefill.subject, body: prefill.body });
-        if (prefill.contractId || prefill.contractType || prefill.brief) {
+
+        if (prefill.autoContractDraftRequest) {
+            setAutoContractDraftRequest(prefill.autoContractDraftRequest);
+            setActiveCategories(['Contracts']);
+        } else if (prefill.contractId || prefill.contractType || prefill.brief) {
             setAutoContractDraftRequest({
                 contractType: prefill.contractType,
                 brief: prefill.brief,
                 autoStart: true
             });
             setActiveCategories(['Contracts']);
+        } else {
+            setAutoContractDraftRequest(undefined);
         }
+
         setIsComposing(true);
+    };
+
+    const closeCompose = () => {
+        setIsComposing(false);
+        setAutoContractDraftRequest(undefined);
+        setComposePrefill(undefined);
     };
 
     const handleDelete = async () => {
@@ -654,7 +670,7 @@ export default function MailPage() {
             {/* Compose Modal */}
             <ComposeModal
                 isOpen={isComposing}
-                onClose={() => setIsComposing(false)}
+                onClose={closeCompose}
                 onSend={handleSendMail}
                 onSaveDraft={handleSaveDraft}
                 initialData={composePrefill}

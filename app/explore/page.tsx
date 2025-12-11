@@ -19,6 +19,7 @@ import { useAnimation } from '@/context/AnimationContext';
 // import { MailService } from '@/lib/services/mail-service';
 import { toast } from 'react-hot-toast';
 import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
+import { TEMPLATE_IDS, CONTRACT_TYPES } from '@/lib/constants/contracts';
 
 export default function ExplorePage() {
     const { user, userProfile } = useAuth();
@@ -476,49 +477,81 @@ function JobCard({ job, index }: { job: any; index: number }) {
         const params = new URLSearchParams();
         params.set('compose', '1');
 
-        // Priority: 1. Saved Connekt Email, 2. Constructed Connekt Email, 3. Fallback to regular email
-        let recipient = (job as any).ownerConnektEmail;
-        if (!recipient && (job as any).ownerUsername) {
-            recipient = `${(job as any).ownerUsername}@connekt.com`;
-        }
-        if (!recipient) {
-            recipient = job.ownerEmail;
-        }
-
+        // FIX: Strict Connekt Mail usage
+        let recipient = (job as any).ownerUsername ? `${(job as any).ownerUsername}@connekt.com` : job.ownerEmail;
         params.set('to', recipient);
         params.set('subject', `Proposal: ${job.title}`);
 
+        // Context for AI
         const proposalContext = {
             jobId: job.id,
             jobTitle: job.title,
             jobType: job.type || 'job',
-            description: job.description,
             budget: job.salary ? `${job.salary} ${job.currency}` : 'Negotiable',
-            paymentSchedule: job.paymentSchedule,
-            requirements: (job as any).requirements || '',
-            ownerUsername: (job as any).ownerUsername
         };
 
         const contractorName = userProfile?.displayName || user?.displayName || user?.email?.split('@')[0];
 
+        // The "Brief" is what fills the AI text box initially
+        const brief = `JOB TITLE: ${job.title} (${job.type || 'job'})
+BUDGET: ${job.salary ? `${job.salary} ${job.currency}` : 'Negotiable'}
+SCHEDULE: ${job.paymentSchedule || 'To be discussed'}
+
+JOB DESCRIPTION:
+${job.description}
+
+REQUIREMENTS:
+${Array.isArray((job as any).requirements) ? (job as any).requirements.join('\n- ') : (job as any).requirements || 'N/A'}
+
+MY PROFILE:
+Applicant: ${contractorName}
+Email: ${user?.email || 'your.email@example.com'}
+`;
+
+        params.set('brief', brief);
+
+
+
+        // Pass detailed variables for Composer state
         params.set('variables', JSON.stringify({
-            isProposal: true,
+            isProposal: true, // IMPORTANT FLAG
             proposalContext: proposalContext,
-            applicantName: contractorName, // Pre-fill name (templates expect 'applicantName')
-            jobTitle: job.title, // Explicitly pass for AI
-            useAI: withAI
+            applicantName: contractorName,
+            brief: brief, // Redundant but safe
+            autoStart: withAI, // Triggers modal open
+
+            // Standard Contract Variables
+            clientName: (job as any).ownerName || (job as any).ownerUsername || 'Client',
+            contractorName: contractorName,
+            jobTitle: job.title,
+            projectTitle: job.title,
+            taskTitle: job.title,
         }));
+
+        // Mapping Job Type to Template ID
+        // job -> job_proposal
+        // project -> project_proposal
+        // task -> task_proposal
+        let templateId: string = TEMPLATE_IDS.JOB_PROPOSAL;
+        if (job.type === CONTRACT_TYPES.PROJECT) templateId = TEMPLATE_IDS.PROJECT_PROPOSAL;
+        if (job.type === CONTRACT_TYPES.TASK) templateId = TEMPLATE_IDS.TASK_PROPOSAL;
+
+        params.set('templateId', templateId);
+        params.set('contractType', CONTRACT_TYPES.PROPOSAL); // CRITICAL: Tells modal this is a proposal
 
         if (withAI) {
             params.set('autoStart', '1');
-        } else {
-            params.set('autoStart', '0');
         }
 
         // Add auto-select params for Mail context
         if (job.workspaceId) params.set('autoSelectWorkspaceId', job.workspaceId);
-        if (job.projectId) params.set('autoSelectProjectId', job.projectId);
-        if (job.taskId) params.set('autoSelectTaskId', job.taskId);
+        // FIX: Only set projectId if it's explicitly a project
+        if (job.type === 'project' && (job.projectId || job.id)) {
+            params.set('autoSelectProjectId', job.projectId || job.id);
+        }
+        if (job.type === 'task' && (job.taskId || job.id)) {
+            params.set('autoSelectTaskId', job.taskId || job.id);
+        }
 
         router.push(`/mail?${params.toString()}`);
     };

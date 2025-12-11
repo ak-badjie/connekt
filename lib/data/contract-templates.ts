@@ -1,12 +1,13 @@
 import type { ContractTemplate } from '@/lib/types/mail.types';
+import { CONTRACT_TYPES, TEMPLATE_NAMES } from '../constants/contracts';
 
 /**
  * Default System Contract Templates
  */
 
 export const JOB_CONTRACT_TEMPLATE: Omit<ContractTemplate, 'id' | 'createdAt' | 'updatedAt'> = {
-    name: 'Employment Contract',
-    type: 'job',
+    name: TEMPLATE_NAMES.EMPLOYMENT_CONTRACT,
+    type: CONTRACT_TYPES.JOB,
     visibility: 'system',
     requiresEscrow: true,
     headerConfig: {
@@ -92,8 +93,8 @@ By signing electronically, both parties acknowledge they have read, understood, 
 };
 
 export const FREELANCE_CONTRACT_TEMPLATE: Omit<ContractTemplate, 'id' | 'createdAt' | 'updatedAt'> = {
-    name: 'Freelance Contract (Workspace, Project or Task)',
-    type: 'project',
+    name: TEMPLATE_NAMES.FREELANCE_CONTRACT,
+    type: CONTRACT_TYPES.PROJECT,
     visibility: 'system',
     requiresEscrow: false,
     headerConfig: {
@@ -165,8 +166,8 @@ Both parties acknowledge they have reviewed and agree to all terms by signing el
 };
 
 export const PROJECT_ADMIN_TEMPLATE: Omit<ContractTemplate, 'id' | 'createdAt' | 'updatedAt'> = {
-    name: 'Project Admin Contract (Temporal Owner)',
-    type: 'project_admin',
+    name: TEMPLATE_NAMES.PROJECT_ADMIN,
+    type: CONTRACT_TYPES.PROJECT_ADMIN,
     visibility: 'system',
     requiresEscrow: false,
     headerConfig: {
@@ -229,8 +230,8 @@ By signing, the Project Administrator accepts these responsibilities and the con
 };
 
 export const TASK_ADMIN_TEMPLATE: Omit<ContractTemplate, 'id' | 'createdAt' | 'updatedAt'> = {
-    name: 'Task Admin Contract (Task Ownership)',
-    type: 'task_admin',
+    name: TEMPLATE_NAMES.TASK_ADMIN,
+    type: CONTRACT_TYPES.TASK_ADMIN,
     visibility: 'system',
     requiresEscrow: false,
     headerConfig: {
@@ -283,8 +284,8 @@ By signing, the Task Administrator accepts full responsibility for the task exec
  * All system templates
  */
 export const JOB_PROPOSAL_TEMPLATE: Omit<ContractTemplate, 'id' | 'createdAt' | 'updatedAt'> = {
-    name: 'Job Proposal (Employment)',
-    type: 'general', // General mail type, but specific use case
+    name: TEMPLATE_NAMES.JOB_PROPOSAL,
+    type: CONTRACT_TYPES.GENERAL, // General mail type, but specific use case
     visibility: 'system',
     headerConfig: { showConnektLogo: true, showCoatOfArms: false, showGambianFlag: false },
     bodyTemplate: `# Application: {{jobTitle}}
@@ -316,8 +317,8 @@ I have reviewed the job requirements and believe I am a strong fit for this posi
 };
 
 export const PROJECT_PROPOSAL_TEMPLATE: Omit<ContractTemplate, 'id' | 'createdAt' | 'updatedAt'> = {
-    name: 'Project Proposal (Freelance)',
-    type: 'general',
+    name: TEMPLATE_NAMES.PROJECT_PROPOSAL,
+    type: CONTRACT_TYPES.GENERAL,
     visibility: 'system',
     headerConfig: { showConnektLogo: true, showCoatOfArms: false, showGambianFlag: false },
     bodyTemplate: `# Proposal: {{projectTitle}}
@@ -347,8 +348,8 @@ I am ready to deliver high-quality results for this project.`,
 };
 
 export const TASK_PROPOSAL_TEMPLATE: Omit<ContractTemplate, 'id' | 'createdAt' | 'updatedAt'> = {
-    name: 'Task Bid',
-    type: 'general',
+    name: TEMPLATE_NAMES.TASK_PROPOSAL,
+    type: CONTRACT_TYPES.GENERAL,
     visibility: 'system',
     headerConfig: { showConnektLogo: true, showCoatOfArms: false, showGambianFlag: false },
     bodyTemplate: `# Bid for Task: {{taskTitle}}

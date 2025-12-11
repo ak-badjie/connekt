@@ -252,14 +252,92 @@ export default function PublicTaskPage() {
                             <div className="flex gap-3">
                                 <button
                                     className="flex-1 px-6 py-3 rounded-xl bg-[#008080] hover:bg-teal-600 text-white font-bold transition-colors"
-                                    onClick={() => {
+                                    onClick={async () => {
+                                        // Build variables like AddMemberModal does
+                                        const today = new Date().toISOString().slice(0, 10);
+                                        const applicantName = user?.displayName || user?.email?.split('@')[0] || 'Applicant';
+
+                                        // CRITICAL: Fetch parent IDs if missing
+                                        let projectId = task.projectId;
+                                        let workspaceId = task.workspaceId;
+
+                                        // If task has projectId but no workspaceId, fetch project to get workspaceId
+                                        if (projectId && !workspaceId) {
+                                            try {
+                                                const { FirestoreService } = await import('@/lib/services/firestore-service');
+                                                const project = await FirestoreService.getProjectById(projectId);
+                                                if (project && 'workspaceId' in project) {
+                                                    workspaceId = (project as any).workspaceId;
+                                                }
+                                            } catch (err) {
+                                                console.error('Failed to fetch project workspace:', err);
+                                            }
+                                        }
+
+                                        // Determine contract type based on what we have
+                                        let contractType = 'task_assignment'; // Default for task page
+                                        let templateId = 'Freelance Contract';
+
+                                        // If this task is part of a job posting (has jobId or employment markers)
+                                        if ((task as any).jobId || (task as any).employmentType === 'employee') {
+                                            contractType = 'job';
+                                            templateId = 'Employment Contract';
+                                        }
+
+                                        const variables = {
+                                            // IDs - CRITICAL for membership sync (with all parents)
+                                            taskId: task.id,
+                                            projectId: projectId,
+                                            workspaceId: workspaceId,
+
+                                            // Task details
+                                            taskTitle: task.title,
+                                            taskDescription: task.description || '',
+                                            taskPayment: task.pricing?.amount || 0,
+
+                                            // Parties
+                                            contractorName: applicantName,
+                                            clientName: task.createdBy || 'Task Owner',
+
+                                            // Dates
+                                            contractDate: today,
+                                            startDate: today,
+                                            endDate: task.timeline?.dueDate || undefined,
+                                            taskDeadline: task.timeline?.dueDate || undefined,
+
+                                            // Payment
+                                            paymentAmount: task.pricing?.amount || 0,
+                                            paymentCurrency: task.pricing?.currency || 'GMD',
+                                            paymentType: 'on-completion',
+                                            paymentSchedule: 'on-completion',
+
+                                            // Other
+                                            applicantName: applicantName,
+                                            applicantId: user?.uid,
+                                            deliverables: task.description || 'As described in task',
+
+                                            // Contract metadata
+                                            contractType: contractType,
+
+                                            // Keep these for backward compatibility
+                                            linkedTaskId: task.id,
+                                            linkedProjectId: projectId,
+                                            linkedWorkspaceId: workspaceId
+                                        };
+
                                         const params = new URLSearchParams({
                                             compose: '1',
                                             to: `${task.ownerUsername}@connekt.com`,
                                             subject: `Proposal for task: ${task.title}`,
                                             body: task.description || '',
-                                            contractType: 'task_assignment',
-                                            brief: `Task: ${task.title}\nBudget: ${task.budget || 'N/A'}\nDeadline: ${task.dueDate ? new Date(task.dueDate).toDateString() : 'N/A'}\nDescription: ${task.description || ''}`
+                                            templateId: templateId,
+                                            contractType: contractType,
+                                            brief: `Task: ${task.title}\nBudget: ${task.pricing?.amount || 'N/A'} ${task.pricing?.currency || 'GMD'}\nDeadline: ${task.timeline?.dueDate ? new Date(task.timeline.dueDate).toDateString() : 'N/A'}\nDescription: ${task.description || ''}`,
+                                            variables: JSON.stringify(variables),
+                                            // Auto-select ALL relevant dropdowns
+                                            ...(workspaceId && { autoSelectWorkspaceId: workspaceId }),
+                                            ...(projectId && { autoSelectProjectId: projectId }),
+                                            autoSelectTaskId: task.id
                                         });
                                         router.push(`/mail?${params.toString()}`);
                                         setShowProposalModal(false);
