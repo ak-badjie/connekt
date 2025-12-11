@@ -39,7 +39,7 @@ export interface Conversation {
     createdBy: string;
 }
 
-export type MessageType = 'text' | 'image' | 'video' | 'audio' | 'file' | 'help_request' | 'system';
+export type MessageType = 'text' | 'image' | 'video' | 'audio' | 'file' | 'help_request' | 'system' | 'call';
 
 export interface MessageAttachment {
     type: 'image' | 'video' | 'audio' | 'file';
@@ -71,6 +71,7 @@ export interface Message {
     type: MessageType;
     attachments?: MessageAttachment[];
     helpRequest?: HelpRequestData;
+    relatedMeetingId?: string;
 
     readBy: string[]; // Array of userIds
 

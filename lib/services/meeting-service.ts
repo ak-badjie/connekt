@@ -23,7 +23,7 @@ export const MeetingService = {
         // Omit undefined optional fields to satisfy Firestore (no undefined allowed)
         const meetingData: any = {
             title: data.title,
-            description: data.description,
+            ...(typeof data.description === 'string' ? { description: data.description } : {}),
             startTime: data.startTime,
             ...(typeof data.endTime === 'number' ? { endTime: data.endTime } : {}),
             duration: data.duration,
@@ -95,8 +95,8 @@ export const MeetingService = {
         const meeting = await this.getMeeting(meetingId);
         if (!meeting) throw new Error('Meeting not found');
 
-        // Check if user is allowed
-        // if (!meeting.participants.includes(userId)) throw new Error('Not authorized');
+        if (!meeting.participants.includes(userId)) throw new Error('Not authorized');
+        if (meeting.status === 'completed' || meeting.status === 'cancelled') throw new Error('Meeting already ended');
 
         return meeting;
     },

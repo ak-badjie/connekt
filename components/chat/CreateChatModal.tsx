@@ -4,74 +4,61 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuth } from '@/context/AuthContext';
 import { ChatService } from '@/lib/services/chat-service';
-import { Loader2, Search, X, Users } from 'lucide-react';
-import { AgencyService } from '@/lib/services/agency-service';
-import { FirestoreService } from '@/lib/services/firestore-service';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs, limit, orderBy, startAt, endAt } from 'firebase/firestore';
+import { Loader2, Search, X, Briefcase, Mail } from 'lucide-react';
 
 interface CreateChatModalProps {
     isOpen: boolean;
     onClose: () => void;
-    agencyId?: string; // Optional: if creating within an agency context
 }
 
-export function CreateChatModal({ isOpen, onClose, agencyId }: CreateChatModalProps) {
+export function CreateChatModal({ isOpen, onClose }: CreateChatModalProps) {
     const { user, userProfile } = useAuth();
     const [groupName, setGroupName] = useState('');
-    const [members, setMembers] = useState<any[]>([]);
-    const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+    const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [selectedMembers, setSelectedMembers] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
-    const [creating, setCreating] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
-        if (isOpen) {
-            loadMembers();
+        if (!isOpen) {
+            setSearchQuery('');
+            setSearchResults([]);
+            setSelectedMembers([]);
+            setGroupName('');
         }
-    }, [isOpen, agencyId]);
+    }, [isOpen]);
 
-    const loadMembers = async () => {
-        // Initial load can be empty or suggested users
-        // For now we'll wait for search
-        setMembers([]);
-    };
-
-    // Debounced search effect would be better, but for now simple effect
+    // REAL DB Search Effect
     useEffect(() => {
         const search = async () => {
             if (!searchQuery || searchQuery.length < 2) {
-                setMembers([]);
+                setSearchResults([]);
                 return;
             }
 
             setLoading(true);
             try {
-                if (agencyId) {
-                    // Existing agency logic
-                    const agency = await AgencyService.getAgencyById(agencyId);
-                    if (agency && agency.members) {
-                        const mappedMembers = agency.members
-                            .filter(m => m.userId !== user?.uid)
-                            .map(m => ({
-                                userId: m.userId,
-                                username: m.agencyEmail.split('@')[0],
-                                email: m.agencyEmail,
-                                role: m.role
-                            }));
-                        setMembers(mappedMembers.filter(m =>
-                            m.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            (m.email && m.email.toLowerCase().includes(searchQuery.toLowerCase()))
-                        ));
-                    }
-                } else {
-                    // Use FirestoreService search
-                    const users = await FirestoreService.searchUsers(searchQuery);
-                    setMembers(users.filter(u => u.uid !== user?.uid).map(u => ({
-                        userId: u.uid,
-                        username: u.username || 'Unknown',
-                        role: u.role,
-                        email: u.email
-                    })));
-                }
+                // Search user_profiles collection
+                const usersRef = collection(db, 'user_profiles');
+                const q = query(
+                    usersRef, 
+                    orderBy('username'), 
+                    startAt(searchQuery.toLowerCase()), 
+                    endAt(searchQuery.toLowerCase() + '\uf8ff'),
+                    limit(10)
+                );
+
+                const snapshot = await getDocs(q);
+                const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+                
+                // Filter out self and already selected
+                const filtered = users
+                    .filter(u => u.uid !== user?.uid)
+                    .filter(u => !selectedMembers.some(s => s.uid === u.uid));
+
+                setSearchResults(filtered);
             } catch (error) {
                 console.error("Error searching users:", error);
             } finally {
@@ -81,27 +68,24 @@ export function CreateChatModal({ isOpen, onClose, agencyId }: CreateChatModalPr
 
         const timeoutId = setTimeout(search, 500);
         return () => clearTimeout(timeoutId);
-    }, [searchQuery, agencyId, user]);
+    }, [searchQuery, user, selectedMembers]);
 
     const handleCreate = async () => {
         if (!user || !userProfile || !groupName.trim()) return;
 
-        setCreating(true);
         try {
-            // Map selected members to participants format
-            const participants: { userId: string; username: string; role: 'admin' | 'member' }[] = selectedMembers.map(id => {
-                const member = members.find(m => m.userId === id);
-                return {
-                    userId: id,
-                    username: member?.username || 'Unknown',
-                    role: 'member'
-                };
-            });
+            const participants: { userId: string; username: string; avatarUrl?: string; role: 'admin' | 'member' }[] = selectedMembers.map(m => ({
+                userId: m.uid,
+                username: m.username,
+                avatarUrl: m.photoURL,
+                role: 'member'
+            }));
 
             // Add current user
             participants.push({
                 userId: user.uid,
                 username: userProfile.username || 'Me',
+                avatarUrl: userProfile.photoURL,
                 role: 'admin'
             });
 
@@ -110,29 +94,12 @@ export function CreateChatModal({ isOpen, onClose, agencyId }: CreateChatModalPr
                 participants,
                 title: groupName,
                 createdBy: user.uid,
-                // memberDetails is handled by ChatService based on participants now (or we can pass it if needed, but service signature changed in my thought process? 
-                // Wait, let's check ChatService signature again. It takes participants array.
             });
             onClose();
-            // Reset form
-            setGroupName('');
-            setSelectedMembers([]);
         } catch (error) {
             console.error('Error creating group:', error);
-        } finally {
-            setCreating(false);
         }
     };
-
-    const toggleMember = (memberId: string) => {
-        if (selectedMembers.includes(memberId)) {
-            setSelectedMembers(prev => prev.filter(id => id !== memberId));
-        } else {
-            setSelectedMembers(prev => [...prev, memberId]);
-        }
-    };
-
-    const filteredMembers = members;
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -166,49 +133,62 @@ export function CreateChatModal({ isOpen, onClose, agencyId }: CreateChatModalPr
                             />
                         </div>
 
-                        <div className="max-h-48 overflow-y-auto space-y-1 mt-2">
-                            {loading ? (
-                                <div className="text-center py-4 text-gray-500"><Loader2 className="animate-spin mx-auto" /></div>
-                            ) : filteredMembers.length === 0 ? (
-                                <div className="text-center py-4 text-gray-500 text-sm flex flex-col items-center">
-                                    <Users size={24} className="mb-2 opacity-20" />
-                                    <p>No people found</p>
-                                </div>
-                            ) : (
-                                filteredMembers.map(member => (
-                                    <div
-                                        key={member.userId}
-                                        onClick={() => toggleMember(member.userId)}
-                                        className={`p-2 flex items-center gap-3 rounded-lg cursor-pointer transition-colors ${selectedMembers.includes(member.userId)
-                                            ? 'bg-teal-50 dark:bg-teal-900/20'
-                                            : 'hover:bg-gray-50 dark:hover:bg-zinc-800'
-                                            }`}
-                                    >
-                                        <div className={`w-4 h-4 rounded border flex items-center justify-center ${selectedMembers.includes(member.userId)
-                                            ? 'bg-[#008080] border-[#008080]'
-                                            : 'border-gray-300 dark:border-zinc-600'
-                                            }`}>
-                                            {selectedMembers.includes(member.userId) && <X size={10} className="text-white" />}
-                                        </div>
-                                        <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-zinc-700 flex items-center justify-center text-xs font-bold">
-                                            {member.username[0].toUpperCase()}
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{member.username}</p>
-                                            <p className="text-xs text-gray-500">{member.role}</p>
-                                        </div>
+                        {/* Selected Tags */}
+                        {selectedMembers.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-2">
+                                {selectedMembers.map(m => (
+                                    <div key={m.uid} className="flex items-center gap-1 bg-teal-100 dark:bg-teal-900/30 text-[#008080] px-2 py-1 rounded-lg text-xs font-bold">
+                                        {m.username}
+                                        <button onClick={() => setSelectedMembers(prev => prev.filter(p => p.uid !== m.uid))}>
+                                            <X size={12} />
+                                        </button>
                                     </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Search Results */}
+                        <div className="max-h-60 overflow-y-auto space-y-1 mt-2 border border-gray-100 dark:border-zinc-800 rounded-xl">
+                            {loading ? (
+                                <div className="p-4 flex justify-center"><Loader2 className="animate-spin text-gray-400" /></div>
+                            ) : searchResults.length > 0 ? (
+                                searchResults.map(member => (
+                                    <button
+                                        key={member.uid}
+                                        onClick={() => {
+                                            setSelectedMembers(prev => [...prev, member]);
+                                            setSearchResults(prev => prev.filter(p => p.uid !== member.uid));
+                                            setSearchQuery('');
+                                        }}
+                                        className="w-full p-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-zinc-800 text-left transition-colors"
+                                    >
+                                        <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-zinc-700 flex items-center justify-center overflow-hidden">
+                                            {member.photoURL ? (
+                                                <img src={member.photoURL} alt={member.username} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <span className="text-xs font-bold">{member.username?.[0]?.toUpperCase()}</span>
+                                            )}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{member.username}</p>
+                                            <div className="flex items-center gap-3 text-xs text-gray-500">
+                                                {member.title && <span className="flex items-center gap-1"><Briefcase size={10} /> {member.title}</span>}
+                                            </div>
+                                        </div>
+                                    </button>
                                 ))
+                            ) : searchQuery.length > 1 && (
+                                <div className="p-4 text-center text-gray-400 text-xs">No users found matching &quot;{searchQuery}&quot;</div>
                             )}
                         </div>
                     </div>
 
                     <button
                         onClick={handleCreate}
-                        disabled={!groupName.trim() || creating}
-                        className="w-full py-3 bg-[#008080] text-white rounded-xl font-bold hover:bg-teal-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        disabled={!groupName.trim() || selectedMembers.length === 0}
+                        className="w-full py-3 bg-[#008080] text-white rounded-xl font-bold hover:bg-teal-600 transition-colors disabled:opacity-50"
                     >
-                        {creating ? <Loader2 size={18} className="animate-spin" /> : 'Create Team Chat'}
+                        Create Group
                     </button>
                 </div>
             </DialogContent>

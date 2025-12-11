@@ -111,6 +111,7 @@ export const ChatService = {
         attachmentMetadata?: { type: 'image' | 'video' | 'audio' | 'file' }[]; // Metadata for files
         helpRequest?: HelpRequestData;
         replyToId?: string;
+        relatedMeetingId?: string;
     }): Promise<string> {
         const { conversationId, attachments, attachmentMetadata, ...messageData } = data;
 
@@ -144,7 +145,8 @@ export const ChatService = {
             readBy: [data.senderId],
             createdAt: serverTimestamp(),
             isDeleted: false,
-            isEdited: false
+            isEdited: false,
+            ...(data.relatedMeetingId && { relatedMeetingId: data.relatedMeetingId })
         };
 
         const docRef = await addDoc(collection(db, 'conversations', conversationId, 'messages'), message);
