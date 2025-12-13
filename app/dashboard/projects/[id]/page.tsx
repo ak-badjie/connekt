@@ -8,6 +8,13 @@ import { TaskService } from '@/lib/services/task-service';
 import { Project, Task } from '@/lib/types/workspace.types';
 import { Loader2, Briefcase, ArrowLeft, Plus, Users, Calendar, DollarSign, Settings, UserPlus, Clock, CheckCircle2, Circle, AlertCircle, Globe, Eye, X } from 'lucide-react';
 import SendProjectInviteModal from '@/components/AddMemberModal';
+import AITeamMatcherModal from '@/components/projects/AITeamMatcherModal';
+import ProjectTaskGeneratorModal from '@/components/projects/ProjectTaskGeneratorModal';
+import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
+
+const ConnektIcon = ({ className }: { className?: string }) => (
+    <ConnektAIIcon className={`w-4 h-4 ${className || ''}`} />
+);
 
 export default function ProjectDetailPage() {
     const params = useParams();
@@ -26,6 +33,13 @@ export default function ProjectDetailPage() {
         remaining: number;
     } | null>(null);
     const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+    const [isAIMatcherOpen, setIsAIMatcherOpen] = useState(false);
+    const [isTaskGeneratorOpen, setIsTaskGeneratorOpen] = useState(false);
+
+    const handleAssignmentsApplied = async () => {
+        const updatedTasks = await TaskService.getProjectTasks(projectId);
+        setTasks(updatedTasks);
+    };
 
     useEffect(() => {
         if (user && projectId) {
@@ -74,7 +88,7 @@ export default function ProjectDetailPage() {
 
     const handleStatusChange = async (taskId: string, newStatus: Task['status']) => {
         setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
-        await TaskService.updateTaskStatus(taskId, newStatus);
+        await TaskService.updateStatus(taskId, newStatus);
     };
 
     const handleRemoveMember = async (userId: string, username: string) => {
@@ -85,7 +99,6 @@ export default function ProjectDetailPage() {
         try {
             await EnhancedProjectService.removeMember(projectId, userId);
 
-            // Refresh project data
             const updatedProject = await EnhancedProjectService.getProject(projectId);
             setProject(updatedProject);
 
@@ -157,12 +170,33 @@ export default function ProjectDetailPage() {
                 <div className="flex items-center gap-3">
                     {canManage && (
                         <>
+                            <div className="flex items-center gap-3 mr-2 bg-white dark:bg-zinc-900 p-1 rounded-xl border border-gray-200 dark:border-zinc-800">
+                                <button
+                                    onClick={() => setIsTaskGeneratorOpen(true)}
+                                    className="px-4 py-2 bg-white dark:bg-zinc-800 border border-[#008080]/30 text-[#008080] hover:bg-teal-50 dark:hover:bg-zinc-800 hover:border-[#008080] rounded-lg font-bold text-xs md:text-sm flex items-center gap-2 transition-all"
+                                    title="Auto-generate tasks"
+                                >
+                                    <ConnektIcon className="w-4 h-4" />
+                                    Task Generator
+                                </button>
+
+                                <button
+                                    onClick={() => setIsAIMatcherOpen(true)}
+                                    className="px-4 py-2 bg-white dark:bg-zinc-800 border border-[#008080]/30 text-[#008080] hover:bg-teal-50 dark:hover:bg-zinc-800 hover:border-[#008080] rounded-lg font-bold text-xs md:text-sm flex items-center gap-2 transition-all"
+                                    title="Match team to tasks"
+                                >
+                                    <ConnektIcon className="w-4 h-4" />
+                                    Team Matcher
+                                </button>
+                            </div>
+
                             <button
                                 onClick={() => setShowAddMemberModal(true)}
                                 className="px-5 py-2.5 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold text-sm hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors flex items-center gap-2">
                                 <UserPlus size={16} />
                                 Add Member
                             </button>
+
                             <button
                                 onClick={() => router.push(`/dashboard/tasks/create?project=${projectId}`)}
                                 className="px-5 py-2.5 bg-[#008080] hover:bg-teal-600 text-white rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-teal-500/20"
@@ -359,6 +393,32 @@ export default function ProjectDetailPage() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {project && user && (
+                <AITeamMatcherModal
+                    isOpen={isAIMatcherOpen}
+                    onClose={() => setIsAIMatcherOpen(false)}
+                    projectId={projectId}
+                    workspaceId={project.workspaceId}
+                    currentTasks={tasks}
+                    userId={user.uid}
+                    onAssignmentsApplied={handleAssignmentsApplied}
+                />
+            )}
+
+            {project && user && (
+                <ProjectTaskGeneratorModal
+                    isOpen={isTaskGeneratorOpen}
+                    onClose={() => setIsTaskGeneratorOpen(false)}
+                    projectId={projectId}
+                    workspaceId={project.workspaceId}
+                    userId={user.uid}
+                    projectDescription={project.description}
+                    remainingBudget={budgetStatus ? budgetStatus.remaining : project.budget}
+                    currency={project.pricing?.currency || 'GMD'}
+                    onTasksAdded={handleAssignmentsApplied}
+                />
             )}
 
             {/* Send Project Invitation Modal */}

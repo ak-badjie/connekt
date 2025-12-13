@@ -23,6 +23,9 @@ export default function OnboardingPage() {
     const [skills, setSkills] = useState<string[]>([]);
     const [currentSkill, setCurrentSkill] = useState('');
 
+    // Validation Check: Recruiters pass automatically, VAs need 5+ skills
+    const isSkillValid = role === 'recruiter' || (role === 'va' && skills.length >= 5);
+
     const handleAddSkill = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && currentSkill.trim()) {
             e.preventDefault();
@@ -35,6 +38,12 @@ export default function OnboardingPage() {
 
     const handleComplete = async () => {
         if (!user || !username || !isUsernameValid) return;
+
+        // Strict validation before submission
+        if (role === 'va' && skills.length < 5) {
+            return; // Button should be disabled, but safety check here
+        }
+
         setLoading(true);
 
         try {
@@ -152,8 +161,18 @@ export default function OnboardingPage() {
                         <>
                             {/* Skills Input */}
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-[#008080] uppercase tracking-wider">Skills & Expertise</label>
-                                <div className="bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl p-2 flex flex-wrap gap-2 focus-within:border-[#008080] transition-colors">
+                                <div className="flex justify-between items-center">
+                                    <label className="text-sm font-medium text-[#008080] uppercase tracking-wider">Skills & Expertise</label>
+                                    <span className={`text-xs font-bold transition-colors ${skills.length >= 5 ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                                        {skills.length}/5 Required
+                                    </span>
+                                </div>
+
+                                <div className={`bg-gray-100 dark:bg-zinc-800 border rounded-xl p-2 flex flex-wrap gap-2 transition-all ${
+                                    skills.length < 5 && skills.length > 0
+                                        ? 'border-amber-200 dark:border-amber-900/30'
+                                        : 'border-gray-200 dark:border-zinc-700 focus-within:border-[#008080]'
+                                }`}>
                                     {skills.map(skill => (
                                         <span key={skill} className="bg-[#008080]/20 text-[#008080] px-3 py-1 rounded-full text-sm flex items-center gap-1 border border-[#008080]/20">
                                             {skill}
@@ -165,10 +184,16 @@ export default function OnboardingPage() {
                                         value={currentSkill}
                                         onChange={(e) => setCurrentSkill(e.target.value)}
                                         onKeyDown={handleAddSkill}
-                                        placeholder="Type a skill and hit Enter..."
+                                        placeholder={skills.length >= 5 ? 'Add more skills...' : 'Type a skill and hit Enter...'}
                                         className="bg-transparent border-none outline-none text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 flex-1 min-w-[150px] p-1"
                                     />
                                 </div>
+
+                                {skills.length < 5 && (
+                                    <p className="text-xs text-amber-600 dark:text-amber-500 animate-pulse">
+                                        * Please add at least {5 - skills.length} more skill{5 - skills.length !== 1 ? 's' : ''} to complete your profile.
+                                    </p>
+                                )}
                             </div>
 
                             {/* Bio Editor */}
@@ -210,8 +235,8 @@ export default function OnboardingPage() {
 
                     <button
                         onClick={handleComplete}
-                        disabled={!isUsernameValid || loading}
-                        className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all duration-300 ${!isUsernameValid || loading
+                        disabled={!isUsernameValid || !isSkillValid || loading}
+                        className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all duration-300 ${!isUsernameValid || !isSkillValid || loading
                             ? 'bg-gray-300 dark:bg-zinc-800 text-gray-500 cursor-not-allowed'
                             : 'bg-gradient-to-r from-[#008080] to-teal-600 hover:from-teal-600 hover:to-[#008080] text-white hover:scale-[1.02] shadow-lg shadow-teal-500/25'
                             }`}

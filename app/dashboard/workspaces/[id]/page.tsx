@@ -1,12 +1,13 @@
 'use client';
 
-import { useRef, useState, useEffect } from 'react';
+import { Fragment, useRef, useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { WorkspaceService } from '@/lib/services/workspace-service';
 import { EnhancedProjectService } from '@/lib/services/enhanced-project-service';
 import { Workspace, Project, WorkspaceMember } from '@/lib/types/workspace.types';
-import { Loader2, Folder, Users, Settings, Briefcase, Plus, UserPlus, ArrowLeft, X, DollarSign } from 'lucide-react';
+import { Dialog, Transition } from '@headlessui/react';
+import { Loader2, Folder, Users, Settings, Briefcase, Plus, UserPlus, ArrowLeft, X, DollarSign, Sparkles, FileText } from 'lucide-react';
 import AddWorkspaceMemberModal from '@/components/AddWorkspaceMemberModal';
 import ManageWorkspaceMemberModal from '@/components/ManageWorkspaceMemberModal';
 import CreateJobModal from '@/components/dashboard/workspaces/CreateJobModal';
@@ -26,6 +27,9 @@ export default function WorkspaceDetailPage() {
     const [userRole, setUserRole] = useState<'owner' | 'admin' | 'member' | null>(null);
     const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
     const [isCreateJobModalOpen, setIsCreateJobModalOpen] = useState(false);
+
+    // Create Project Mode Selection
+    const [isProjectModeOpen, setIsProjectModeOpen] = useState(false);
 
     // Edit Job State
     const [jobToEdit, setJobToEdit] = useState<any | null>(null);
@@ -201,7 +205,7 @@ export default function WorkspaceDetailPage() {
                         </>
                     )}
                     <button
-                        onClick={() => router.push(`/dashboard/workspaces/${workspaceId}/settings`)}
+                        onClick={() => setIsProjectModeOpen(true)}
                         className="px-5 py-2.5 bg-[#008080] hover:bg-teal-600 text-white rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-teal-500/20"
                     >
                         <Plus size={16} />
@@ -484,6 +488,92 @@ export default function WorkspaceDetailPage() {
                 message="This will permanently remove this job posting. All active applications and proposals linked to this opportunity will be archived. This action cannot be undone."
                 itemType="Opportunity"
             />
+
+            {/* Project Mode Selection Modal */}
+            <Transition appear show={isProjectModeOpen} as={Fragment}>
+                <Dialog as="div" className="relative z-50" onClose={() => setIsProjectModeOpen(false)}>
+                    <Transition.Child
+                        as={Fragment}
+                        enter="ease-out duration-300"
+                        enterFrom="opacity-0"
+                        enterTo="opacity-100"
+                        leave="ease-in duration-200"
+                        leaveFrom="opacity-100"
+                        leaveTo="opacity-0"
+                    >
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
+                    </Transition.Child>
+
+                    <div className="fixed inset-0 overflow-y-auto">
+                        <div className="flex min-h-full items-center justify-center p-4 text-center">
+                            <Transition.Child
+                                as={Fragment}
+                                enter="ease-out duration-300"
+                                enterFrom="opacity-0 scale-95"
+                                enterTo="opacity-100 scale-100"
+                                leave="ease-in duration-200"
+                                leaveFrom="opacity-100 scale-100"
+                                leaveTo="opacity-0 scale-95"
+                            >
+                                <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 p-8 text-left align-middle shadow-xl transition-all">
+                                    <Dialog.Title
+                                        as="h3"
+                                        className="text-2xl font-bold leading-6 text-gray-900 dark:text-white mb-2"
+                                    >
+                                        Create Project
+                                    </Dialog.Title>
+                                    <div className="mt-2">
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                                            How would you like to structure your new project?
+                                        </p>
+                                    </div>
+
+                                    <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <button
+                                            onClick={() => {
+                                                setIsProjectModeOpen(false);
+                                                router.push(`/dashboard/projects/create/ai?workspaceId=${workspaceId}`);
+                                            }}
+                                            className="group relative flex flex-col items-center p-8 rounded-2xl border-2 border-[#008080] bg-white dark:bg-zinc-900 hover:bg-teal-50 dark:hover:bg-zinc-800/50 transition-all text-center shadow-lg shadow-teal-500/10"
+                                        >
+                                            <div className="absolute top-4 right-4">
+                                                <span className="bg-[#008080] text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">
+                                                    Branded
+                                                </span>
+                                            </div>
+                                            <div className="w-16 h-16 rounded-2xl bg-white border-2 border-[#008080] flex items-center justify-center text-[#008080] mb-6 shadow-sm group-hover:scale-110 transition-transform">
+                                                <Sparkles size={32} />
+                                            </div>
+                                            <h4 className="text-xl font-bold text-[#008080] mb-2 flex items-center gap-2">
+                                                <Sparkles size={18} /> Project Architect
+                                            </h4>
+                                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                                                Describe your vision. We structure the tasks, split the budget, and find the team.
+                                            </p>
+                                        </button>
+
+                                        <button
+                                            onClick={() => {
+                                                setIsProjectModeOpen(false);
+                                                router.push(`/dashboard/projects/create?workspace=${workspaceId}`);
+                                            }}
+                                            className="group flex flex-col items-center p-8 rounded-2xl border-2 border-dashed border-gray-300 dark:border-zinc-700 hover:border-gray-400 dark:hover:border-zinc-600 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-all text-center"
+                                        >
+                                            <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-gray-500 dark:text-gray-400 mb-6 group-hover:scale-110 transition-transform">
+                                                <FileText size={32} />
+                                            </div>
+                                            <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Manual Setup</h4>
+                                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                                                Build from scratch. Create specific tasks and assign members yourself.
+                                            </p>
+                                        </button>
+                                    </div>
+                                </Dialog.Panel>
+                            </Transition.Child>
+                        </div>
+                    </div>
+                </Dialog>
+            </Transition>
         </div>
     );
 }

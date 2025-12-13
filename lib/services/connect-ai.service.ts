@@ -63,11 +63,20 @@ export interface TaskSuggestion {
     priority: 'low' | 'medium' | 'high' | 'urgent';
     estimatedHours?: number;
     suggestedAssignee?: string; // username
+    // Required technical tags for the task. Used for matching team members.
     skills: string[];
+
+    // Optional: budget distribution (used by AI task generator w/ budget)
+    budget?: number;
+    currency?: string;
+
+    // Alias for skills (some prompts/models may return categories instead)
+    categories?: string[];
 }
 
 export interface TaskAssignment {
-    taskId: string;
+    taskId?: string;
+    taskTitle?: string;
     assigneeId: string;
     assigneeUsername: string;
     confidence: number; // 0-100
@@ -88,6 +97,76 @@ export interface UserMatch {
  * Central AI orchestration using Gemini 2.5 Pro
  */
 export const ConnectAIService = {
+    /**
+     * Remove common Markdown fencing and return raw JSON-ish text.
+     */
+    cleanAIJsonResponse(text: string): string {
+        let cleaned = (text || '').trim();
+        if (cleaned.startsWith('```')) {
+            cleaned = cleaned
+                .replace(/^```json\s*/i, '')
+                .replace(/^```\s*/i, '')
+                .replace(/```\s*$/i, '')
+                .trim();
+        }
+        return cleaned;
+    },
+
+    /**
+     * Normalize budgets so they sum exactly to the provided total.
+     * Uses integer cents to avoid floating-point drift.
+     */
+    normalizeTaskBudgets(tasks: TaskSuggestion[], totalBudget: number, currency: string): TaskSuggestion[] {
+        const safeTotal = Number.isFinite(totalBudget) ? totalBudget : 0;
+        const totalCents = Math.max(0, Math.round(safeTotal * 100));
+
+        if (!Array.isArray(tasks) || tasks.length === 0) return [];
+
+        const toCents = (value: any) => {
+            const n = typeof value === 'number' ? value : Number(value);
+            if (!Number.isFinite(n) || n < 0) return 0;
+            return Math.round(n * 100);
+        };
+
+        const rawCents = tasks.map(t => toCents((t as any).budget));
+        const sumRaw = rawCents.reduce((sum, c) => sum + c, 0);
+
+        let normalizedCents: number[];
+
+        if (sumRaw <= 0) {
+            const base = Math.floor(totalCents / tasks.length);
+            let remainder = totalCents - base * tasks.length;
+            normalizedCents = tasks.map(() => base);
+            for (let i = 0; i < normalizedCents.length && remainder > 0; i += 1) {
+                normalizedCents[i] += 1;
+                remainder -= 1;
+            }
+        } else {
+            const scaled = rawCents.map(c => (c * totalCents) / sumRaw);
+            const floored = scaled.map(x => Math.floor(x));
+            let remainder = totalCents - floored.reduce((sum, c) => sum + c, 0);
+
+            const order = scaled
+                .map((x, i) => ({ i, frac: x - Math.floor(x) }))
+                .sort((a, b) => b.frac - a.frac);
+
+            let ptr = 0;
+            while (remainder > 0 && order.length > 0) {
+                floored[order[ptr].i] += 1;
+                remainder -= 1;
+                ptr = (ptr + 1) % order.length;
+            }
+
+            normalizedCents = floored;
+        }
+
+        return tasks.map((t, i) => ({
+            ...t,
+            budget: normalizedCents[i] / 100,
+            currency,
+        }));
+    },
+
     /**
      * Get or create AI model instance
      */
@@ -391,10 +470,13 @@ Return ONLY a JSON array of skill strings: ["skill1", "skill2", ...]`;
                 where('role', 'in', ['va', 'employer']) // VAs and freelancers
             );
             const profilesSnap = await getDocs(profilesQuery);
-            const profiles: ExtendedUserProfile[] = profilesSnap.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            } as ExtendedUserProfile));
+            const profiles: ExtendedUserProfile[] = profilesSnap.docs.map(snap => {
+                const data = snap.data() as Partial<ExtendedUserProfile>;
+                return {
+                    ...data,
+                    uid: data.uid || snap.id,
+                } as ExtendedUserProfile;
+            });
 
             // Use AI to rank candidates
             const candidatesData = profiles.slice(0, 50).map(p => ({ // Limit to 50 for token constraints
@@ -641,10 +723,74 @@ Provide:
      */
     async generateTasksFromProject(
         projectDescription: string,
-        teamMembers: ProjectMember[],
-        userId: string
+        totalBudgetOrTeamMembers: number | ProjectMember[],
+        currencyOrUserId: string = 'GMD',
+        numTasks: number = 5,
+        userIdMaybe?: string
     ): Promise<TaskSuggestion[]> {
-        const prompt = `Break down this project into specific, actionable tasks:
+        const isBudgetMode = typeof totalBudgetOrTeamMembers === 'number';
+        const userId = isBudgetMode ? userIdMaybe : currencyOrUserId;
+
+        if (!userId) {
+            throw new Error('Missing userId for task generation');
+        }
+
+        let prompt: string;
+
+        if (isBudgetMode) {
+            const totalBudget = totalBudgetOrTeamMembers;
+            const currency = currencyOrUserId || 'GMD';
+
+            prompt = `You are an expert Project Manager. Break down the following project description into exactly ${numTasks} specific, actionable tasks.
+
+Project Description:
+"${projectDescription}"
+
+Constraints:
+1. Total Budget: ${currency} ${totalBudget}
+2. You MUST distribute the budget among the tasks based on their complexity. The sum of all task values MUST equal ${totalBudget}.
+3. For each task, assign 3-5 specific technical "categories" or "skills" required to complete it (e.g., "React", "Copywriting", "3D Design").
+
+Return ONLY a JSON array with this structure:
+[
+  {
+    "title": "Task title",
+    "description": "Detailed task description",
+    "priority": "low|medium|high|urgent",
+    "estimatedHours": 8,
+    "budget": 500.00,
+    "currency": "${currency}",
+    "categories": ["skill1", "skill2", "skill3"]
+  }
+]`;
+
+            const response = await this.generateText(prompt, userId, 'task_generator');
+
+            try {
+                const cleaned = this.cleanAIJsonResponse(response);
+                const tasks = JSON.parse(cleaned) as TaskSuggestion[];
+
+                const hydrated = (Array.isArray(tasks) ? tasks : []).map(t => {
+                    const categories = Array.isArray((t as any).categories) ? (t as any).categories : undefined;
+                    const skills = Array.isArray((t as any).skills) ? (t as any).skills : undefined;
+                    return {
+                        ...t,
+                        skills: skills && skills.length > 0 ? skills : (categories || []),
+                        categories: categories && categories.length > 0 ? categories : skills,
+                    } as TaskSuggestion;
+                });
+
+                return this.normalizeTaskBudgets(hydrated, totalBudget, currency);
+            } catch (error) {
+                console.error('Error parsing generated tasks:', error);
+                throw new Error('Failed to generate tasks structure.');
+            }
+        }
+
+        // Backward-compatible (old signature): (projectDescription, teamMembers, userId)
+        const teamMembers = totalBudgetOrTeamMembers as ProjectMember[];
+
+        prompt = `Break down this project into specific, actionable tasks:
 
 Project: ${projectDescription}
 
@@ -661,13 +807,15 @@ Generate 5-10 tasks. Return ONLY valid JSON array:
 }]`;
 
         const response = await this.generateText(prompt, userId, 'task_generator');
+        const cleaned = this.cleanAIJsonResponse(response);
+        const tasks = JSON.parse(cleaned) as TaskSuggestion[];
 
-        let cleaned = response.trim();
-        if (cleaned.startsWith('```json')) {
-            cleaned = cleaned.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-        }
-
-        return JSON.parse(cleaned);
+        return (Array.isArray(tasks) ? tasks : []).map(t => ({
+            ...t,
+            skills: Array.isArray((t as any).skills)
+                ? (t as any).skills
+                : (Array.isArray((t as any).categories) ? (t as any).categories : []),
+        }));
     },
 
     /**
@@ -675,39 +823,129 @@ Generate 5-10 tasks. Return ONLY valid JSON array:
      */
     async autoAssignTasks(
         tasks: TaskSuggestion[],
-        teamProfiles: ExtendedUserProfile[],
+        teamProfiles:
+            | ExtendedUserProfile[]
+            | { userId: string; username: string; skills: string[]; role: string }[],
         userId: string
     ): Promise<TaskAssignment[]> {
-        const prompt = `Assign these tasks to the most suitable team members based on their skills:
+        const simplifiedTeam = (teamProfiles || []).map((p: any) => ({
+            id: p.uid ?? p.userId,
+            username: p.username,
+            role: p.title ?? p.role,
+            skills: p.skills || [],
+        }));
+
+        const simplifiedTasks = (tasks || []).map((t, index) => ({
+            id: `task_${index}`,
+            title: t.title,
+            requiredCategories: (t.skills && t.skills.length > 0)
+                ? t.skills
+                : (Array.isArray((t as any).categories) ? (t as any).categories : []),
+        }));
+
+        const prompt = `You are an AI Resource Manager. Assign the provided Tasks to the best available Workspace Member based on Skill Matching.
+
+Matching Logic:
+1. Compare "Task Required Categories" against "Team Member Skills".
+2. Assign the task to the member with the highest semantic overlap (e.g., "React" matches "Frontend Development").
+3. Explain your reasoning based on the skill match.
+
+Tasks:
+${JSON.stringify(simplifiedTasks, null, 2)}
+
+Team Members:
+${JSON.stringify(simplifiedTeam, null, 2)}
+
+Return ONLY a JSON array:
+[
+  {
+        "taskId": "task_0",
+        "taskTitle": "The exact title of the task",
+    "assigneeId": "userId",
+    "assigneeUsername": "username",
+    "confidence": 85,
+    "reason": "User has 3/4 required skills: React, Node.js..."
+  }
+]`;
+
+        const response = await this.generateText(prompt, userId, 'task_auto_assignment');
+
+        try {
+            const cleaned = this.cleanAIJsonResponse(response);
+            const parsed = JSON.parse(cleaned) as any[];
+            if (!Array.isArray(parsed)) return [];
+
+            return parsed
+                .map(item => {
+                    // Backward/alternate formats: taskIndex + taskTitle
+                    const taskId = typeof item.taskId === 'string'
+                        ? item.taskId
+                        : (typeof item.taskIndex === 'number' ? `task_${item.taskIndex}` : undefined);
+
+                    const taskTitle = typeof item.taskTitle === 'string'
+                        ? item.taskTitle
+                        : (typeof item.taskTitle === 'undefined' && typeof item.taskId === 'string'
+                            ? (simplifiedTasks.find(t => t.id === item.taskId)?.title)
+                            : undefined);
+
+                    if (!taskId || typeof item.assigneeId !== 'string' || typeof item.assigneeUsername !== 'string') {
+                        return null;
+                    }
+
+                    return {
+                        taskId,
+                        taskTitle,
+                        assigneeId: item.assigneeId,
+                        assigneeUsername: item.assigneeUsername,
+                        confidence: typeof item.confidence === 'number' ? item.confidence : 0,
+                        reason: typeof item.reason === 'string' ? item.reason : '',
+                    } satisfies TaskAssignment;
+                })
+                .filter(Boolean) as TaskAssignment[];
+        } catch (error) {
+            console.error('Error assigning tasks:', error);
+            return [];
+        }
+    },
+
+    /**
+     * Category generator (for existing/manual tasks)
+     * If tasks already exist, generate categories so the recommender can match them.
+     */
+    async generateCategoriesForExistingTasks(
+        tasks: { id: string; title: string; description: string }[],
+        userId: string
+    ): Promise<{ taskId: string; categories: string[] }[]> {
+        const prompt = `Analyze the following tasks and generate 3-5 specific technical skill "categories" for each.
 
 Tasks:
 ${JSON.stringify(tasks, null, 2)}
 
-Team:
-${JSON.stringify(teamProfiles.map(p => ({
-            userId: p.uid,
-            username: p.username,
-            skills: p.skills,
-            title: p.title
-        })), null, 2)}
+Return ONLY a JSON array:
+[
+  {
+    "taskId": "original_id",
+    "categories": ["skill1", "skill2", "skill3"]
+  }
+]`;
 
-Return ONLY valid JSON array:
-[{
-  "taskTitle": "Task title",
-  "assigneeId": "userId",
-  "assigneeUsername": "username",
-  "confidence": 85,
-  "reason": "Why this person is best fit"
-}]`;
+        const response = await this.generateText(prompt, userId, 'task_generation');
 
-        const response = await this.generateText(prompt, userId, 'task_auto_assignment');
+        try {
+            const cleaned = this.cleanAIJsonResponse(response);
+            const parsed = JSON.parse(cleaned) as any[];
+            if (!Array.isArray(parsed)) return [];
 
-        let cleaned = response.trim();
-        if (cleaned.startsWith('```json')) {
-            cleaned = cleaned.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+            return parsed
+                .filter(item => item && item.taskId)
+                .map(item => ({
+                    taskId: String(item.taskId),
+                    categories: Array.isArray(item.categories) ? item.categories : [],
+                }));
+        } catch (error) {
+            console.error('Error classifying tasks:', error);
+            return [];
         }
-
-        return JSON.parse(cleaned);
     },
 
     /**
@@ -715,52 +953,92 @@ Return ONLY valid JSON array:
      */
     async suggestTeamMembers(
         projectDescription: string,
-        requiredSkills: string[],
-        maxMembers: number,
+        requiredSkillsOrExistingMemberSkills: string[],
+        maxMembersOrCandidates: number | ExtendedUserProfile[],
         userId: string
     ): Promise<UserMatch[]> {
         try {
-            // Get available users
-            const usersQuery = query(
-                collection(db, 'user_profiles'),
-                where('availability', '==', 'available'),
-                limit(50)
-            );
-            const usersSnap = await getDocs(usersQuery);
-            const users = usersSnap.docs.map(doc => doc.data() as ExtendedUserProfile);
+            const requiredSkills = requiredSkillsOrExistingMemberSkills || [];
 
-            const prompt = `Find the best ${maxMembers} team members for this project:
+            // Mode A (backward-compatible): caller provides requiredSkills + maxMembers; we fetch candidates.
+            if (typeof maxMembersOrCandidates === 'number') {
+                const maxMembers = maxMembersOrCandidates;
+
+                const usersQuery = query(
+                    collection(db, 'user_profiles'),
+                    where('availability', '==', 'available'),
+                    limit(50)
+                );
+                const usersSnap = await getDocs(usersQuery);
+                const users = usersSnap.docs.map(doc => doc.data() as ExtendedUserProfile);
+
+                const prompt = `Find the best ${maxMembers} team members for this project:
 
 Project: ${projectDescription}
 Required Skills: ${requiredSkills.join(', ')}
 
 Available Users:
 ${JSON.stringify(users.map(u => ({
-                userId: u.uid,
-                username: u.username,
-                displayName: u.displayName,
-                title: u.title,
-                skills: u.skills,
-                hourlyRate: u.hourlyRate
-            })), null, 2)}
+                    userId: u.uid,
+                    username: u.username,
+                    displayName: u.displayName,
+                    title: u.title,
+                    skills: u.skills,
+                    hourlyRate: u.hourlyRate
+                })), null, 2)}
 
 Return ONLY valid JSON array (top ${maxMembers}):
-[{
-  "userId": "user_id",
-  "username": "username",
-  "displayName": "name",
-  "matchScore": 90,
-  "relevantSkills": ["skill1", "skill2"],
-  "recommendationReason": "Why they're a good fit"
-}]`;
+[
+  {
+    "userId": "user_id",
+    "username": "username",
+    "displayName": "name",
+    "matchScore": 90,
+    "relevantSkills": ["skill1", "skill2"],
+    "recommendationReason": "Why they're a good fit"
+  }
+]`;
 
-            const response = await this.generateText(prompt, userId, 'team_recommender');
-
-            let cleaned = response.trim();
-            if (cleaned.startsWith('```json')) {
-                cleaned = cleaned.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+                const response = await this.generateText(prompt, userId, 'team_recommender');
+                const cleaned = this.cleanAIJsonResponse(response);
+                return JSON.parse(cleaned);
             }
 
+            // Mode B (new): caller provides candidate pool with skills; we recommend top 5.
+            const potentialCandidates = maxMembersOrCandidates;
+            const prompt = `Analyze this project and recommend the best team composition from the candidate pool.
+
+Project: "${projectDescription}"
+
+Candidates (with skills):
+${JSON.stringify(potentialCandidates.map(c => ({
+                    id: c.uid,
+                    username: c.username,
+                    displayName: c.displayName,
+                    skills: c.skills || [],
+                    role: c.title
+                })), null, 2)}
+
+Task:
+1. Extract implied necessary skills from the project description.
+2. Consider these existing skills as context (optional): ${requiredSkills.join(', ')}
+3. Match candidates whose skills best fit the project needs.
+4. Rank them by suitability.
+
+Return ONLY a JSON array (Top 5 matches):
+[
+  {
+    "userId": "id",
+    "username": "username",
+    "displayName": "name",
+    "matchScore": 95,
+    "relevantSkills": ["skill1", "skill2"],
+    "recommendationReason": "Perfect fit for backend requirements..."
+  }
+]`;
+
+            const response = await this.generateText(prompt, userId, 'team_recommender');
+            const cleaned = this.cleanAIJsonResponse(response);
             return JSON.parse(cleaned);
         } catch (error: any) {
             console.error('Team suggestion error:', error);
