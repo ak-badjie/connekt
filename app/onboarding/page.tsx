@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { Loader2, Sparkles, ChevronRight } from 'lucide-react';
 import { UsernameInput } from '@/components/auth/UsernameInput';
 import { MarkdownEditor } from '@/components/shared/MarkdownEditor';
+import { ProfilePictureUpload } from '@/components/profile/ProfilePictureUpload';
 import { motion } from 'framer-motion';
 
 export default function OnboardingPage() {
@@ -18,6 +19,9 @@ export default function OnboardingPage() {
     // Form States
     const [username, setUsername] = useState('');
     const [isUsernameValid, setIsUsernameValid] = useState(false);
+    const [displayName, setDisplayName] = useState(user?.displayName || '');
+    const [profilePicture, setProfilePicture] = useState<File | null>(null);
+    const [profilePicturePreview, setProfilePicturePreview] = useState<string | null>(user?.photoURL || null);
     const [role, setRole] = useState<'va' | 'recruiter'>('va');
     const [bio, setBio] = useState('');
     const [skills, setSkills] = useState<string[]>([]);
@@ -37,7 +41,7 @@ export default function OnboardingPage() {
     };
 
     const handleComplete = async () => {
-        if (!user || !username || !isUsernameValid) return;
+        if (!user || !username || !isUsernameValid || !displayName.trim()) return;
 
         // Strict validation before submission
         if (role === 'va' && skills.length < 5) {
@@ -51,6 +55,16 @@ export default function OnboardingPage() {
 
             const userRef = doc(db, 'users', user.uid);
 
+            // Upload profile picture if provided
+            let photoURL = user.photoURL;
+            if (profilePicture) {
+                const { ProfileService } = await import('@/lib/services/profile-service');
+                const uploadedURL = await ProfileService.uploadProfilePicture(user.uid, profilePicture);
+                if (uploadedURL) {
+                    photoURL = uploadedURL;
+                }
+            }
+
             // Base user data
             const userData: any = {
                 username: username.toLowerCase(),
@@ -60,8 +74,8 @@ export default function OnboardingPage() {
                 onboardingCompleted: true,
                 updatedAt: serverTimestamp(),
                 email: user.email,
-                displayName: user.displayName,
-                photoURL: user.photoURL,
+                displayName: displayName.trim(),
+                photoURL,
                 introSeen: false
             };
 
@@ -77,6 +91,10 @@ export default function OnboardingPage() {
             await setDoc(doc(db, 'usernames', username.toLowerCase()), {
                 uid: user.uid
             });
+
+            // Initialize extended user profile
+            const { ProfileService } = await import('@/lib/services/profile-service');
+            await ProfileService.initializeUserProfile(user.uid, userData);
 
             router.push('/intro/ai');
         } catch (error) {
@@ -115,6 +133,33 @@ export default function OnboardingPage() {
                 </div>
 
                 <div className="space-y-8">
+                    {/* Display Name Section */}
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-[#008080] uppercase tracking-wider">Full Name</label>
+                        <input
+                            type="text"
+                            value={displayName}
+                            onChange={(e) => setDisplayName(e.target.value)}
+                            placeholder="Enter your full name"
+                            className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-[#008080] transition-colors"
+                        />
+                        <p className="text-xs text-gray-500 dark:text-gray-400">This is how others will see your name</p>
+                    </div>
+
+                    {/* Profile Picture Upload */}
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-[#008080] uppercase tracking-wider">Profile Picture (Optional)</label>
+                        <ProfilePictureUpload
+                            currentPhotoURL={profilePicturePreview || undefined}
+                            currentDisplayName={displayName}
+                            onUpload={async (file, previewUrl) => {
+                                setProfilePicture(file);
+                                setProfilePicturePreview(previewUrl);
+                            }}
+                            size="medium"
+                        />
+                    </div>
+
                     {/* Username Section */}
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-[#008080] uppercase tracking-wider">Identity</label>
@@ -168,11 +213,10 @@ export default function OnboardingPage() {
                                     </span>
                                 </div>
 
-                                <div className={`bg-gray-100 dark:bg-zinc-800 border rounded-xl p-2 flex flex-wrap gap-2 transition-all ${
-                                    skills.length < 5 && skills.length > 0
-                                        ? 'border-amber-200 dark:border-amber-900/30'
-                                        : 'border-gray-200 dark:border-zinc-700 focus-within:border-[#008080]'
-                                }`}>
+                                <div className={`bg-gray-100 dark:bg-zinc-800 border rounded-xl p-2 flex flex-wrap gap-2 transition-all ${skills.length < 5 && skills.length > 0
+                                    ? 'border-amber-200 dark:border-amber-900/30'
+                                    : 'border-gray-200 dark:border-zinc-700 focus-within:border-[#008080]'
+                                    }`}>
                                     {skills.map(skill => (
                                         <span key={skill} className="bg-[#008080]/20 text-[#008080] px-3 py-1 rounded-full text-sm flex items-center gap-1 border border-[#008080]/20">
                                             {skill}
@@ -235,8 +279,8 @@ export default function OnboardingPage() {
 
                     <button
                         onClick={handleComplete}
-                        disabled={!isUsernameValid || !isSkillValid || loading}
-                        className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all duration-300 ${!isUsernameValid || !isSkillValid || loading
+                        disabled={!displayName.trim() || !isUsernameValid || !isSkillValid || loading}
+                        className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all duration-300 ${!displayName.trim() || !isUsernameValid || !isSkillValid || loading
                             ? 'bg-gray-300 dark:bg-zinc-800 text-gray-500 cursor-not-allowed'
                             : 'bg-gradient-to-r from-[#008080] to-teal-600 hover:from-teal-600 hover:to-[#008080] text-white hover:scale-[1.02] shadow-lg shadow-teal-500/25'
                             }`}

@@ -119,13 +119,13 @@ export function ReviewSection({
                 {/* Overall Rating */}
                 <div className="glass-card-strong p-8 rounded-2xl text-center">
                     <div className="text-6xl font-bold text-gradient-teal-amber mb-2">
-                        {averageRating.toFixed(1)}
+                        {(averageRating || 0).toFixed(1)}
                     </div>
                     <div className="flex items-center justify-center gap-1 mb-3">
                         {[1, 2, 3, 4, 5].map((star) => (
                             <Star
                                 key={star}
-                                className={`w-6 h-6 ${star <= Math.round(averageRating)
+                                className={`w-6 h-6 ${star <= Math.round(averageRating || 0)
                                     ? 'text-amber-500 fill-amber-500'
                                     : 'text-gray-300 dark:text-gray-600'
                                     }`}

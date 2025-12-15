@@ -46,11 +46,45 @@ export const ProfileService = {
             const docRef = doc(db, 'user_profiles', uid);
             const docSnap = await getDoc(docRef);
 
-            if (!docSnap.exists()) {
-                return null;
+            // Get base user data for fallback/merging
+            const userDocRef = doc(db, 'users', uid);
+            const userDocSnap = await getDoc(userDocRef);
+            const basicUserData = userDocSnap.exists() ? userDocSnap.data() : {};
+
+            if (docSnap.exists()) {
+                const profileData = docSnap.data();
+                // MERGE: If profile bio/skills are missing, try to fill them from basic user data
+                return {
+                    ...profileData,
+                    email: (basicUserData as any).email || (profileData as any).email,
+                    photoURL: (profileData as any).photoURL || (basicUserData as any).photoURL,
+                    bio: (profileData as any).bio || (basicUserData as any).bio || '',
+                    skills: ((profileData as any).skills && (profileData as any).skills.length > 0)
+                        ? (profileData as any).skills
+                        : ((basicUserData as any).skills || []),
+                    uid: uid // Ensure UID is always present
+                } as ExtendedUserProfile;
             }
 
-            return docSnap.data() as ExtendedUserProfile;
+            // Fallback: If no profile doc exists, return constructed one from 'users'
+            if (userDocSnap.exists()) {
+                return {
+                    uid,
+                    ...basicUserData,
+                    // Ensure arrays are initialized
+                    experience: [],
+                    education: [],
+                    certifications: [],
+                    portfolio: [],
+                    customSections: [],
+                    skills: (basicUserData as any).skills || [],
+                    bio: (basicUserData as any).bio || '',
+                    stats: (basicUserData as any).stats || defaultProfileStats,
+                    privacySettings: (basicUserData as any).privacySettings || defaultPrivacySettings
+                } as ExtendedUserProfile;
+            }
+
+            return null;
         } catch (error) {
             console.error('Error getting user profile:', error);
             return null;
@@ -106,9 +140,12 @@ export const ProfileService = {
                 email: basicData.email,
                 displayName: basicData.displayName,
                 photoURL: basicData.photoURL,
+                coverImage: basicData.coverImage || null,
                 role: basicData.role,
+                bio: basicData.bio || '',
                 title: basicData.title || (basicData.role === 'recruiter' ? 'Recruiter' : 'Virtual Assistant'),
                 skills: basicData.skills || [],
+                location: basicData.location || '',
                 experience: [],
                 education: [],
                 certifications: [],
@@ -116,6 +153,13 @@ export const ProfileService = {
                 socialLinks: {},
                 stats: defaultProfileStats,
                 privacySettings: defaultPrivacySettings,
+                sectionOrder: [
+                    { sectionId: 'video_intro', type: 'default', order: 0 },
+                    { sectionId: 'experience', type: 'default', order: 1 },
+                    { sectionId: 'education', type: 'default', order: 2 },
+                    { sectionId: 'projects', type: 'default', order: 3 },
+                    { sectionId: 'reviews', type: 'default', order: 4 }
+                ],
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
             };
@@ -271,8 +315,12 @@ export const ProfileService = {
             await uploadBytes(storageRef, file);
             const downloadURL = await getDownloadURL(storageRef);
 
-            // Update profile
+            // Update user_profiles collection
             await this.updateUserProfile(uid, { photoURL: downloadURL });
+
+            // Also update users collection
+            const userRef = doc(db, 'users', uid);
+            await setDoc(userRef, { photoURL: downloadURL }, { merge: true });
 
             return downloadURL;
         } catch (error) {
@@ -568,13 +616,16 @@ export const ProfileService = {
             const projectsCompleted = projectsSnap.size;
 
             // Get tasks completed
-            const tasksQuery = query(
-                collection(db, 'tasks'),
-                where('assignee', '==', profile.username),
-                where('status', 'in', ['done', 'paid'])
-            );
-            const tasksSnap = await getDocs(tasksQuery);
-            const tasksCompleted = tasksSnap.size;
+            let tasksCompleted = 0;
+            if (profile.username) {
+                const tasksQuery = query(
+                    collection(db, 'tasks'),
+                    where('assignee', '==', profile.username),
+                    where('status', 'in', ['done', 'paid'])
+                );
+                const tasksSnap = await getDocs(tasksQuery);
+                tasksCompleted = tasksSnap.size;
+            }
 
             const stats: ProfileStats = {
                 ...profile.stats,
@@ -761,6 +812,8 @@ export const ProfileService = {
      */
     async getUserProjects(uid: string, includePrivate: boolean = false): Promise<any[]> {
         try {
+            if (!uid) return [];
+
             const projectsQuery = query(
                 collection(db, 'projects'),
                 where('ownerId', '==', uid)
@@ -786,6 +839,8 @@ export const ProfileService = {
      */
     async getUserTasks(username: string, includePrivate: boolean = false): Promise<any[]> {
         try {
+            if (!username) return [];
+
             const tasksQuery = query(
                 collection(db, 'tasks'),
                 where('assignee', '==', username),

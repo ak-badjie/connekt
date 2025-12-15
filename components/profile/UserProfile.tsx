@@ -43,6 +43,10 @@ import { AIBioEnhancer } from './ai/AIBioEnhancer';
 import { AISkillSuggester } from './ai/AISkillSuggester';
 import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
 import { useAIAccess } from '@/hooks/useAIAccess';
+import { ProfilePictureUpload } from './ProfilePictureUpload';
+import { DisplayNameEditor } from './DisplayNameEditor';
+import { updateDoc, doc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 interface UserProfileProps {
     user: ExtendedUserProfile;
@@ -62,7 +66,20 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
     const [isEditingBio, setIsEditingBio] = useState(false);
     const [bioText, setBioText] = useState(user.bio || '');
     const [bioError, setBioError] = useState<string | null>(null);
-    
+
+    // FIX: Sync state when props change (data may load after initial render)
+    useEffect(() => {
+        if (initialUser) {
+            setUser(initialUser);
+            setBioText(initialUser.bio || '');
+
+            // Initialize section order based on fetched user
+            if (initialUser.sectionOrder && initialUser.sectionOrder.length > 0) {
+                setSectionOrder(initialUser.sectionOrder.map(s => s.sectionId));
+            }
+        }
+    }, [initialUser]);
+
     // Recruiter Stats State
     const [recruiterStats, setRecruiterStats] = useState({
         tasksCreated: 0,
@@ -71,6 +88,13 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
 
     // AI Access Hook
     const aiAccess = useAIAccess();
+
+    // Profile Picture Upload State
+    const [showPictureUpload, setShowPictureUpload] = useState(false);
+    const [uploadingPicture, setUploadingPicture] = useState(false);
+
+    // Display Name Edit State
+    const [editingDisplayName, setEditingDisplayName] = useState(false);
 
     // Section Order State
     const [sectionOrder, setSectionOrder] = useState<string[]>([]);
@@ -94,7 +118,7 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
         // Load projects and tasks
         loadProjects();
         loadTasks();
-        
+
         if (user.role === 'recruiter') {
             loadRecruiterData();
         }
@@ -112,6 +136,7 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
     };
 
     const loadTasks = async () => {
+        if (!user.username) return;
         const tasksData = await ProfileService.getUserTasks(user.username);
         setTasks(tasksData);
     };
@@ -120,13 +145,13 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
         try {
             // Fetch created tasks
             const createdTasks = await TaskService.getCreatedTasks(user.uid);
-            
+
             // Calculate talents (needs projects)
             // We can re-fetch or wait for projects state, but safer to fetch here or use the result of loadProjects if we chained it.
             // Since we can't easily chain in useEffect without refactoring, let's just fetch projects again or rely on the service cache if any (none here).
             // Actually, let's just fetch projects here again to be safe and independent, or use the service.
             const projectsData = await ProfileService.getUserProjects(user.uid);
-            
+
             const uniqueMembers = new Set<string>();
             projectsData.forEach((p: any) => {
                 if (p.members) {
@@ -171,6 +196,41 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
         if (!timestamp) return '';
         const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
         return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    };
+
+    const handleProfilePictureUpload = async (file: File, previewUrl: string) => {
+        setUploadingPicture(true);
+        try {
+            const photoURL = await ProfileService.uploadProfilePicture(user.uid, file);
+            if (photoURL) {
+                setUser({ ...user, photoURL });
+                // Also update users collection
+                await updateDoc(doc(db, 'users', user.uid), { photoURL });
+                setShowPictureUpload(false);
+            }
+        } catch (error) {
+            console.error('Profile picture upload failed:', error);
+        } finally {
+            setUploadingPicture(false);
+        }
+    };
+
+    const handleDisplayNameSave = async (newName: string) => {
+        try {
+            const success = await ProfileService.updateUserProfile(user.uid, {
+                displayName: newName
+            });
+
+            if (success) {
+                setUser({ ...user, displayName: newName });
+                // Also update users collection
+                await updateDoc(doc(db, 'users', user.uid), { displayName: newName });
+                setEditingDisplayName(false);
+            }
+        } catch (error) {
+            console.error('Display name update failed:', error);
+            throw error;
+        }
     };
 
     const calculatePlatformTime = () => {
@@ -302,10 +362,10 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
                 const isRecruiter = user.role === 'recruiter';
                 const isAgency = !!(user as any).agencyType;
                 const sectionTitle = isRecruiter ? "Active Job Postings" : isAgency ? "Agency Portfolio" : "Projects";
-                
+
                 // For recruiters, filter to show only active projects (jobs)
-                const displayProjects = isRecruiter 
-                    ? projects.filter(p => p.status === 'active') 
+                const displayProjects = isRecruiter
+                    ? projects.filter(p => p.status === 'active')
                     : projects;
 
                 return (
@@ -473,7 +533,10 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
                                     )}
                                 </div>
                                 {isOwner && (
-                                    <button className="absolute bottom-2 right-2 p-2 bg-white/20 dark:bg-zinc-900/20 backdrop-blur-2xl border border-white/30 rounded-full shadow-lg hover:scale-105 hover:bg-white/30 transition-all">
+                                    <button
+                                        onClick={() => setShowPictureUpload(true)}
+                                        className="absolute bottom-2 right-2 p-2 bg-white/20 dark:bg-zinc-900/20 backdrop-blur-2xl border border-white/30 rounded-full shadow-lg hover:scale-105 hover:bg-white/30 transition-all"
+                                    >
                                         <Camera className="w-5 h-5 text-white" />
                                     </button>
                                 )}
@@ -481,21 +544,41 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
 
                             {/* Name & Title */}
                             <div className="mb-4">
-                                <div className="flex items-center gap-3">
-                                    <h1 className="text-4xl font-bold text-white drop-shadow-lg flex items-center gap-2">
-                                        {user.displayName}
-                                        {/* Verification Badge - Only for Pro Plus */}
-                                        {user.subscription?.tier === SubscriptionTier.PRO_PLUS && (
-                                            <BadgeCheck className="w-8 h-8 text-blue-500 fill-white" />
+                                {editingDisplayName ? (
+                                    <DisplayNameEditor
+                                        currentName={user.displayName}
+                                        onSave={handleDisplayNameSave}
+                                        onCancel={() => setEditingDisplayName(false)}
+                                    />
+                                ) : (
+                                    <div className="flex items-center gap-3">
+                                        <h1 className="text-4xl font-bold text-white drop-shadow-lg flex items-center gap-2">
+                                            {user.displayName}
+                                            {/* Verification Badge - Only for Pro Plus */}
+                                            {user.subscription?.tier === SubscriptionTier.PRO_PLUS && (
+                                                <BadgeCheck className="w-8 h-8 text-blue-500 fill-white" />
+                                            )}
+                                        </h1>
+                                        {/* Edit Name Button (Owner Only) */}
+                                        {isOwner && (
+                                            <motion.button
+                                                whileHover={{ scale: 1.05 }}
+                                                whileTap={{ scale: 0.95 }}
+                                                onClick={() => setEditingDisplayName(true)}
+                                                className="p-2 bg-white/15 dark:bg-zinc-900/15 backdrop-blur-2xl border border-white/30 rounded-full shadow-lg hover:bg-white/25 transition-all"
+                                                title="Edit name"
+                                            >
+                                                <Edit className="w-5 h-5 text-white" />
+                                            </motion.button>
                                         )}
-                                    </h1>
-                                    {/* PRO Badge - For Pro and Pro Plus */}
-                                    {(user.subscription?.tier === SubscriptionTier.PRO || user.subscription?.tier === SubscriptionTier.PRO_PLUS) && (
-                                        <span className="px-3 py-1 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-sm font-bold rounded-full shadow-lg">
-                                            PRO ⚡
-                                        </span>
-                                    )}
-                                </div>
+                                        {/* PRO Badge - For Pro and Pro Plus */}
+                                        {(user.subscription?.tier === SubscriptionTier.PRO || user.subscription?.tier === SubscriptionTier.PRO_PLUS) && (
+                                            <span className="px-3 py-1 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-sm font-bold rounded-full shadow-lg">
+                                                PRO ⚡
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
                                 <p className="text-lg text-white/90 font-medium mt-1 drop-shadow">
                                     {user.title || (user.role === 'recruiter' ? 'Recruiter' : user.role === 'va' ? 'Virtual Assistant' : 'Connekt Member')}
                                 </p>
@@ -672,6 +755,18 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
                 />
             )}
 
+            {/* Profile Picture Upload Modal */}
+            {showPictureUpload && (
+                <ProfilePictureUpload
+                    currentPhotoURL={user.photoURL}
+                    currentDisplayName={user.displayName}
+                    onUpload={handleProfilePictureUpload}
+                    isLoading={uploadingPicture}
+                    showModal={true}
+                    onClose={() => setShowPictureUpload(false)}
+                />
+            )}
+
             {/* Main Content - Full Scroll Layout */}
             <div className="max-w-7xl mx-auto px-8 py-12">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -693,7 +788,7 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
                                         {calculatePlatformTime()} days
                                     </span>
                                 </div>
-                                
+
                                 {/* Recruiter Specific Stats */}
                                 {user.role === 'recruiter' && (
                                     <>
@@ -769,7 +864,7 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
                                                 Average Rating
                                             </span>
                                             <span className="font-semibold text-amber-500">
-                                                {user.stats.averageRating.toFixed(1)} ★
+                                                {(user.stats?.averageRating || 0).toFixed(1)} ★
                                             </span>
                                         </div>
                                         <div className="flex items-center justify-between">
@@ -904,51 +999,51 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
 
                         {/* Skills - Hidden for Recruiters */}
                         {user.role !== 'recruiter' && (
-                        <div className="profile-section">
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Skills & Expertise</h3>
+                            <div className="profile-section">
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Skills & Expertise</h3>
 
-                            {/* AI Skill Suggester - Only for Profile Owner */}
-                            {isOwner && (
-                                <AISkillSuggester
-                                    currentSkills={user.skills || []}
-                                    bio={user.bio}
-                                    experience={user.experience}
-                                    userId={user.uid}
-                                    onSkillsAdded={async (newSkills) => {
-                                        // Combine existing and new skills, remove duplicates
-                                        const combinedSkills = [...(user.skills || []), ...newSkills];
-                                        const uniqueSkills = Array.from(new Set(combinedSkills));
+                                {/* AI Skill Suggester - Only for Profile Owner */}
+                                {isOwner && (
+                                    <AISkillSuggester
+                                        currentSkills={user.skills || []}
+                                        bio={user.bio}
+                                        experience={user.experience}
+                                        userId={user.uid}
+                                        onSkillsAdded={async (newSkills) => {
+                                            // Combine existing and new skills, remove duplicates
+                                            const combinedSkills = [...(user.skills || []), ...newSkills];
+                                            const uniqueSkills = Array.from(new Set(combinedSkills));
 
-                                        // Update database
-                                        try {
-                                            await ProfileService.updateUserProfile(user.uid, { skills: uniqueSkills });
-                                            // Update local state
-                                            setUser({ ...user, skills: uniqueSkills });
-                                        } catch (error) {
-                                            console.error('Failed to save skills:', error);
-                                        }
-                                    }}
-                                    onError={(error) => console.error('Skill suggestion error:', error)}
-                                />
-                            )}
-
-                            <div className="flex flex-wrap gap-2">
-                                {user.skills?.map((skill, index) => (
-                                    <motion.span
-                                        key={skill}
-                                        initial={{ opacity: 0, scale: 0.8 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        transition={{ delay: index * 0.05 }}
-                                        className="px-4 py-2 bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 text-teal-700 dark:text-teal-300 rounded-xl text-sm font-medium border border-teal-200 dark:border-teal-800 hover:shadow-md transition-shadow"
-                                    >
-                                        {skill}
-                                    </motion.span>
-                                ))}
-                                {(!user.skills || user.skills.length === 0) && (
-                                    <span className="text-gray-500 text-sm italic">No skills listed</span>
+                                            // Update database
+                                            try {
+                                                await ProfileService.updateUserProfile(user.uid, { skills: uniqueSkills });
+                                                // Update local state
+                                                setUser({ ...user, skills: uniqueSkills });
+                                            } catch (error) {
+                                                console.error('Failed to save skills:', error);
+                                            }
+                                        }}
+                                        onError={(error) => console.error('Skill suggestion error:', error)}
+                                    />
                                 )}
+
+                                <div className="flex flex-wrap gap-2">
+                                    {user.skills?.map((skill, index) => (
+                                        <motion.span
+                                            key={skill}
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            transition={{ delay: index * 0.05 }}
+                                            className="px-4 py-2 bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 text-teal-700 dark:text-teal-300 rounded-xl text-sm font-medium border border-teal-200 dark:border-teal-800 hover:shadow-md transition-shadow"
+                                        >
+                                            {skill}
+                                        </motion.span>
+                                    ))}
+                                    {(!user.skills || user.skills.length === 0) && (
+                                        <span className="text-gray-500 text-sm italic">No skills listed</span>
+                                    )}
+                                </div>
                             </div>
-                        </div>
                         )}
 
                         {/* Social Links */}

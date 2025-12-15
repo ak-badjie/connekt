@@ -69,6 +69,26 @@ export default function UserProfilePage() {
                 }
 
                 if (profile) {
+                    // REPAIR LOGIC: If profile exists but bio/skills are empty, try to repair from 'users' collection
+                    if (!profile.bio || !profile.skills || profile.skills.length === 0) {
+                        const userRef = doc(db, 'users', profile.uid);
+                        const userSnap = await getDoc(userRef);
+
+                        if (userSnap.exists()) {
+                            const basicData = userSnap.data();
+
+                            if ((basicData as any).bio || ((basicData as any).skills && (basicData as any).skills.length > 0)) {
+                                await ProfileService.updateUserProfile(profile.uid, {
+                                    bio: profile.bio || (basicData as any).bio,
+                                    skills: (profile.skills && profile.skills.length > 0) ? profile.skills : (basicData as any).skills
+                                });
+
+                                // Refresh local profile object
+                                profile = await ProfileService.getUserProfile(profile.uid);
+                            }
+                        }
+                    }
+
                     setProfileUser(profile);
                     // Update stats in background
                     ProfileService.updateProfileStats(profile.uid);
