@@ -393,38 +393,45 @@ export default function LandingPage() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8, delay: 2.5 }}
-                        className="flex flex-col md:flex-row items-center justify-center gap-3 md:gap-4 text-3xl md:text-5xl font-bold tracking-tight relative z-10"
+                      className="relative z-10"
                     >
-                         {/* FIXED PART - TEAL */}
-                         <span className="text-teal-400 drop-shadow-[0_0_15px_rgba(20,184,166,0.3)]">
+                      <LayoutGroup id="hero-slogan">
+                        <motion.div
+                          layout="position"
+                          transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                          className="flex flex-col md:flex-row items-center justify-center gap-3 md:gap-4 text-3xl md:text-5xl font-bold tracking-tight"
+                        >
+                          {/* FIXED PART - TEAL */}
+                          <motion.span
+                            layout="position"
+                            transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                            className="text-teal-400 drop-shadow-[0_0_15px_rgba(20,184,166,0.3)] will-change-transform"
+                          >
                             Scale Beyond
-                         </span>
+                          </motion.span>
 
-                         {/* DYNAMIC PILL PART */}
-                         <LayoutGroup>
-                             <motion.div 
-                                layout
-                                className="bg-slate-900/90 border border-slate-700/50 backdrop-blur-md rounded-full px-6 py-2 md:py-3 shadow-[0_0_30px_rgba(255,255,255,0.05)] flex items-center justify-center min-w-[150px]"
-                                transition={{
-                                    type: "spring",
-                                    stiffness: 500,
-                                    damping: 30
-                                }}
-                             >
-                                <RotatingText
-                                    texts={[
-                                        "Yourself",
-                                        "Your Team",
-                                        "Borders",
-                                        "Limits"
-                                    ]}
-                                    mainClassName="text-white font-extrabold"
-                                    rotationInterval={3000}
-                                    staggerDuration={0.05}
-                                    transition={{ type: "spring", damping: 20, stiffness: 300 }}
-                                />
-                            </motion.div>
-                        </LayoutGroup>
+                          {/* DYNAMIC PILL PART */}
+                          <motion.div
+                            layout
+                            transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                            className="bg-teal-500/15 border border-teal-400/30 backdrop-blur-md rounded-full px-6 py-2 md:py-3 shadow-[0_0_30px_rgba(20,184,166,0.12)] flex items-center justify-center min-w-[150px] will-change-transform"
+                          >
+                            <RotatingText
+                              texts={[
+                                "Yourself",
+                                "Your Team",
+                                "Borders",
+                                "Limits"
+                              ]}
+                              mainClassName="text-white font-extrabold"
+                              rotationInterval={3000}
+                              staggerDuration={0.05}
+                              transition={{ type: "spring", damping: 20, stiffness: 300 }}
+                              animatePresenceMode="popLayout"
+                            />
+                          </motion.div>
+                        </motion.div>
+                      </LayoutGroup>
                     </motion.div>
                     
                     <motion.button 
