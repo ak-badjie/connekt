@@ -1,109 +1,43 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, useSpring, useTransform, AnimatePresence } from 'framer-motion';
-import { Code2, Cpu, Globe, Zap, Shield, ChevronDown, ArrowRight } from 'lucide-react';
+import { motion, useSpring, useTransform } from 'framer-motion';
+import { ChevronDown } from 'lucide-react';
 
-// --- YOUR CONTEXT IMPORTS (From your snippet) ---
+// --- CONTEXT IMPORTS ---
 import LoadingScreen from '@/components/ui/LoadingScreen';
 import { useMinimumLoading } from '@/hooks/useMinimumLoading';
 import { useAnimation } from '@/context/AnimationContext';
 
-// --- PHYSICS CONFIGURATION (The "Goopy" Elastic Feel) ---
+// --- YOUR NEW SECTION IMPORTS ---
+// Simply import your new VPH pages here
+import ProfileSection from '@/components/landing/ProfileSection';
+import ConnketAISection from '@/components/landing/ConnketAISection';
+import KAISection from '@/components/landing/KAISection';
+
+// --- CONFIGURATION ---
+// 1. Add your imported components to this array. 
+// The order here determines the scroll order.
+const SLIDES = [
+    ProfileSection,
+    ConnketAISection,
+    KAISection,
+    // Add more here (e.g., SecuritySection, PricingSection...)
+];
+
 const SPRING_OPTIONS = {
     stiffness: 45,
     damping: 12,
     mass: 1.2,
 };
-    
-// --- DATA ---
-const SECTIONS = [
-    { id: 'hero', type: 'hero' },
-    {
-        id: 'adventure',
-        type: 'content',
-        title: "Choose Your Adventure",
-        subtitle: "We build elite tech teams for companies and enhance candidate tech skills and job prospects.",
-        icon: Globe,
-        color: "emerald"
-    },
-    {
-        id: 'ai',
-        type: 'content',
-        title: "AI Changing Development",
-        subtitle: "GenAI will execute mundane tasks while developers orchestrate high-level problem solving.",
-        icon: Cpu,
-        align: 'right',
-        color: "indigo"
-    },
-    {
-        id: 'skills',
-        type: 'content',
-        title: "Skills Over Degrees",
-        subtitle: "The future of hiring is based on what you can do, not where you went to school.",
-        icon: Code2,
-        color: "rose"
-    },
-    {
-        id: 'security',
-        type: 'content',
-        title: "Secure & Private",
-        subtitle: "Enterprise grade security ensuring your data is always protected.",
-        icon: Shield,
-        align: 'right',
-        color: "cyan"
-    }
-];
-
-// --- 3D CARD COMPONENT ---
-const Card3D = ({ icon: Icon, color, isVisible }: { icon: any, color: string, isVisible: boolean }) => {
-    return (
-        <motion.div
-            initial={{ rotateX: 20, rotateY: 20, scale: 0.8, opacity: 0 }}
-            animate={isVisible ? { rotateX: 0, rotateY: 0, scale: 1, opacity: 1 } : { rotateX: 20, rotateY: 20, scale: 0.8, opacity: 0 }}
-            transition={{ duration: 1.2, type: "spring", bounce: 0.4 }}
-            className="relative perspective-1000"
-        >
-            <motion.div
-                animate={{ y: [-10, 10, -10] }}
-                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-            >
-                <div className={`relative aspect-square rounded-[3rem] bg-gradient-to-br from-white/90 to-white/40 backdrop-blur-xl border border-white/60 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.15)] p-10 flex flex-col justify-between overflow-hidden group`}>
-                    <div className={`absolute top-0 right-0 w-64 h-64 bg-${color}-200/50 rounded-full blur-[60px] group-hover:bg-${color}-300/60 transition-colors duration-700`} />
-                    <div className="relative z-10">
-                        <div className={`w-16 h-16 rounded-2xl bg-white shadow-lg flex items-center justify-center text-${color}-600 mb-6`}>
-                            <Icon size={32} />
-                        </div>
-                        <div className="space-y-4 opacity-80">
-                            <div className="h-3 w-1/3 bg-slate-800/10 rounded-full" />
-                            <div className="h-3 w-full bg-slate-800/10 rounded-full" />
-                            <div className="h-3 w-3/4 bg-slate-800/10 rounded-full" />
-                        </div>
-                    </div>
-                    <div className="relative z-10 bg-white/60 backdrop-blur-md rounded-2xl p-4 border border-white/50 shadow-sm mt-4">
-                        <div className="flex justify-between items-center">
-                            <span className="text-sm font-semibold text-slate-600">Status</span>
-                            <span className={`text-xs font-bold px-3 py-1 rounded-full bg-${color}-100 text-${color}-700`}>
-                                Optimized
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </motion.div>
-        </motion.div>
-    );
-};
 
 export default function LandingPage() {
-    // --- 1. LOADING LOGIC (From your snippet) ---
+    // --- LOADING LOGIC ---
     const [isLoading, setIsLoading] = useState(true);
     const { hasGlobalAnimationRun, setHasGlobalAnimationRun } = useAnimation();
     
-    // Simulate asset loading for the landing page
     useEffect(() => {
-        const timer = setTimeout(() => {
-            setIsLoading(false);
-        }, 2000); // 2 seconds artificial load
+        const timer = setTimeout(() => setIsLoading(false), 2000);
         return () => clearTimeout(timer);
     }, []);
 
@@ -116,11 +50,13 @@ export default function LandingPage() {
     }, [shouldShowLoading, hasGlobalAnimationRun, setHasGlobalAnimationRun]);
 
 
-    // --- 2. SCROLL JACKING LOGIC ---
+    // --- SCROLL JACKING LOGIC ---
+    // Total indices = 1 (Hero) + Number of Slides
+    const TOTAL_INDICES = SLIDES.length + 1;
+    
     const [activeIndex, setActiveIndex] = useState(0);
     const [isScrolling, setIsScrolling] = useState(false);
     const scrollAccumulator = useRef(0);
-    const touchStart = useRef(0);
 
     const springIndex = useSpring(0, SPRING_OPTIONS);
 
@@ -131,12 +67,12 @@ export default function LandingPage() {
     const handleWheel = useCallback((e: WheelEvent) => {
         if (isScrolling) return;
 
-        // TENSION LOGIC: Scroll Accumulator
         scrollAccumulator.current += e.deltaY;
         const THRESHOLD = 50; 
 
         if (scrollAccumulator.current > THRESHOLD) {
-            if (activeIndex < SECTIONS.length - 1) {
+            // Scroll Down
+            if (activeIndex < TOTAL_INDICES - 1) {
                 setIsScrolling(true);
                 setActiveIndex(prev => prev + 1);
                 scrollAccumulator.current = 0;
@@ -145,6 +81,7 @@ export default function LandingPage() {
                 scrollAccumulator.current = THRESHOLD;
             }
         } else if (scrollAccumulator.current < -THRESHOLD) {
+            // Scroll Up
             if (activeIndex > 0) {
                 setIsScrolling(true);
                 setActiveIndex(prev => prev - 1);
@@ -160,10 +97,9 @@ export default function LandingPage() {
             scrollAccumulator.current = 0;
         }, 100);
 
-    }, [activeIndex, isScrolling]);
+    }, [activeIndex, isScrolling, TOTAL_INDICES]);
 
     useEffect(() => {
-        // Only attach scroll listeners if NOT loading
         if (!shouldShowLoading) {
             window.addEventListener('wheel', handleWheel, { passive: false });
             return () => window.removeEventListener('wheel', handleWheel);
@@ -171,28 +107,29 @@ export default function LandingPage() {
     }, [handleWheel, shouldShowLoading]);
 
 
-    // --- 3. ANIMATION TRANSFORMS ---
+    // --- ANIMATION TRANSFORMS ---
+    // Hero moves away when index goes 0 -> 1
     const whiteContainerY = useTransform(springIndex, [0, 1], ['100vh', '0vh']);
     const heroY = useTransform(springIndex, [0, 1], ['0vh', '20vh']);
     const heroOpacity = useTransform(springIndex, [0, 0.8], [1, 0]);
     const heroScale = useTransform(springIndex, [0, 1], [1, 0.9]);
+    
+    // Internal content slides up based on how many slides we have
+    // If we have 3 slides, we move from 0vh to -200vh
     const internalContentY = useTransform(springIndex, 
-        [1, SECTIONS.length - 1], 
-        ['0vh', `-${(SECTIONS.length - 2) * 100}vh`]
+        [1, TOTAL_INDICES - 1], 
+        ['0vh', `-${(SLIDES.length - 1) * 100}vh`]
     );
 
-    // --- 4. RENDER ---
-    
-    // IF LOADING -> RETURN LOADING SCREEN
+    // --- RENDER ---
     if (shouldShowLoading && !hasGlobalAnimationRun) {
         return <LoadingScreen variant="default" />;
     }
 
-    // IF LOADED -> RETURN SCROLL JACKED LANDING PAGE
     return (
         <div className="fixed inset-0 bg-black overflow-hidden font-sans text-slate-900">
             
-            {/* BACKGROUND HERO LAYER */}
+            {/* LAYER 1: HERO SECTION (Fixed Background) */}
             <motion.div 
                 style={{ y: heroY, opacity: heroOpacity, scale: heroScale }}
                 className="absolute inset-0 flex flex-col items-center justify-center z-0"
@@ -234,56 +171,29 @@ export default function LandingPage() {
             </motion.div>
 
 
-            {/* FOREGROUND WHITE SHEET LAYER */}
+            {/* LAYER 2: WHITE SHEET (Foreground Content) */}
             <motion.div 
                 style={{ y: whiteContainerY }}
                 className="absolute inset-0 z-20"
             >
                 <div className="absolute inset-0 bg-slate-50 rounded-t-[4rem] shadow-[0_-50px_100px_rgba(0,0,0,0.5)] overflow-hidden">
                     
-                    {/* SCROLLABLE CONTENT CONTAINER */}
+                    {/* SCROLLABLE CONTAINER */}
                     <motion.div 
                         style={{ y: internalContentY }}
                         className="w-full h-full"
                     >
-                        {SECTIONS.slice(1).map((section, index) => {
-                            const actualIndex = index + 1;
-                            const isVisible = activeIndex === actualIndex;
+                        {SLIDES.map((Component, index) => {
+                            // Determine if this specific slide is the active one
+                            // We add 1 because index 0 is the Hero
+                            const isVisible = activeIndex === index + 1;
 
                             return (
                                 <div 
-                                    key={section.id} 
+                                    key={index} 
                                     className="h-screen w-full flex items-center justify-center relative"
                                 >
-                                    <div className="container mx-auto px-6 md:px-12 grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
-                                        
-                                        {/* TEXT CONTENT */}
-                                        <motion.div 
-                                            className={`flex flex-col gap-6 ${section.align === 'right' ? 'md:order-2' : ''}`}
-                                            animate={isVisible ? { opacity: 1, x: 0 } : { opacity: 0, x: section.align === 'right' ? 50 : -50 }}
-                                            transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
-                                        >
-                                            <div className={`w-fit px-4 py-2 rounded-full bg-${section.color}-100 text-${section.color}-800 font-bold uppercase tracking-wider text-xs`}>
-                                                {section.title}
-                                            </div>
-                                            <h2 className="text-5xl md:text-6xl font-bold leading-tight text-slate-900">
-                                                {section.title}
-                                            </h2>
-                                            <p className="text-xl text-slate-500 leading-relaxed">
-                                                {section.subtitle}
-                                            </p>
-                                        </motion.div>
-
-                                        {/* CARD CONTENT */}
-                                        <div className={`${section.align === 'right' ? 'md:order-1' : ''} flex justify-center`}>
-                                            <Card3D 
-                                                icon={section.icon} 
-                                                color={section.color} 
-                                                isVisible={isVisible} 
-                                            />
-                                        </div>
-
-                                    </div>
+                                    <Component isVisible={isVisible} />
                                 </div>
                             );
                         })}
@@ -291,18 +201,7 @@ export default function LandingPage() {
                 </div>
             </motion.div>
             
-            {/* NAVIGATION DOTS */}
-            <div className="fixed right-8 top-1/2 -translate-y-1/2 z-50 hidden md:flex flex-col gap-4">
-                {SECTIONS.map((_, idx) => (
-                    <button
-                        key={idx}
-                        onClick={() => setActiveIndex(idx)}
-                        className={`w-3 h-3 rounded-full transition-all duration-500 ${
-                            activeIndex === idx ? 'bg-emerald-500 scale-125' : 'bg-slate-300 hover:bg-slate-400'
-                        }`}
-                    />
-                ))}
-            </div>
+            {/* Dots removed as requested */}
 
         </div>
     );
