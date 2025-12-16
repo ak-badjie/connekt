@@ -5,6 +5,8 @@ import { useAuth } from '@/context/AuthContext';
 import { TaskService } from '@/lib/services/task-service';
 import { MeetingService } from '@/lib/services/meeting-service';
 import { Task } from '@/lib/types/workspace.types';
+import { Meeting } from '@/lib/types/meeting.types';
+import { ConversationMember } from '@/lib/types/chat.types';
 import {
     format,
     startOfMonth,
@@ -29,6 +31,7 @@ interface CalendarEvent {
     type: 'meeting' | 'deadline' | 'task';
     status?: string;
     priority?: string;
+    meeting?: Meeting;
 }
 
 import { CreateEventModal } from './CreateEventModal';
@@ -43,6 +46,8 @@ export function CalendarView({ agencyId }: { agencyId?: string }) {
     const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
     const [isVideoOpen, setIsVideoOpen] = useState(false);
     const [activeMeeting, setActiveMeeting] = useState<CalendarEvent | null>(null);
+
+    const emptyMembers: Record<string, ConversationMember> = {};
 
     useEffect(() => {
         const fetchEvents = async () => {
@@ -80,7 +85,8 @@ export function CalendarView({ agencyId }: { agencyId?: string }) {
                     title: m.title,
                     date: new Date(m.startTime),
                     type: 'meeting',
-                    status: m.status
+                    status: m.status,
+                    meeting: m
                 }));
 
                 setEvents([...mappedEvents, ...mappedMeetings]);
@@ -321,16 +327,18 @@ export function CalendarView({ agencyId }: { agencyId?: string }) {
                 agencyId={agencyId}
             />
 
-            <VideoConferenceOverlay 
-                isOpen={isVideoOpen}
-                onClose={() => setIsVideoOpen(false)}
-                meetingTitle={activeMeeting?.title || "Team Meeting"}
-                participants={[
-                    { id: '1', name: 'You', isMuted: false },
-                    { id: '2', name: 'Sarah Connor', isMuted: true },
-                    { id: '3', name: 'John Doe', isMuted: false }
-                ]}
-            />
+            {user && isVideoOpen && activeMeeting?.type === 'meeting' && (
+                <VideoConferenceOverlay
+                    isOpen={isVideoOpen}
+                    onClose={() => setIsVideoOpen(false)}
+                    meetingTitle={activeMeeting.title || 'Team Meeting'}
+                    meetingId={activeMeeting.meeting?.id ?? activeMeeting.id ?? null}
+                    meeting={activeMeeting.meeting ?? null}
+                    conversationId={activeMeeting.meeting?.conversationId ?? ''}
+                    members={emptyMembers}
+                    currentUserId={user.uid}
+                />
+            )}
         </div >
     );
 }
