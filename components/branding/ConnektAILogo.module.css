@@ -1,5 +1,5 @@
 /* ConnektAILogo Animations */
-:root {
+.mainContainer {
     --teal-primary: #0d9488;
     --teal-light: #2dd4bf;
     --teal-glow: rgba(13, 148, 136, 0.4);
@@ -7,9 +7,7 @@
     --slate-text: #475569;
     --ease-tech: cubic-bezier(0.25, 0.46, 0.45, 0.94);
     --ease-bounce: cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.mainContainer {
+    
     display: flex;
     flex-direction: column;
     align-items: center;

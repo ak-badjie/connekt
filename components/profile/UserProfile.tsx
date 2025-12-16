@@ -247,6 +247,7 @@ export function UserProfile({ user: initialUser, isOwner }: UserProfileProps) {
                             uid={user.uid}
                             videoUrl={user.videoIntro}
                             isOwner={isOwner}
+                            username={user.username}
                             onUpdate={(url) => setUser({ ...user, videoIntro: url })}
                         />
                     </DraggableSection>

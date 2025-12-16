@@ -1,13 +1,11 @@
 /* ConnektWalletLogo Animations */
-:root {
+.container {
   --teal-primary: #009688;
   --teal-dark: #00796b;
   --amber-accent: #f59e0b;
   --slate-text: #475569;
   --ease-sharp: cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.container {
+  
   display: flex;
   flex-direction: column;
   align-items: center;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -12,9 +12,10 @@ import { ProfilePictureUpload } from '@/components/profile/ProfilePictureUpload'
 import { motion } from 'framer-motion';
 
 export default function OnboardingPage() {
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const router = useRouter();
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string>('');
 
     // Form States
     const [username, setUsername] = useState('');
@@ -26,6 +27,12 @@ export default function OnboardingPage() {
     const [bio, setBio] = useState('');
     const [skills, setSkills] = useState<string[]>([]);
     const [currentSkill, setCurrentSkill] = useState('');
+
+    useEffect(() => {
+        if (!authLoading && !user) {
+            router.replace('/auth');
+        }
+    }, [authLoading, user, router]);
 
     // Validation Check: Recruiters pass automatically, VAs need 5+ skills
     const isSkillValid = role === 'recruiter' || (role === 'va' && skills.length >= 5);
@@ -41,10 +48,26 @@ export default function OnboardingPage() {
     };
 
     const handleComplete = async () => {
-        if (!user || !username || !isUsernameValid || !displayName.trim()) return;
+        setError('');
+
+        if (authLoading) {
+            setError('Please wait—sign-in is still loading.');
+            return;
+        }
+
+        if (!user) {
+            router.push('/auth');
+            return;
+        }
+
+        if (!username || !isUsernameValid || !displayName.trim()) {
+            setError('Please fill in your name and a valid username.');
+            return;
+        }
 
         // Strict validation before submission
         if (role === 'va' && skills.length < 5) {
+            setError('Please add at least 5 skills to continue.');
             return; // Button should be disabled, but safety check here
         }
 
@@ -92,13 +115,19 @@ export default function OnboardingPage() {
                 uid: user.uid
             });
 
-            // Initialize extended user profile
-            const { ProfileService } = await import('@/lib/services/profile-service');
-            await ProfileService.initializeUserProfile(user.uid, userData);
+            // Initialize extended user profile (non-blocking for navigation)
+            try {
+                const { ProfileService } = await import('@/lib/services/profile-service');
+                await ProfileService.initializeUserProfile(user.uid, userData);
+            } catch (e) {
+                console.warn('Profile initialization failed (continuing):', e);
+            }
 
             router.push('/intro/ai');
         } catch (error) {
             console.error('Error saving profile:', error);
+            const message = (error as any)?.message || 'Failed to save your profile. Please try again.';
+            setError(message);
         } finally {
             setLoading(false);
         }
@@ -220,7 +249,7 @@ export default function OnboardingPage() {
                                     {skills.map(skill => (
                                         <span key={skill} className="bg-[#008080]/20 text-[#008080] px-3 py-1 rounded-full text-sm flex items-center gap-1 border border-[#008080]/20">
                                             {skill}
-                                            <button onClick={() => setSkills(skills.filter(s => s !== skill))} className="hover:text-teal-700 dark:hover:text-teal-300">×</button>
+                                            <button type="button" onClick={() => setSkills(skills.filter(s => s !== skill))} className="hover:text-teal-700 dark:hover:text-teal-300">×</button>
                                         </span>
                                     ))}
                                     <input
@@ -279,7 +308,7 @@ export default function OnboardingPage() {
 
                     <button
                         onClick={handleComplete}
-                        disabled={!displayName.trim() || !isUsernameValid || !isSkillValid || loading}
+                        disabled={authLoading || !user || !displayName.trim() || !isUsernameValid || !isSkillValid || loading}
                         className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all duration-300 ${!displayName.trim() || !isUsernameValid || !isSkillValid || loading
                             ? 'bg-gray-300 dark:bg-zinc-800 text-gray-500 cursor-not-allowed'
                             : 'bg-gradient-to-r from-[#008080] to-teal-600 hover:from-teal-600 hover:to-[#008080] text-white hover:scale-[1.02] shadow-lg shadow-teal-500/25'
@@ -287,6 +316,12 @@ export default function OnboardingPage() {
                     >
                         {loading ? <Loader2 className="animate-spin" /> : <>Continue <ChevronRight /></>}
                     </button>
+
+                    {error && (
+                        <p className="text-red-600 dark:text-red-400 text-sm bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-200 dark:border-red-800">
+                            {error}
+                        </p>
+                    )}
                 </div>
             </motion.div>
         </div>

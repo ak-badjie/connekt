@@ -133,6 +133,7 @@ export interface ExtendedUserProfile {
     certifications: Certification[];
     portfolio: ProfileMedia[];
     videoIntro?: string; // URL to intro video
+    videoIntroBytes?: number; // Size (bytes) of the intro video counted toward storage
 
     // New: Custom sections and references
     customSections?: CustomSection[];

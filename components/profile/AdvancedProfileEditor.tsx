@@ -174,7 +174,15 @@ export function AdvancedProfileEditor({ user, isOpen, onClose, onUpdate }: Advan
 
                     {activeTab === 'media' && (
                         <div className="space-y-6">
-                            <MediaUploader uid={user.uid} />
+                            <MediaUploader
+                                userId={user.uid}
+                                type="video-intro"
+                                username={user.username}
+                                maxSizeMB={50}
+                                acceptedTypes="video/*"
+                                onUploadComplete={(url) => onUpdate({ videoIntro: url })}
+                                onUploadError={(err) => console.error('Video upload error:', err)}
+                            />
                         </div>
                     )}
 

@@ -16,7 +16,8 @@ import {
     orderBy,
     limit,
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, deleteObject, uploadBytesResumable } from 'firebase/storage';
+import { StorageQuotaService } from '@/lib/services/storage-quota-service';
 import {
     ExtendedUserProfile,
     ExtendedAgencyProfile,
@@ -353,16 +354,85 @@ export const ProfileService = {
     /**
      * Upload video intro
      */
-    async uploadVideoIntro(uid: string, file: File, onProgress?: (progress: number) => void): Promise<string | null> {
+    async uploadVideoIntro(
+        uid: string,
+        file: File,
+        onProgress?: (info: { progress: number; bytesTransferred: number; totalBytes: number; state: string }) => void,
+        options?: { mailAddress?: string; username?: string }
+    ): Promise<string | null> {
         try {
-            const filePath = `profiles/users/${uid}/videos/intro.${file.name.split('.').pop()}`;
+            const profile = await this.getUserProfile(uid);
+            const previousBytes = profile?.videoIntroBytes ?? 0;
+            const previousUrl = profile?.videoIntro;
+
+            const mailAddress = options?.mailAddress ?? (options?.username ? `${options.username}@connekt.com` : undefined);
+
+            if (mailAddress && options?.username) {
+                const existingQuota = await StorageQuotaService.getStorageQuota(mailAddress);
+                if (!existingQuota) {
+                    await StorageQuotaService.initializeUserStorage(uid, options.username);
+                }
+            }
+
+            const requiredSpace = previousBytes > 0 ? Math.max(file.size - previousBytes, 0) : file.size;
+            if (mailAddress && requiredSpace > 0) {
+                const ok = await StorageQuotaService.checkStorageAvailable(mailAddress, requiredSpace);
+                if (!ok) throw new Error('Not enough storage space available for this upload.');
+            }
+
+            // Use a stable path so replacing the intro video overwrites the same object.
+            const filePath = `profiles/users/${uid}/videos/intro`;
             const storageRef = ref(storage, filePath);
 
-            await uploadBytes(storageRef, file);
+            await new Promise<void>((resolve, reject) => {
+                const uploadTask = uploadBytesResumable(storageRef, file, {
+                    contentType: file.type || undefined,
+                });
+
+                uploadTask.on(
+                    'state_changed',
+                    (snapshot) => {
+                        if (!onProgress) return;
+                        const progress = snapshot.totalBytes > 0
+                            ? (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+                            : 0;
+                        onProgress({
+                            progress,
+                            bytesTransferred: snapshot.bytesTransferred,
+                            totalBytes: snapshot.totalBytes,
+                            state: snapshot.state,
+                        });
+                    },
+                    (error) => reject(error),
+                    () => resolve()
+                );
+            });
+
             const downloadURL = await getDownloadURL(storageRef);
 
-            // Update profile
-            await this.updateUserProfile(uid, { videoIntro: downloadURL });
+            // Update profile (track bytes so storage accounting stays correct on replace)
+            await this.updateUserProfile(uid, { videoIntro: downloadURL, videoIntroBytes: file.size });
+
+            // Best-effort cleanup of any previous object if it lives at a different path.
+            if (previousUrl) {
+                try {
+                    const oldRef = ref(storage, previousUrl);
+                    if (oldRef.fullPath !== storageRef.fullPath) {
+                        await deleteObject(oldRef);
+                    }
+                } catch {
+                    // ignore
+                }
+            }
+
+            // Update ConnektStorage usage
+            if (mailAddress) {
+                if (previousBytes > 0) {
+                    await StorageQuotaService.adjustStorageUsage(mailAddress, file.size - previousBytes, 0, false);
+                } else {
+                    await StorageQuotaService.updateStorageUsage(mailAddress, file.size, false);
+                }
+            }
 
             return downloadURL;
         } catch (error) {

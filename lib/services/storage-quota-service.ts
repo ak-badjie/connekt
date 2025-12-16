@@ -24,6 +24,37 @@ export interface AgencyStorageQuota {
 
 const ONE_GB_IN_BYTES = 1073741824; // 1GB = 1,073,741,824 bytes
 
+async function ensureStorageQuotaDoc(mailAddress: string): Promise<void> {
+    const storageRef = doc(db, 'storage_quotas', mailAddress);
+    const snap = await getDoc(storageRef);
+    if (snap.exists()) return;
+
+    const [username] = mailAddress.split('@');
+    let userId = '';
+
+    try {
+        if (username) {
+            const userRef = await getDoc(doc(db, 'usernames', username.toLowerCase()));
+            if (userRef.exists()) {
+                userId = userRef.data().uid;
+            }
+        }
+    } catch {
+        // ignore
+    }
+
+    await setDoc(storageRef, {
+        userId,
+        mailAddress,
+        totalQuota: ONE_GB_IN_BYTES,
+        usedSpace: 0,
+        filesCount: 0,
+        mailAttachmentsSize: 0,
+        otherFilesSize: 0,
+        lastUpdated: serverTimestamp(),
+    }, { merge: true });
+}
+
 export const StorageQuotaService = {
     /**
      * Initialize storage quota for a new user (1GB)
@@ -86,6 +117,7 @@ export const StorageQuotaService = {
      * Update storage usage when file is uploaded
      */
     async updateStorageUsage(mailAddress: string, fileSize: number, isMailAttachment: boolean = false): Promise<void> {
+        await ensureStorageQuotaDoc(mailAddress);
         const storageRef = doc(db, 'storage_quotas', mailAddress);
 
         const updateData: any = {
@@ -149,6 +181,38 @@ export const StorageQuotaService = {
         } catch (error) {
             console.error('Error sending storage notification:', error);
         }
+    },
+
+    /**
+     * Adjust storage usage by a delta (supports replacements/overwrites).
+     * Use negative deltas to subtract.
+     */
+    async adjustStorageUsage(
+        mailAddress: string,
+        deltaBytes: number,
+        deltaFiles: number = 0,
+        isMailAttachment: boolean = false
+    ): Promise<void> {
+        await ensureStorageQuotaDoc(mailAddress);
+
+        const storageRef = doc(db, 'storage_quotas', mailAddress);
+
+        const updateData: any = {
+            usedSpace: increment(deltaBytes),
+            lastUpdated: serverTimestamp(),
+        };
+
+        if (deltaFiles !== 0) {
+            updateData.filesCount = increment(deltaFiles);
+        }
+
+        if (isMailAttachment) {
+            updateData.mailAttachmentsSize = increment(deltaBytes);
+        } else {
+            updateData.otherFilesSize = increment(deltaBytes);
+        }
+
+        await updateDoc(storageRef, updateData);
     },
 
     /**

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { AuthService } from '@/lib/services/auth-service';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Mail, Lock, User, Briefcase } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Mail, Lock, User, Briefcase } from 'lucide-react';
 import { FloatingShapes } from '@/components/auth/FloatingShapes';
 import { BriefcaseLogo3D } from '@/components/auth/BriefcaseLogo3D';
 import { FcGoogle } from 'react-icons/fc';
@@ -16,6 +16,7 @@ export default function AuthPage() {
     const [mode, setMode] = useState<'login' | 'signup'>('login');
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({ email: '', password: '' });
+    const [isPasswordVisible, setIsPasswordVisible] = useState(false);
     const [error, setError] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -151,13 +152,22 @@ export default function AuthPage() {
                                 <div className="relative">
                                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                                     <input
-                                        type="password"
+                                        type={isPasswordVisible ? 'text' : 'password'}
                                         required
                                         value={formData.password}
                                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                        className="w-full pl-12 pr-4 py-3 bg-white/50 dark:bg-zinc-900/50 border border-gray-300 dark:border-zinc-700 rounded-full focus:ring-2 focus:ring-[#008080] focus:border-transparent outline-none transition-all shadow-sm"
+                                        className="w-full pl-12 pr-12 py-3 bg-white/50 dark:bg-zinc-900/50 border border-gray-300 dark:border-zinc-700 rounded-full focus:ring-2 focus:ring-[#008080] focus:border-transparent outline-none transition-all shadow-sm"
                                         placeholder="••••••••"
                                     />
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsPasswordVisible((v) => !v)}
+                                        onMouseDown={(e) => e.preventDefault()}
+                                        aria-label={isPasswordVisible ? 'Hide password' : 'Show password'}
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                                    >
+                                        {isPasswordVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
                                 </div>
                             </div>
 

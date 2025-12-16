@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Upload, X, Image as ImageIcon, Video, Loader2 } from 'lucide-react';
 import { ProfileService } from '@/lib/services/profile-service';
 import { Button } from '@/components/ui/button';
+import { UploadProgressDialog, UploadDialogStatus } from '@/components/ui/UploadProgressDialog';
 
 interface MediaUploaderProps {
     userId: string;
@@ -13,6 +14,7 @@ interface MediaUploaderProps {
     className?: string;
     maxSizeMB?: number;
     acceptedTypes?: string;
+    username?: string;
 }
 
 export function MediaUploader({
@@ -23,11 +25,21 @@ export function MediaUploader({
     className = '',
     maxSizeMB = 10,
     acceptedTypes = 'image/*,video/*',
+    username,
 }: MediaUploaderProps) {
     const [uploading, setUploading] = useState(false);
     const [progress, setProgress] = useState(0);
     const [preview, setPreview] = useState<string | null>(null);
     const [dragActive, setDragActive] = useState(false);
+
+    const [progressOpen, setProgressOpen] = useState(false);
+    const [status, setStatus] = useState<UploadDialogStatus>('idle');
+    const [bytesTransferred, setBytesTransferred] = useState(0);
+    const [totalBytes, setTotalBytes] = useState(0);
+    const [speedBps, setSpeedBps] = useState<number | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [fileName, setFileName] = useState<string | undefined>(undefined);
+    const lastSampleRef = useRef<{ t: number; bytes: number; speed: number | null } | null>(null);
 
     const handleFile = useCallback(async (file: File) => {
         // Validate file size
@@ -44,6 +56,17 @@ export function MediaUploader({
         setUploading(true);
         setProgress(0);
 
+        if (type === 'video-intro') {
+            setProgressOpen(true);
+            setStatus('uploading');
+            setErrorMessage(null);
+            setBytesTransferred(0);
+            setTotalBytes(file.size);
+            setSpeedBps(null);
+            setFileName(file.name);
+            lastSampleRef.current = { t: Date.now(), bytes: 0, speed: null };
+        }
+
         try {
             let url: string | null = null;
 
@@ -53,9 +76,31 @@ export function MediaUploader({
             } else if (type === 'cover-image') {
                 url = await ProfileService.uploadCoverImage(userId, file);
             } else if (type === 'video-intro') {
-                url = await ProfileService.uploadVideoIntro(userId, file, (prog) => {
-                    setProgress(prog);
-                });
+                url = await ProfileService.uploadVideoIntro(
+                    userId,
+                    file,
+                    (info) => {
+                        setProgress(info.progress);
+                        setBytesTransferred(info.bytesTransferred);
+                        setTotalBytes(info.totalBytes);
+
+                        const now = Date.now();
+                        const last = lastSampleRef.current;
+                        if (!last) {
+                            lastSampleRef.current = { t: now, bytes: info.bytesTransferred, speed: null };
+                            return;
+                        }
+
+                        const dt = (now - last.t) / 1000;
+                        if (dt <= 0 || dt < 0.45) return;
+
+                        const inst = (info.bytesTransferred - last.bytes) / dt;
+                        const smoothed = last.speed == null ? inst : last.speed * 0.7 + inst * 0.3;
+                        lastSampleRef.current = { t: now, bytes: info.bytesTransferred, speed: smoothed };
+                        setSpeedBps(smoothed);
+                    },
+                    username ? { username } : undefined
+                );
             } else if (type === 'portfolio') {
                 const media = await ProfileService.addPortfolioMedia(userId, file);
                 url = media?.url || null;
@@ -64,17 +109,23 @@ export function MediaUploader({
             if (url) {
                 onUploadComplete(url);
                 setProgress(100);
+                if (type === 'video-intro') setStatus('success');
             } else {
                 throw new Error('Upload failed');
             }
         } catch (error) {
             console.error('Upload error:', error);
-            onUploadError?.(error instanceof Error ? error.message : 'Upload failed');
+            const msg = error instanceof Error ? error.message : 'Upload failed';
+            onUploadError?.(msg);
+            if (type === 'video-intro') {
+                setStatus('error');
+                setErrorMessage(msg);
+            }
             setPreview(null);
         } finally {
             setUploading(false);
         }
-    }, [userId, type, maxSizeMB, onUploadComplete, onUploadError]);
+    }, [userId, type, maxSizeMB, onUploadComplete, onUploadError, username]);
 
     const handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -113,6 +164,20 @@ export function MediaUploader({
 
     return (
         <div className={`relative ${className}`}>
+            {type === 'video-intro' ? (
+                <UploadProgressDialog
+                    open={progressOpen}
+                    onOpenChange={setProgressOpen}
+                    title="Uploading Intro Video"
+                    description="Uploading to ConnektStorage"
+                    fileName={fileName}
+                    totalBytes={totalBytes}
+                    bytesTransferred={bytesTransferred}
+                    speedBps={speedBps}
+                    status={status}
+                    errorMessage={errorMessage}
+                />
+            ) : null}
             <div
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}

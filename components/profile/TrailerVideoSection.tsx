@@ -1,20 +1,31 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Video, Upload, X, Loader2 } from 'lucide-react';
 import { ProfileService } from '@/lib/services/profile-service';
 import { cn } from '@/lib/utils';
+import { UploadProgressDialog, UploadDialogStatus } from '@/components/ui/UploadProgressDialog';
 
 interface TrailerVideoSectionProps {
     videoUrl?: string;
     isOwner: boolean;
     uid: string;
+    username?: string;
     onUpdate: (url: string) => void;
 }
 
-export function TrailerVideoSection({ videoUrl, isOwner, uid, onUpdate }: TrailerVideoSectionProps) {
+export function TrailerVideoSection({ videoUrl, isOwner, uid, username, onUpdate }: TrailerVideoSectionProps) {
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const [progressOpen, setProgressOpen] = useState(false);
+    const [status, setStatus] = useState<UploadDialogStatus>('idle');
+    const [bytesTransferred, setBytesTransferred] = useState(0);
+    const [totalBytes, setTotalBytes] = useState(0);
+    const [speedBps, setSpeedBps] = useState<number | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [fileName, setFileName] = useState<string | undefined>(undefined);
+    const lastSampleRef = useRef<{ t: number; bytes: number; speed: number | null } | null>(null);
 
     const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -33,13 +44,54 @@ export function TrailerVideoSection({ videoUrl, isOwner, uid, onUpdate }: Traile
         }
 
         setUploading(true);
+        setProgressOpen(true);
+        setStatus('uploading');
+        setErrorMessage(null);
+        setBytesTransferred(0);
+        setTotalBytes(file.size);
+        setSpeedBps(null);
+        setFileName(file.name);
+        lastSampleRef.current = { t: Date.now(), bytes: 0, speed: null };
         try {
-            const url = await ProfileService.uploadVideoIntro(uid, file);
+            const url = await ProfileService.uploadVideoIntro(
+                uid,
+                file,
+                (info) => {
+                    setBytesTransferred(info.bytesTransferred);
+                    setTotalBytes(info.totalBytes);
+
+                    const now = Date.now();
+                    const last = lastSampleRef.current;
+                    if (!last) {
+                        lastSampleRef.current = { t: now, bytes: info.bytesTransferred, speed: null };
+                        return;
+                    }
+
+                    const dt = (now - last.t) / 1000;
+                    if (dt <= 0) return;
+
+                    // Update speed at ~2Hz to reduce jitter.
+                    if (dt < 0.45) return;
+
+                    const inst = (info.bytesTransferred - last.bytes) / dt;
+                    const smoothed = last.speed == null ? inst : last.speed * 0.7 + inst * 0.3;
+
+                    lastSampleRef.current = { t: now, bytes: info.bytesTransferred, speed: smoothed };
+                    setSpeedBps(smoothed);
+                },
+                username ? { username } : undefined
+            );
             if (url) {
                 onUpdate(url);
+                setStatus('success');
+            } else {
+                setStatus('error');
+                setErrorMessage('Upload failed.');
             }
         } catch (error) {
             console.error('Error uploading video:', error);
+            setStatus('error');
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to upload video');
             alert('Failed to upload video');
         } finally {
             setUploading(false);
@@ -49,17 +101,28 @@ export function TrailerVideoSection({ videoUrl, isOwner, uid, onUpdate }: Traile
     if (!videoUrl && !isOwner) return null;
 
     return (
-        <div className="profile-section">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <Video className="w-6 h-6 text-teal-600" />
-                Video Introduction
-            </h3>
+        <div className="relative">
+            <UploadProgressDialog
+                open={progressOpen}
+                onOpenChange={setProgressOpen}
+                title="Uploading Intro Video"
+                description="Uploading to ConnektStorage"
+                fileName={fileName}
+                totalBytes={totalBytes}
+                bytesTransferred={bytesTransferred}
+                speedBps={speedBps}
+                status={status}
+                errorMessage={errorMessage}
+            />
 
-            <div className="aspect-video rounded-2xl overflow-hidden bg-black relative group border border-gray-200 dark:border-zinc-800">
+            <div className="aspect-video rounded-3xl overflow-hidden bg-transparent relative group">
                 {videoUrl ? (
                     <>
                         <video
                             src={videoUrl}
+                            autoPlay
+                            muted
+                            playsInline
                             controls
                             className="w-full h-full object-cover"
                         />
@@ -77,7 +140,7 @@ export function TrailerVideoSection({ videoUrl, isOwner, uid, onUpdate }: Traile
                     </>
                 ) : (
                     <div
-                        className="w-full h-full flex flex-col items-center justify-center bg-gray-50 dark:bg-zinc-900 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+                        className="w-full h-full flex flex-col items-center justify-center bg-black/20 cursor-pointer hover:bg-black/30 transition-colors"
                         onClick={() => isOwner && fileInputRef.current?.click()}
                     >
                         {uploading ? (
@@ -86,8 +149,8 @@ export function TrailerVideoSection({ videoUrl, isOwner, uid, onUpdate }: Traile
                                 <span className="text-sm font-medium">Uploading video...</span>
                             </div>
                         ) : (
-                            <div className="flex flex-col items-center gap-2 text-gray-400 dark:text-gray-500">
-                                <div className="p-4 bg-white dark:bg-zinc-800 rounded-full shadow-sm">
+                            <div className="flex flex-col items-center gap-2 text-gray-200">
+                                <div className="p-4 bg-black/30 backdrop-blur-md rounded-full">
                                     <Upload className="w-8 h-8" />
                                 </div>
                                 <span className="font-medium">Upload Trailer Video</span>
@@ -96,6 +159,13 @@ export function TrailerVideoSection({ videoUrl, isOwner, uid, onUpdate }: Traile
                         )}
                     </div>
                 )}
+
+                <div className="absolute top-4 left-4 pointer-events-none">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-black/40 backdrop-blur-md text-white">
+                        <Video className="w-5 h-5 text-teal-300" />
+                        <span className="text-sm font-semibold">Video Introduction</span>
+                    </div>
+                </div>
 
                 <input
                     ref={fileInputRef}
