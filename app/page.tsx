@@ -5,6 +5,7 @@ import { motion, useSpring, useTransform, AnimatePresence, LayoutGroup } from 'f
 import { ChevronDown } from 'lucide-react';
 
 // --- CONTEXT IMPORTS ---
+// Adjust these paths based on your actual file structure
 import LoadingScreen from '@/components/ui/LoadingScreen';
 import MetallicPaint from '@/components/ui/MetallicPaint';
 import { useMinimumLoading } from '@/hooks/useMinimumLoading';
@@ -218,6 +219,7 @@ RotatingText.displayName = 'RotatingText';
 // ==========================================
 // 2. METALLIC HERO ASSETS (SVG MARKUP)
 // ==========================================
+
 const CONNEKT_ICON_SVG = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
   <rect width="100%" height="100%" fill="white" />
@@ -226,11 +228,13 @@ const CONNEKT_ICON_SVG = `
 </svg>
 `;
 
-// Wordmark as paths (reliable rasterization in <img>)
+// FIXED WORDMARK: 
+// 1. viewBox="-5 5 260 55" to prevent the "C" from clipping.
+// 2. stroke-width="6.5" to make it BOLD/HEAVY for better metallic reflection.
 const CONNEKT_WORDMARK_SVG = `
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="20 13.15999984741211 223.3300018310547 37.869998931884766" width="1000" height="500">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-5 5 260 55" width="1000" height="250">
   <rect width="100%" height="100%" fill="white" />
-  <g fill="black" stroke="black" stroke-width="2.2" paint-order="stroke fill" stroke-linejoin="round">
+  <g fill="black" stroke="black" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round" paint-order="stroke fill">
     <g transform="translate(0, 0)">
       <path d="M30.15 47.63Q28.81 48.22 27.72 48.73Q26.64 49.24 24.88 49.80Q23.39 50.27 21.64 50.60Q19.90 50.93 17.80 50.93Q13.84 50.93 10.61 49.82Q7.37 48.71 4.98 46.34Q2.64 44.02 1.32 40.44Q0 36.87 0 32.13Q0 27.64 1.27 24.10Q2.54 20.56 4.93 18.12Q7.25 15.75 10.53 14.50Q13.82 13.26 17.82 13.26Q20.75 13.26 23.67 13.96Q26.59 14.67 30.15 16.46L30.15 22.19L29.79 22.19Q26.78 19.68 23.83 18.53Q20.87 17.38 17.50 17.38Q14.75 17.38 12.54 18.27Q10.33 19.17 8.59 21.04Q6.91 22.88 5.97 25.67Q5.03 28.47 5.03 32.13Q5.03 35.96 6.07 38.72Q7.10 41.48 8.74 43.21Q10.45 45.02 12.73 45.89Q15.01 46.75 17.55 46.75Q21.04 46.75 24.10 45.56Q27.15 44.36 29.81 41.97L30.15 41.97L30.15 47.63ZM64.09 18.09Q66.31 20.53 67.49 24.07Q68.68 27.61 68.68 32.10Q68.68 36.60 67.47 40.15Q66.26 43.70 64.09 46.07Q61.84 48.54 58.78 49.78Q55.71 51.03 51.78 51.03Q47.95 51.03 44.81 49.76Q41.67 48.49 39.48 46.07Q37.28 43.65 36.10 40.14Q34.91 36.62 34.91 32.10Q34.91 27.66 36.08 24.13Q37.26 20.61 39.50 18.09Q41.65 15.70 44.84 14.43Q48.02 13.16 51.78 13.16Q55.69 13.16 58.80 14.44Q61.91 15.72 64.09 18.09M63.65 32.10Q63.65 25.02 60.47 21.18Q57.30 17.33 51.81 17.33Q46.26 17.33 43.10 21.18Q39.94 25.02 39.94 32.10Q39.94 39.26 43.16 43.05Q46.39 46.85 51.81 46.85Q57.23 46.85 60.44 43.05Q63.65 39.26 63.65 32.10ZM104.08 50.27L98.10 50.27L80.86 17.75L80.86 50.27L76.34 50.27L76.34 13.92L83.84 13.92L99.56 43.60L99.56 13.92L104.08 13.92L104.08 50.27ZM141.48 50.27L135.50 50.27L118.26 17.75L118.26 50.27L113.75 50.27L113.75 13.92L121.24 13.92L136.96 43.60L136.96 13.92L141.48 13.92L141.48 50.27ZM175.10 50.27L151.15 50.27L151.15 13.92L175.10 13.92L175.10 18.21L155.98 18.21L155.98 28.17L175.10 28.17L175.10 32.47L155.98 32.47L155.98 45.97L175.10 45.97L175.10 50.27ZM211.99 50.27L205.71 50.27L191.33 34.08L187.72 37.94L187.72 50.27L182.89 50.27L182.89 13.92L187.72 13.92L187.72 32.89L205.37 13.92L211.23 13.92L195.00 31.01L211.99 50.27ZM243.33 18.21L230.35 18.21L230.35 50.27L225.51 50.27L225.51 18.21L212.52 18.21L212.52 13.92L243.33 13.92L243.33 18.21Z"/>
     </g>
@@ -243,30 +247,36 @@ const CONNEKT_WORDMARK_SVG = `
 // ==========================================
 const MetallicLogoGroup = () => {
     return (
-    <div className="flex flex-col md:flex-row items-center justify-center gap-2 md:gap-3 mt-10 md:mt-0">
+    <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8 mt-10 md:mt-0">
             {/* SVG LOGO */}
             <motion.div 
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 1, ease: "easeOut" }}
-        className="w-28 h-28 md:w-44 md:h-44 relative"
+                className="w-24 h-24 md:w-32 md:h-32 relative shrink-0"
             >
-        <MetallicPaint
-          svg={CONNEKT_ICON_SVG}
-          className="block w-full h-full"
-        />
+                <MetallicPaint
+                  svg={CONNEKT_ICON_SVG}
+                  className="block w-full h-full"
+                />
             </motion.div>
 
-      {/* METALLIC TEXT */}
+      {/* METALLIC TEXT - SIGNIFICANTLY INCREASED SIZE */}
+      {/* w-[95vw] on mobile, w-[70rem] on desktop */}
       <motion.div
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 1, duration: 1 }}
-        className="relative w-[min(96vw,64rem)] h-24 md:h-40"
+        transition={{ delay: 0.5, duration: 1 }}
+        className="relative w-[95vw] md:w-[70rem] h-24 md:h-52"
       >
         <MetallicPaint
           svg={CONNEKT_WORDMARK_SVG}
           className="block w-full h-full"
+          params={{
+              speed: 0.2,   // Slower speed for heavier look
+              liquid: 0.1,  // Enhanced liquid distortion
+              edge: 0.5     // Softer edges
+          }}
         />
       </motion.div>
         </div>
@@ -409,7 +419,6 @@ export default function LandingPage() {
                                         "Borders",
                                         "Limits"
                                     ]}
-                                    // FIXED: Using text-white ensures high contrast against dark pill background
                                     mainClassName="text-white font-extrabold"
                                     rotationInterval={3000}
                                     staggerDuration={0.05}

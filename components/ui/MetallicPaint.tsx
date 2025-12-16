@@ -25,7 +25,7 @@ export type ParsedLogoResult = {
   pngBlob: Blob;
 };
 
-// --- Existing Parsing Logic (kept equivalent, with TS + safer guards) ---
+// --- Helper: Parse Image/SVG to ImageData ---
 export function parseLogoImage(file: File): Promise<ParsedLogoResult> {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
@@ -218,6 +218,8 @@ export function parseLogoImage(file: File): Promise<ParsedLogoResult> {
   });
 }
 
+// --- Shader Sources ---
+
 const vertexShaderSource = `#version 300 es
 precision mediump float;
 
@@ -374,7 +376,8 @@ void main() {
     float stripe_r = mod(dir + refr_r, 1.);
     float r = get_color_channel(color1.r, color2.r, stripe_r, w, 0.02 + .03 * u_refraction * bulge, bulge);
     float stripe_g = mod(dir, 1.);
-    float g = get_color_channel(color1.g, color2.g, stripe_g, w, 0.01 / (1. - diagonal), bulge);
+    // --- FIX APPLIED HERE: Replaced unstable diagonal calc with constant 0.015 ---
+    float g = get_color_channel(color1.g, color2.g, stripe_g, w, 0.015, bulge);
     float stripe_b = mod(dir - refr_b, 1.);
     float b = get_color_channel(color1.b, color2.b, stripe_b, w, .01, bulge);
     color = vec3(r, g, b);
@@ -382,6 +385,8 @@ void main() {
     fragColor = vec4(color, opacity);
 }
 `;
+
+// --- WebGL Helper Functions ---
 
 function createShader(gl: WebGL2RenderingContext, sourceCode: string, type: number) {
   const shader = gl.createShader(type);
@@ -417,6 +422,7 @@ export type MetallicPaintProps = {
   className?: string;
 };
 
+// --- Main Component ---
 export default function MetallicPaint({
   imageData: propImageData,
   svg,
