@@ -15,7 +15,7 @@ const SPRING_OPTIONS = {
     damping: 12,
     mass: 1.2,
 };
-
+    
 // --- DATA ---
 const SECTIONS = [
     { id: 'hero', type: 'hero' },
