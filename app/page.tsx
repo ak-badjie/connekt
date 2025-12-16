@@ -228,9 +228,6 @@ const CONNEKT_ICON_SVG = `
 </svg>
 `;
 
-// FIXED WORDMARK: 
-// 1. viewBox="-5 5 260 55" to prevent the "C" from clipping.
-// 2. stroke-width="6.5" to make it BOLD/HEAVY for better metallic reflection.
 const CONNEKT_WORDMARK_SVG = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-5 5 260 55" width="1000" height="250">
   <rect width="100%" height="100%" fill="white" />
@@ -247,13 +244,15 @@ const CONNEKT_WORDMARK_SVG = `
 // ==========================================
 const MetallicLogoGroup = () => {
     return (
-    <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8 mt-10 md:mt-0">
+    // UPDATED: Removed gap completely (gap-0) and used items-center
+    <div className="flex flex-col md:flex-row items-center justify-center gap-0 mt-10 md:mt-0">
             {/* SVG LOGO */}
             <motion.div 
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 1, ease: "easeOut" }}
-                className="w-24 h-24 md:w-32 md:h-32 relative shrink-0"
+                // UPDATED: Added z-10 to ensure logo sits above text if they overlap slightly
+                className="w-24 h-24 md:w-32 md:h-32 relative shrink-0 z-10"
             >
                 <MetallicPaint
                   svg={CONNEKT_ICON_SVG}
@@ -261,13 +260,13 @@ const MetallicLogoGroup = () => {
                 />
             </motion.div>
 
-      {/* METALLIC TEXT - SIGNIFICANTLY INCREASED SIZE */}
-      {/* w-[95vw] on mobile, w-[70rem] on desktop */}
+      {/* METALLIC TEXT */}
+      {/* UPDATED: Added Negative Margins (-mt-10 for mobile, -ml-24 for desktop) to pull them very close */}
       <motion.div
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: 0.5, duration: 1 }}
-        className="relative w-[95vw] md:w-[70rem] h-24 md:h-52"
+        className="relative w-[95vw] md:w-[70rem] h-24 md:h-52 -mt-10 md:mt-0 md:-ml-24"
       >
         <MetallicPaint
           svg={CONNEKT_WORDMARK_SVG}
