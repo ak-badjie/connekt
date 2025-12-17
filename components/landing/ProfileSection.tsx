@@ -325,6 +325,7 @@ const BubbleFeature = ({ id, icon: Icon, label, subLabel, className, show }: Bub
 // --- Sequenced Schematic Component (REFACTORED FOR SMOOTHNESS) ---
 const SchematicSequence = () => {
     const updateXarrow = useXarrow();
+  const updateXarrowRef = useRef(updateXarrow);
     const containerRef = useRef(null);
     const isInView = useInView(containerRef, { amount: 0.4, once: false });
     
@@ -351,10 +352,14 @@ const SchematicSequence = () => {
         }
     }, [isInView]);
 
+    useEffect(() => {
+      updateXarrowRef.current = updateXarrow;
+    }, [updateXarrow]);
+
     // Force redraw on window resize or step change
     useEffect(() => {
-        updateXarrow();
-    }, [sequenceStep, updateXarrow]);
+      updateXarrowRef.current();
+    }, [sequenceStep]);
 
     // Helper to calculate visibility
     const isVisible = (stepThreshold: number) => sequenceStep >= stepThreshold;
