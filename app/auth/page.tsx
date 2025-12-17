@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useMemo, useCallback, useId } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { Eye, EyeOff, Loader2, Mail, Lock } from 'lucide-react';
 import { FcGoogle } from 'react-icons/fc';
 import { Renderer, Program, Triangle, Mesh } from 'ogl';
@@ -11,16 +11,15 @@ import ConnektStorageIcon from '@/components/branding/ConnektStorageIcon';
 import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
 import ConnektWalletIcon from '@/components/branding/ConnektWalletIcon';
 import ConnektTeamsIcon from '@/components/branding/ConnektTeamsIcon';
+import { AuthService } from '@/lib/services/auth-service';
 
 // ==========================================
 // 0. HELPER FUNCTIONS
 // ==========================================
 
 const hexToRgb = (hex: string) => {
-    // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
     const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
     hex = hex.replace(shorthandRegex, (m, r, g, b) => r + r + g + g + b + b);
-
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result
         ? [parseInt(result[1], 16) / 255, parseInt(result[2], 16) / 255, parseInt(result[3], 16) / 255]
@@ -53,7 +52,7 @@ const getAttr = (distance: number, maxDist: number, minVal: number, maxVal: numb
 };
 
 // ==========================================
-// 1. LIGHT RAYS BACKGROUND (OGL) - FIXED
+// 1. LIGHT RAYS BACKGROUND (OGL)
 // ==========================================
 
 const LightRays = ({
@@ -82,7 +81,6 @@ const LightRays = ({
     const followMouseRef = useRef(followMouse);
     const raysOriginRef = useRef(raysOrigin);
 
-    // 1. Initialization
     useEffect(() => {
         if (!containerRef.current) return;
 
@@ -171,8 +169,6 @@ const LightRays = ({
                         rays = mix(vec3(gray), rays, saturation);
                     }
                     rays *= raysColor;
-
-                    // Opaque, black-based output
                     fragColor = vec4(rays, 1.0);
                 }
 
@@ -246,16 +242,12 @@ const LightRays = ({
             }
             if (resizeHandlerRef.current) window.removeEventListener('resize', resizeHandlerRef.current);
         };
-    }, []); // Run Once on Mount
+    }, []);
 
-    // 2. Reactive Updates (THE FIX)
-    // This hook listens to prop changes and pushes them to WebGL immediately
     useEffect(() => {
         if (!uniformsRef.current) return;
-
         followMouseRef.current = followMouse;
         raysOriginRef.current = raysOrigin;
-        
         uniformsRef.current.raysColor.value = hexToRgb(raysColor);
         uniformsRef.current.raysSpeed.value = raysSpeed;
         uniformsRef.current.lightSpread.value = lightSpread;
@@ -266,8 +258,6 @@ const LightRays = ({
         uniformsRef.current.mouseInfluence.value = mouseInfluence;
         uniformsRef.current.noiseAmount.value = noiseAmount;
         uniformsRef.current.distortion.value = distortion;
-        
-        // Handle Origin updates which require recalculating position
         const gl = rendererRef.current?.gl;
         if (gl) {
             const width = gl.canvas.width;
@@ -276,14 +266,8 @@ const LightRays = ({
             uniformsRef.current.rayPos.value = anchor;
             uniformsRef.current.rayDir.value = dir;
         }
+    }, [raysColor, raysSpeed, lightSpread, rayLength, pulsating, fadeDistance, saturation, mouseInfluence, noiseAmount, distortion, raysOrigin]);
 
-    }, [
-        raysColor, raysSpeed, lightSpread, rayLength, pulsating, 
-        fadeDistance, saturation, mouseInfluence, noiseAmount, 
-        distortion, raysOrigin
-    ]);
-
-    // 3. Mouse Logic
     useEffect(() => {
         const handleMouseMove = (e: MouseEvent) => {
             if (!containerRef.current) return;
@@ -299,6 +283,60 @@ const LightRays = ({
 
     return (
         <div ref={containerRef} className={`absolute inset-0 z-0 pointer-events-none ${className}`} />
+    );
+};
+
+// ==========================================
+// 1.5 NEW LIQUID GLASS SURFACE (CSS ONLY)
+// ==========================================
+
+const GlassSurface = ({
+    children,
+    className = '',
+    intensity = 'medium', // low, medium, high
+    style = {}
+}: any) => {
+    
+    // Maps for different glass intensities
+    const intensities = {
+        low: 'backdrop-blur-md bg-white/5 border-white/10',
+        medium: 'backdrop-blur-xl bg-white/10 border-white/20',
+        high: 'backdrop-blur-3xl bg-white/15 border-white/30',
+    };
+
+    return (
+        <div 
+            className={`
+                relative overflow-hidden
+                ${intensities[intensity] || intensities.medium}
+                border
+                shadow-[0_8px_32px_0_rgba(0,0,0,0.36)]
+                ${className}
+            `}
+            style={{
+                ...style,
+                // The "Liquid" magic: subtle gradient + inner highlights
+                boxShadow: `
+                    0 8px 32px 0 rgba(0, 0, 0, 0.36), 
+                    inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+                    inset 0 1px 0 0 rgba(255, 255, 255, 0.2)
+                `,
+            }}
+        >
+            {/* Subtle Noise Texture for realism */}
+            <div 
+                className="absolute inset-0 opacity-[0.03] pointer-events-none mix-blend-overlay"
+                style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}
+            />
+            
+            {/* Liquid Shine Gradient */}
+            <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent pointer-events-none" />
+            
+            {/* Content */}
+            <div className="relative z-10 h-full">
+                {children}
+            </div>
+        </div>
     );
 };
 
@@ -436,12 +474,6 @@ function ConnektIcon({ className = '' }: { className?: string }) {
 // 4. MAIN AUTH PAGE
 // ==========================================
 
-const AuthService = {
-    loginWithEmail: async (e: string, p: string) => new Promise(resolve => setTimeout(resolve, 1500)),
-    registerWithEmail: async (e: string, p: string) => new Promise(resolve => setTimeout(resolve, 1500)),
-    loginWithGoogle: async () => new Promise(resolve => setTimeout(resolve, 1500)),
-};
-
 export default function AuthPage() {
     const router = useRouter();
     const [mode, setMode] = useState<'login' | 'signup'>('login');
@@ -449,6 +481,68 @@ export default function AuthPage() {
     const [formData, setFormData] = useState({ email: '', password: '' });
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
     const [error, setError] = useState('');
+
+    const signupPhrases = useMemo(
+        () => [
+            'Start your professional journey',
+            'Build your portfolio and reputation',
+            'Find projects that match your skills',
+            'Collaborate with teams and agencies',
+            'Let AI accelerate your workflow'
+        ],
+        []
+    );
+
+    const [phraseIndex, setPhraseIndex] = useState(0);
+    const [typed, setTyped] = useState('');
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    useEffect(() => {
+        if (mode !== 'signup') return;
+
+        const full = signupPhrases[phraseIndex] ?? '';
+        const nextText = isDeleting ? full.slice(0, Math.max(0, typed.length - 1)) : full.slice(0, typed.length + 1);
+        const isDoneTyping = !isDeleting && nextText.length === full.length;
+        const isDoneDeleting = isDeleting && nextText.length === 0;
+
+        const baseDelay = isDeleting ? 28 : 36;
+        const pauseDelay = isDoneTyping ? 900 : isDoneDeleting ? 320 : 0;
+
+        const id = window.setTimeout(() => {
+            setTyped(nextText);
+
+            if (isDoneTyping) setIsDeleting(true);
+            if (isDoneDeleting) {
+                setIsDeleting(false);
+                setPhraseIndex((i) => (i + 1) % signupPhrases.length);
+            }
+        }, baseDelay + pauseDelay);
+
+        return () => window.clearTimeout(id);
+    }, [mode, isDeleting, phraseIndex, signupPhrases, typed.length, typed, setTyped]);
+
+    // 3D Tilt (mouse-driven)
+    const tiltRef = useRef<HTMLDivElement>(null);
+    const tiltX = useMotionValue(0);
+    const tiltY = useMotionValue(0);
+    const rotateX = useSpring(useTransform(tiltY, [-0.5, 0.5], [10, -10]), { stiffness: 220, damping: 18, mass: 0.6 });
+    const rotateY = useSpring(useTransform(tiltX, [-0.5, 0.5], [-12, 12]), { stiffness: 220, damping: 18, mass: 0.6 });
+    const cardScale = useSpring(0.9, { stiffness: 220, damping: 18, mass: 0.6 });
+
+    const onTiltMove = (e: React.MouseEvent) => {
+        const el = tiltRef.current;
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width - 0.5;
+        const y = (e.clientY - rect.top) / rect.height - 0.5;
+        tiltX.set(x);
+        tiltY.set(y);
+    };
+
+    const onTiltLeave = () => {
+        tiltX.set(0);
+        tiltY.set(0);
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -459,15 +553,28 @@ export default function AuthPage() {
             else await AuthService.registerWithEmail(formData.email, formData.password);
             router.push('/onboarding');
         } catch (err: any) {
-            setError('Authentication failed');
+            const code = err?.code as string | undefined;
+            if (code === 'auth/invalid-credential' || code === 'auth/wrong-password') setError('Invalid email or password');
+            else if (code === 'auth/user-not-found') setError('No account found for that email');
+            else if (code === 'auth/email-already-in-use') setError('That email is already in use');
+            else if (code === 'auth/weak-password') setError('Password is too weak');
+            else setError('Authentication failed');
         } finally {
             setLoading(false);
         }
     };
 
     const handleGoogle = async () => {
-        try { await AuthService.loginWithGoogle(); router.push('/onboarding'); }
-        catch (err) { setError('Google sign in failed'); }
+        setError('');
+        setLoading(true);
+        try {
+            await AuthService.loginWithGoogle();
+            router.push('/onboarding');
+        } catch (err: any) {
+            setError('Google sign in failed');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -478,16 +585,16 @@ export default function AuthPage() {
                 raysColor="#14b8a6" // Teal
                 raysOrigin="top-center"
                 raysSpeed={0.5}
-                lightSpread={0.5}     // Tweak this: Lower = tighter beams
-                rayLength={10}       // Tweak this: Higher = longer rays
-                mouseInfluence={1}    // Tweak this: 0.5 makes it follow mouse
-                distortion={0.01}      // Tweak this: 1.0 adds wobble
+                lightSpread={0.5}     
+                rayLength={10}       
+                mouseInfluence={1}    
+                distortion={0.01}      
             />
 
             {/* MAIN CONTENT CONTAINER */}
             <div className="relative z-10 w-full min-h-screen flex flex-col lg:flex-row p-4 lg:p-0">
 
-                {/* LEFT CONTENT AREA */}
+                {/* LEFT CONTENT AREA (Unchanged) */}
                 <div className="w-full lg:w-[60%] flex flex-col justify-center items-center lg:items-start lg:pl-20 xl:pl-32 pt-10 lg:pt-0 space-y-8">
                     
                     <div className="w-full max-w-2xl flex flex-col items-center gap-2 transform hover:scale-105 transition-transform duration-500">
@@ -554,106 +661,157 @@ export default function AuthPage() {
                     </div>
                 </div>
 
-                {/* RIGHT AUTH AREA */}
+                {/* RIGHT AUTH AREA - FIXED */}
                 <div className="w-full lg:w-[40%] flex items-center justify-center p-6 lg:p-12">
                     
                     <motion.div
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.8, ease: "easeOut" }}
-                        className="w-full max-w-md relative group"
+                        transition={{ duration: 0.8, ease: 'easeOut' }}
+                        className="w-full max-w-[420px]"
+                        style={{ perspective: 1200 }}
                     >
-                        <div className="absolute -inset-1 bg-gradient-to-r from-teal-500/20 to-emerald-500/20 rounded-[2rem] blur-2xl opacity-75 group-hover:opacity-100 transition duration-1000"></div>
-                        
-                        <div className="relative backdrop-blur-[40px] bg-white/[0.03] border border-white/20 shadow-[inset_0_0_40px_rgba(255,255,255,0.05)] rounded-[2rem] p-8 md:p-10 overflow-hidden">
-                            
-                            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-white/10 to-transparent pointer-events-none" />
+                        <motion.div
+                            ref={tiltRef}
+                            onMouseMove={onTiltMove}
+                            onMouseLeave={onTiltLeave}
+                            style={{ rotateX, rotateY, scale: cardScale, transformStyle: 'preserve-3d' as any }}
+                            className="will-change-transform"
+                        >
+                            <GlassSurface
+                                intensity="high"
+                                className="rounded-[32px] p-8 md:p-10 border-white/20"
+                            >
+                                {/* Switcher (Login/Signup) */}
+                                <div className="flex items-center justify-center mb-8">
+                                    <div className="relative flex p-1 rounded-full bg-black/20 backdrop-blur-md border border-white/5 shadow-inner">
+                                        <div 
+                                            className={`absolute inset-y-1 rounded-full bg-teal-500/20 border border-teal-500/30 transition-all duration-300 ease-out`}
+                                            style={{
+                                                width: 'calc(50% - 4px)',
+                                                left: mode === 'login' ? '4px' : '50%'
+                                            }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setMode('login')}
+                                            className={`relative z-10 w-32 h-9 rounded-full text-xs font-bold tracking-widest transition-colors duration-300 ${mode === 'login' ? 'text-white' : 'text-white/40 hover:text-white/70'}`}
+                                        >
+                                            SIGN IN
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setMode('signup')}
+                                            className={`relative z-10 w-32 h-9 rounded-full text-xs font-bold tracking-widest transition-colors duration-300 ${mode === 'signup' ? 'text-white' : 'text-white/40 hover:text-white/70'}`}
+                                        >
+                                            SIGN UP
+                                        </button>
+                                    </div>
+                                </div>
 
-                            <div className="relative z-10">
-                                <h3 className="text-3xl font-bold text-white mb-2 text-center">
+                                <h3 className="text-3xl font-bold text-white mb-2 text-center drop-shadow-md">
                                     {mode === 'login' ? 'Sign In' : 'Join Connekt'}
                                 </h3>
-                                <p className="text-white/50 text-center mb-8 text-sm">
-                                    {mode === 'login' ? 'Access your workspace' : 'Start your professional journey'}
-                                </p>
+                                <div className="text-teal-100/60 text-center mb-8 text-sm min-h-[20px] font-medium tracking-wide">
+                                    {mode === 'login' ? (
+                                        'Access your workspace'
+                                    ) : (
+                                        <span>
+                                            {typed}
+                                            <span className="inline-block w-[2px] h-[14px] bg-teal-400 ml-1 translate-y-[2px] animate-pulse"></span>
+                                        </span>
+                                    )}
+                                </div>
 
                                 <form onSubmit={handleSubmit} className="space-y-5">
-                                    <div className="space-y-1">
-                                        <label className="text-xs font-bold text-white/40 uppercase tracking-widest ml-1">Email</label>
+                                    {/* Email Input */}
+                                    <div className="space-y-1.5 group">
+                                        <label className="text-[11px] font-bold text-teal-100/40 uppercase tracking-widest ml-1 transition-colors group-focus-within:text-teal-400">Email</label>
                                         <div className="relative">
-                                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" size={18} />
-                                            <input
-                                                type="email"
-                                                required
-                                                value={formData.email}
-                                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                                className="w-full pl-12 pr-4 py-4 bg-black/20 border border-white/10 rounded-xl focus:ring-1 focus:ring-teal-400 focus:border-teal-400/50 outline-none transition-all text-white placeholder-white/20"
-                                                placeholder="name@connekt.com"
-                                            />
+                                            <div className="absolute inset-0 bg-black/20 rounded-xl blur-[1px]" />
+                                            <div className="relative flex items-center bg-white/5 border border-white/10 rounded-xl px-4 h-14 transition-all duration-300 group-focus-within:bg-white/10 group-focus-within:border-teal-500/50 group-focus-within:shadow-[0_0_15px_rgba(20,184,166,0.15)]">
+                                                <Mail className="text-white/40 group-focus-within:text-teal-400 transition-colors mr-3" size={18} />
+                                                <input
+                                                    type="email"
+                                                    required
+                                                    value={formData.email}
+                                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                                    className="w-full bg-transparent outline-none text-white placeholder-white/20 font-medium"
+                                                    placeholder="name@connekt.com"
+                                                    autoComplete="email"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div className="space-y-1">
-                                        <label className="text-xs font-bold text-white/40 uppercase tracking-widest ml-1">Password</label>
+                                    {/* Password Input */}
+                                    <div className="space-y-1.5 group">
+                                        <label className="text-[11px] font-bold text-teal-100/40 uppercase tracking-widest ml-1 transition-colors group-focus-within:text-teal-400">Password</label>
                                         <div className="relative">
-                                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" size={18} />
-                                            <input
-                                                type={isPasswordVisible ? 'text' : 'password'}
-                                                required
-                                                value={formData.password}
-                                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                                className="w-full pl-12 pr-12 py-4 bg-black/20 border border-white/10 rounded-xl focus:ring-1 focus:ring-teal-400 focus:border-teal-400/50 outline-none transition-all text-white placeholder-white/20"
-                                                placeholder="••••••••"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => setIsPasswordVisible(!isPasswordVisible)}
-                                                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
-                                            >
-                                                {isPasswordVisible ? <EyeOff size={18} /> : <Eye size={18} />}
-                                            </button>
+                                            <div className="absolute inset-0 bg-black/20 rounded-xl blur-[1px]" />
+                                            <div className="relative flex items-center bg-white/5 border border-white/10 rounded-xl px-4 h-14 transition-all duration-300 group-focus-within:bg-white/10 group-focus-within:border-teal-500/50 group-focus-within:shadow-[0_0_15px_rgba(20,184,166,0.15)]">
+                                                <Lock className="text-white/40 group-focus-within:text-teal-400 transition-colors mr-3" size={18} />
+                                                <input
+                                                    type={isPasswordVisible ? 'text' : 'password'}
+                                                    required
+                                                    value={formData.password}
+                                                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                                    className="w-full bg-transparent outline-none text-white placeholder-white/20 font-medium"
+                                                    placeholder="••••••••"
+                                                    autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setIsPasswordVisible(!isPasswordVisible)}
+                                                    className="text-white/40 hover:text-white transition-colors p-2 -mr-2"
+                                                >
+                                                    {isPasswordVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
 
                                     {error && (
-                                        <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center">
+                                        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-red-200 text-sm text-center font-medium backdrop-blur-sm">
                                             {error}
                                         </div>
                                     )}
 
-                                    <button
-                                        type="submit"
-                                        disabled={loading}
-                                        className="w-full py-4 mt-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white rounded-xl font-bold text-lg shadow-lg shadow-teal-900/50 transition-all transform hover:scale-[1.01] flex items-center justify-center gap-2"
+                                    {/* Submit Button - Liquid Metal Look */}
+                                    <button 
+                                        type="submit" 
+                                        disabled={loading} 
+                                        className="relative w-full h-14 rounded-xl overflow-hidden group outline-none"
                                     >
-                                        {loading ? <Loader2 className="animate-spin" /> : (mode === 'login' ? 'Enter' : 'Create Account')}
+                                        <div className="absolute inset-0 bg-gradient-to-r from-teal-600 to-teal-400 transition-all duration-300 group-hover:scale-105" />
+                                        <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors" />
+                                        
+                                        {/* Glossy sheen overlay */}
+                                        <div className="absolute inset-0 opacity-20 bg-gradient-to-b from-white/50 to-transparent pointer-events-none" />
+                                        
+                                        <div className="relative z-10 flex items-center justify-center gap-2 text-white font-bold text-base tracking-wide uppercase shadow-sm">
+                                            {loading ? <Loader2 className="animate-spin" /> : (mode === 'login' ? 'Enter Connekt' : 'Create Account')}
+                                        </div>
                                     </button>
                                 </form>
 
-                                <div className="my-6 flex items-center gap-3">
-                                    <div className="h-px bg-white/10 flex-1" />
-                                    <span className="text-xs text-white/30 uppercase">Or continue with</span>
-                                    <div className="h-px bg-white/10 flex-1" />
+                                <div className="my-8 flex items-center gap-4">
+                                    <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent flex-1" />
+                                    <span className="text-[10px] font-bold text-teal-100/30 uppercase tracking-widest">Or continue with</span>
+                                    <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent flex-1" />
                                 </div>
 
-                                <button
-                                    onClick={handleGoogle}
-                                    className="w-full py-3 bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-xl font-medium transition-all flex items-center justify-center gap-3"
+                                <button 
+                                    onClick={handleGoogle} 
+                                    disabled={loading} 
+                                    className="w-full h-12 relative flex items-center justify-center gap-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl transition-all duration-300 group outline-none"
                                 >
-                                    <FcGoogle size={22} />
-                                    <span className="text-sm">Google Account</span>
+                                    <FcGoogle size={20} className="filter drop-shadow-md group-hover:scale-110 transition-transform" />
+                                    <span className="text-white/80 font-medium text-sm">Google Account</span>
                                 </button>
-
-                                <div className="mt-8 text-center">
-                                    <button
-                                        onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
-                                        className="text-sm text-white/60 hover:text-white transition-colors"
-                                    >
-                                        {mode === 'login' ? "New here? Create an account" : "Already have an account? Sign In"}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+                                
+                            </GlassSurface>
+                        </motion.div>
                     </motion.div>
 
                 </div>
