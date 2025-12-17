@@ -333,10 +333,10 @@ function DockItem({ children, onClick, href, isActive, label, mouseX }: DockItem
       <AnimatePresence>
         {tooltipVisible && (
           <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.8 }}
-            animate={{ opacity: 1, y: -45, scale: 1 }}
+            initial={{ opacity: 0, y: 10, scale: 0.85 }}
+            animate={{ opacity: 1, y: -22, scale: .8 }}
             exit={{ opacity: 0, y: 10, scale: 0.8 }}
-            className="absolute left-1/2 -translate-x-1/2 px-3 py-1 bg-black/80 backdrop-blur-md border border-white/10 text-white text-[10px] font-medium rounded-lg whitespace-nowrap pointer-events-none z-50 shadow-xl"
+            className="absolute left-2.1 -translate-x-1/2 px-3 py-1 bg-black/80 backdrop-blur-md border border-white/10 text-white text-[10px] font-medium rounded-lg whitespace-nowrap pointer-events-none z-50 shadow-xl"
           >
             {label}
             {/* Tiny arrow */}
