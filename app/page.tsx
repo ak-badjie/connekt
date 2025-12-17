@@ -7,7 +7,6 @@ import { ChevronDown } from 'lucide-react';
 import { Renderer, Program, Mesh, Triangle, Vec2 } from 'ogl';
 
 // --- CONTEXT IMPORTS ---
-// Adjust these paths based on your actual file structure
 import LoadingScreen from '@/components/ui/LoadingScreen';
 import MetallicPaint from '@/components/ui/MetallicPaint';
 import { useMinimumLoading } from '@/hooks/useMinimumLoading';
@@ -37,7 +36,7 @@ function cn(...classes: (string | undefined | null | false)[]) {
 // ==========================================
 // 1. DARK VEIL SHADER COMPONENT (INTERNAL)
 // ==========================================
-
+// ... (Keep existing Shader Code exactly as is) ...
 const vertexShader = `
 attribute vec2 position;
 void main(){gl_Position=vec4(position,0.0,1.0);}
@@ -407,42 +406,49 @@ const CONNEKT_WORDMARK_SVG = `
 // ==========================================
 const MetallicLogoGroup = () => {
     return (
-    // UPDATED: Removed gap completely (gap-0) and used items-center
-    <div className="flex flex-col md:flex-row items-center justify-center gap-0 mt-10 md:mt-0">
-            {/* SVG LOGO */}
-            <motion.div 
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 1, ease: "easeOut" }}
-                // UPDATED: Added z-10 to ensure logo sits above text if they overlap slightly
-                className="w-24 h-24 md:w-32 md:h-32 relative shrink-0 z-10"
-            >
-                <MetallicPaint
-                  svg={CONNEKT_ICON_SVG}
-                  className="block w-full h-full"
-                />
-            </motion.div>
+        // OUTER WRAPPER: Ensures the entire group is centered relative to the screen
+        <div className="w-full flex justify-center items-center mt-10 md:mt-0">
+            {/* INNER GROUP: Holds the Logo and Text together as one relative unit */}
+            <div className="relative flex flex-col md:flex-row items-center justify-center">
+                
+                {/* SVG LOGO */}
+                <motion.div 
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 1, ease: "easeOut" }}
+                    // z-10 ensures logo sits above text if they overlap
+                    className="w-24 h-24 md:w-32 md:h-32 relative shrink-0 z-10"
+                >
+                    <MetallicPaint
+                      svg={CONNEKT_ICON_SVG}
+                      className="block w-full h-full"
+                    />
+                </motion.div>
 
-
-{/* METALLIC TEXT */}
-<motion.div
-  initial={{ opacity: 0, x: -20 }}
-  animate={{ opacity: 1, x: 0 }}
-  transition={{ delay: 0.5, duration: 1 }}
-  className="relative w-[95vw] md:w-[70rem] h-24 md:h-52 -mt-10 md:mt-0 md:-ml-24"
->
-  <MetallicPaint
-    svg={CONNEKT_WORDMARK_SVG}
-    className="block w-full h-full"
-    params={{
-        speed: 0.2,   
-        liquid: 0.1,  
-        edge: 0.5,
-        patternScale: 3, // Increased scale slightly for the wide text
-        refraction: 0.02 // Slight bump to make the "NEKT" part pop more
-    }}
-  />
-</motion.div>
+                {/* METALLIC TEXT */}
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.5, duration: 1 }}
+                  // UPDATED WIDTH & MARGIN:
+                  // 1. Width set to `md:w-[61.5rem]` to match the SVG aspect ratio (4.72:1) at height 52.
+                  //    This removes the invisible space on the right side.
+                  // 2. Margin set to `md:-ml-10` to tuck the "C" next to the logo without over-shifting.
+                  className="relative w-[95vw] md:w-[61.5rem] h-24 md:h-52 -mt-10 md:mt-0 md:-ml-10"
+                >
+                  <MetallicPaint
+                    svg={CONNEKT_WORDMARK_SVG}
+                    className="block w-full h-full"
+                    params={{
+                        speed: 0.2,   
+                        liquid: 0.1,  
+                        edge: 0.5,
+                        patternScale: 3, 
+                        refraction: 0.02
+                    }}
+                  />
+                </motion.div>
+            </div>
         </div>
     );
 }
@@ -545,8 +551,6 @@ export default function LandingPage() {
             >
                 {/* 
                    DARK VEIL BACKGROUND 
-                   Replacing the radial gradient with the Shader.
-                   hueShift={180} creates the Teal color to match the text.
                 */}
                 <div className="absolute inset-0 z-0">
                     <DarkVeil 
@@ -563,11 +567,11 @@ export default function LandingPage() {
                 <div className="relative z-10 w-full flex flex-col items-center justify-center px-4">
                     
                     {/* METALLIC LOGO + TEXT */}
-                    <div className="mb-6 md:mb-12">
+                    <div className="mb-6 md:mb-12 w-full flex justify-center">
                         <MetallicLogoGroup />
                     </div>
 
-                    {/* ROTATING SLOGAN: "Scale Beyond" (Teal) + Pill */}
+                    {/* ROTATING SLOGAN */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -580,7 +584,6 @@ export default function LandingPage() {
                           transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                           className="flex flex-col md:flex-row items-center justify-center gap-3 md:gap-4 text-3xl md:text-5xl font-bold tracking-tight"
                         >
-                          {/* FIXED PART - TEAL */}
                           <motion.span
                             layout="position"
                             transition={{ type: 'spring', stiffness: 500, damping: 35 }}
@@ -589,7 +592,6 @@ export default function LandingPage() {
                             Scale Beyond
                           </motion.span>
 
-                          {/* DYNAMIC PILL PART */}
                           <motion.div
                             layout
                             transition={{ type: 'spring', stiffness: 500, damping: 35 }}
