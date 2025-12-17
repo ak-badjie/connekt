@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect, useState, useMemo, useCallback, useId } from 'react';
+import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { Eye, EyeOff, Loader2, Mail, Lock } from 'lucide-react';
@@ -287,18 +287,22 @@ const LightRays = ({
 };
 
 // ==========================================
-// 1.5 NEW LIQUID GLASS SURFACE (CSS ONLY)
+// 1.5 GLASS SURFACE
 // ==========================================
 
 const GlassSurface = ({
     children,
     className = '',
-    intensity = 'medium', // low, medium, high
-    style = {}
-}: any) => {
+    intensity = 'medium',
+    style = {},
+}: {
+    children: React.ReactNode;
+    className?: string;
+    intensity?: 'low' | 'medium' | 'high';
+    style?: React.CSSProperties;
+}) => {
     
-    // Maps for different glass intensities
-    const intensities = {
+    const intensities: Record<'low' | 'medium' | 'high', string> = {
         low: 'backdrop-blur-md bg-white/5 border-white/10',
         medium: 'backdrop-blur-xl bg-white/10 border-white/20',
         high: 'backdrop-blur-3xl bg-white/15 border-white/30',
@@ -310,12 +314,10 @@ const GlassSurface = ({
                 relative overflow-hidden
                 ${intensities[intensity] || intensities.medium}
                 border
-                shadow-[0_8px_32px_0_rgba(0,0,0,0.36)]
                 ${className}
             `}
             style={{
                 ...style,
-                // The "Liquid" magic: subtle gradient + inner highlights
                 boxShadow: `
                     0 8px 32px 0 rgba(0, 0, 0, 0.36), 
                     inset 0 0 0 1px rgba(255, 255, 255, 0.1),
@@ -323,17 +325,12 @@ const GlassSurface = ({
                 `,
             }}
         >
-            {/* Subtle Noise Texture for realism */}
             <div 
                 className="absolute inset-0 opacity-[0.03] pointer-events-none mix-blend-overlay"
                 style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}
             />
-            
-            {/* Liquid Shine Gradient */}
             <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent pointer-events-none" />
-            
-            {/* Content */}
-            <div className="relative z-10 h-full">
+            <div className="relative z-10 h-full w-full">
                 {children}
             </div>
         </div>
@@ -369,7 +366,8 @@ const TextPressure = ({
     const setSize = useCallback(() => {
         if (!containerRef.current || !titleRef.current) return;
         const { width: containerW, height: containerH } = containerRef.current.getBoundingClientRect();
-        let newFontSize = containerW / (chars.length / 1.1);
+        // Dynamic sizing logic modified to better fit small containers
+        let newFontSize = containerW / (chars.length / 0.9);
         newFontSize = Math.max(newFontSize, minFontSize);
         setFontSize(newFontSize);
         
@@ -378,7 +376,7 @@ const TextPressure = ({
             const textRect = titleRef.current.getBoundingClientRect();
             if (textRect.height > 0) {
                 const yRatio = containerH / textRect.height;
-                setScaleY(yRatio * 0.8);
+                setScaleY(Math.min(yRatio * 0.9, 1.5)); // Limit vertical stretch
             }
         });
     }, [chars.length, minFontSize]);
@@ -433,10 +431,10 @@ const TextPressure = ({
     ), [fontFamily, fontUrl, stroke, textColor, strokeColor]);
 
     return (
-        <div ref={containerRef} className="relative w-full h-40 md:h-64 overflow-hidden bg-transparent select-none pointer-events-none">
+        <div ref={containerRef} className="relative w-full h-full flex items-center justify-center overflow-hidden bg-transparent select-none pointer-events-none">
             {styleElement}
-            <h1 ref={titleRef} className={`flex justify-between w-full h-full items-center ${stroke ? 'stroke' : ''} uppercase text-center`}
-                style={{ fontFamily, fontSize, transform: `scale(1, ${scaleY})`, color: stroke ? undefined : textColor, fontWeight: 100 }}>
+            <h1 ref={titleRef} className={`flex justify-between w-full items-center ${stroke ? 'stroke' : ''} uppercase text-center`}
+                style={{ fontFamily, fontSize, transform: `scale(1, ${scaleY})`, color: stroke ? undefined : textColor, fontWeight: 100, lineHeight: 1 }}>
                 {chars.map((char: string, i: number) => (
                     <span key={i} ref={el => { spansRef.current[i] = el; }} data-char={char} className="inline-block">{char}</span>
                 ))}
@@ -499,7 +497,6 @@ export default function AuthPage() {
 
     useEffect(() => {
         if (mode !== 'signup') return;
-
         const full = signupPhrases[phraseIndex] ?? '';
         const nextText = isDeleting ? full.slice(0, Math.max(0, typed.length - 1)) : full.slice(0, typed.length + 1);
         const isDoneTyping = !isDeleting && nextText.length === full.length;
@@ -510,7 +507,6 @@ export default function AuthPage() {
 
         const id = window.setTimeout(() => {
             setTyped(nextText);
-
             if (isDoneTyping) setIsDeleting(true);
             if (isDoneDeleting) {
                 setIsDeleting(false);
@@ -519,15 +515,15 @@ export default function AuthPage() {
         }, baseDelay + pauseDelay);
 
         return () => window.clearTimeout(id);
-    }, [mode, isDeleting, phraseIndex, signupPhrases, typed.length, typed, setTyped]);
+    }, [mode, isDeleting, phraseIndex, signupPhrases, typed, setTyped]);
 
-    // 3D Tilt (mouse-driven)
+    // 3D Tilt
     const tiltRef = useRef<HTMLDivElement>(null);
     const tiltX = useMotionValue(0);
     const tiltY = useMotionValue(0);
     const rotateX = useSpring(useTransform(tiltY, [-0.5, 0.5], [10, -10]), { stiffness: 220, damping: 18, mass: 0.6 });
     const rotateY = useSpring(useTransform(tiltX, [-0.5, 0.5], [-12, 12]), { stiffness: 220, damping: 18, mass: 0.6 });
-    const cardScale = useSpring(0.9, { stiffness: 220, damping: 18, mass: 0.6 });
+    const cardScale = useSpring(1, { stiffness: 220, damping: 18, mass: 0.6 });
 
     const onTiltMove = (e: React.MouseEvent) => {
         const el = tiltRef.current;
@@ -553,12 +549,7 @@ export default function AuthPage() {
             else await AuthService.registerWithEmail(formData.email, formData.password);
             router.push('/onboarding');
         } catch (err: any) {
-            const code = err?.code as string | undefined;
-            if (code === 'auth/invalid-credential' || code === 'auth/wrong-password') setError('Invalid email or password');
-            else if (code === 'auth/user-not-found') setError('No account found for that email');
-            else if (code === 'auth/email-already-in-use') setError('That email is already in use');
-            else if (code === 'auth/weak-password') setError('Password is too weak');
-            else setError('Authentication failed');
+            setError(err?.message || 'Authentication failed');
         } finally {
             setLoading(false);
         }
@@ -577,12 +568,27 @@ export default function AuthPage() {
         }
     };
 
+    // Responsive Logic: We use vh/vw units and flex distribution heavily.
+    // The main container is h-[100dvh] (dynamic viewport height) and w-screen with overflow-hidden.
+    // We remove fixed pixel padding in favor of vmin based padding.
+
     return (
-        <div className="min-h-screen w-full relative bg-transparent overflow-hidden font-sans text-white">
+        <div className="fixed inset-0 w-screen h-[100dvh] overflow-hidden bg-transparent font-sans text-white flex flex-col lg:flex-row">
+            <style jsx global>{`
+                .connekt-hide-scrollbar {
+                    -ms-overflow-style: none;
+                    scrollbar-width: none;
+                }
+                .connekt-hide-scrollbar::-webkit-scrollbar {
+                    width: 0;
+                    height: 0;
+                    display: none;
+                }
+            `}</style>
             
             {/* BACKGROUND: Light Rays */}
             <LightRays
-                raysColor="#14b8a6" // Teal
+                raysColor="#14b8a6"
                 raysOrigin="top-center"
                 raysSpeed={0.5}
                 lightSpread={0.5}     
@@ -591,13 +597,13 @@ export default function AuthPage() {
                 distortion={0.01}      
             />
 
-            {/* MAIN CONTENT CONTAINER */}
-            <div className="relative z-10 w-full min-h-screen flex flex-col lg:flex-row p-4 lg:p-0">
-
-                {/* LEFT CONTENT AREA (Unchanged) */}
-                <div className="w-full lg:w-[60%] flex flex-col justify-center items-center lg:items-start lg:pl-20 xl:pl-32 pt-10 lg:pt-0 space-y-8">
-                    
-                    <div className="w-full max-w-2xl flex flex-col items-center gap-2 transform hover:scale-105 transition-transform duration-500">
+            {/* LEFT CONTENT AREA */}
+            {/* Flex-1 ensures it takes available space. min-h-0 prevents overflow. */}
+            <div className="flex-1 min-h-0 flex flex-col justify-center items-center lg:items-start lg:pl-[8vw] p-[2vh] pb-[6vh] overflow-y-auto connekt-hide-scrollbar relative z-10">
+                
+                {/* Branding Section - Scales with viewport */}
+                <div className="w-full max-w-2xl flex flex-col items-center gap-[1.56vh] transform hover:scale-105 transition-transform duration-500 shrink-0">
+                    <div className="w-full h-[18.72vh] lg:h-[28.08vh]">
                         <TextPressure
                             text="WELCOME!"
                             flex={true}
@@ -607,214 +613,166 @@ export default function AuthPage() {
                             weight={true}
                             italic={true}
                             textColor="#14b8a6"
-                            minFontSize={36}
+                            minFontSize={37.7}
                         />
-
-                        <div className="w-60 h-60">
-                            <ConnektIcon />
-                        </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-8 w-full max-w-xl mt-8">
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between gap-3">
-                                <h3 className="text-teal-400 font-bold text-lg">Core Platform</h3>
-                                <ConnektIcon className="w-5 h-5" />
-                            </div>
-                            <p className="text-sm text-gray-400">User Profiles, Portfolios, Reputation Scoring, and Agency Management.</p>
-                        </div>
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between gap-3">
-                                <h3 className="text-teal-400 font-bold text-lg">ConnektAI</h3>
-                                <ConnektAIIcon className="w-5 h-5" />
-                            </div>
-                            <p className="text-sm text-gray-400">Resume Parsing, Skill Gap Analysis, and Automated Recruiting.</p>
-                        </div>
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between gap-3">
-                                <h3 className="text-teal-400 font-bold text-lg">ConnektMail</h3>
-                                <ConnektMailIcon className="w-5 h-5" />
-                            </div>
-                            <p className="text-sm text-gray-400">Smart inbox, follow-ups, and AI-assisted replies.</p>
-                        </div>
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between gap-3">
-                                <h3 className="text-teal-400 font-bold text-lg">ConnektStorage</h3>
-                                <ConnektStorageIcon className="w-5 h-5" />
-                            </div>
-                            <p className="text-sm text-gray-400">Secure files, versioning, and fast sharing.</p>
-                        </div>
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between gap-3">
-                                <h3 className="text-teal-400 font-bold text-lg">ConnektWallet</h3>
-                                <ConnektWalletIcon className="w-5 h-5" />
-                            </div>
-                            <p className="text-sm text-gray-400">Escrow payments, invoices, and global transactions.</p>
-                        </div>
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between gap-3">
-                                <h3 className="text-teal-400 font-bold text-lg">ConnektTeams</h3>
-                                <ConnektTeamsIcon className="w-5 h-5" />
-                            </div>
-                            <p className="text-sm text-gray-400">Encrypted messaging, permissions, and collaboration.</p>
-                        </div>
+                    <div className="w-[23.4vh] h-[23.4vh]">
+                        <ConnektIcon />
                     </div>
                 </div>
 
-                {/* RIGHT AUTH AREA - FIXED */}
-                <div className="w-full lg:w-[40%] flex items-center justify-center p-6 lg:p-12">
-                    
+                {/* Features Grid - Adaptive Gap and Font Size */}
+                <div className="grid grid-cols-2 gap-x-[6.24vw] gap-y-[3.12vh] w-full max-w-xl mt-[3.12vh] shrink">
+                    {[
+                        { title: 'Core Platform', icon: ConnektIcon, desc: 'User Profiles, Portfolios & Agency Mgmt.' },
+                        { title: 'ConnektAI', icon: ConnektAIIcon, desc: 'Resume Parsing & Skill Gap Analysis.' },
+                        { title: 'ConnektMail', icon: ConnektMailIcon, desc: 'Smart inbox & AI-assisted replies.' },
+                        { title: 'ConnektStorage', icon: ConnektStorageIcon, desc: 'Secure files & versioning.' },
+                        { title: 'ConnektWallet', icon: ConnektWalletIcon, desc: 'Escrow payments & transactions.' },
+                        { title: 'ConnektTeams', icon: ConnektTeamsIcon, desc: 'Encrypted messaging & collab.' },
+                    ].map((item, i) => (
+                        <div key={i} className="flex flex-col gap-[1.014vh]">
+                            <div className="flex items-center justify-between gap-3.12">
+                                <h3 className="text-teal-400 font-bold text-[clamp(20.28px,3.042vh,32.76px)] whitespace-nowrap">{item.title}</h3>
+                                <item.icon className="w-[3.042vh] h-[3.042vh]" />
+                            </div>
+                            <p className="text-[clamp(15.6px,2.4336vh,24.96px)] text-gray-400 leading-tight line-clamp-2">{item.desc}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* RIGHT AUTH AREA */}
+            <div className="flex-1 min-h-0 flex items-center justify-center p-[2.6vmin] relative z-10">
+                
+                <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.8, ease: 'easeOut' }}
+                    className="w-full max-w-[437px] max-h-full flex flex-col"
+                    style={{ perspective: 1560 }}
+                >
                     <motion.div
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.8, ease: 'easeOut' }}
-                        className="w-full max-w-[420px]"
-                        style={{ perspective: 1200 }}
+                        ref={tiltRef}
+                        onMouseMove={onTiltMove}
+                        onMouseLeave={onTiltLeave}
+                        style={{ rotateX, rotateY, scale: cardScale, transformStyle: 'preserve-3d' as any }}
+                        className="will-change-transform h-full"
                     >
-                        <motion.div
-                            ref={tiltRef}
-                            onMouseMove={onTiltMove}
-                            onMouseLeave={onTiltLeave}
-                            style={{ rotateX, rotateY, scale: cardScale, transformStyle: 'preserve-3d' as any }}
-                            className="will-change-transform"
+                        <GlassSurface
+                            intensity="high"
+                            className="rounded-[3.9vh] p-[3.9vh] lg:p-[5.2vh] border-white/20 h-full flex flex-col justify-center"
                         >
-                            <GlassSurface
-                                intensity="high"
-                                className="rounded-[32px] p-8 md:p-10 border-white/20"
-                            >
-                                {/* Switcher (Login/Signup) */}
-                                <div className="flex items-center justify-center mb-8">
-                                    <div className="relative flex p-1 rounded-full bg-black/20 backdrop-blur-md border border-white/5 shadow-inner">
+                            {/* Content wrapper to handle small screens logic */}
+                            <div className="flex flex-col justify-between h-full max-h-[85vh]">
+                                
+                                {/* Switcher */}
+                                <div className="flex items-center justify-center mb-[2.6vh] shrink-0">
+                                    <div className="relative flex p-[0.65vh] rounded-full bg-black/20 backdrop-blur-md border border-white/5 shadow-inner">
                                         <div 
-                                            className={`absolute inset-y-1 rounded-full bg-teal-500/20 border border-teal-500/30 transition-all duration-300 ease-out`}
+                                            className="absolute inset-y-[0.65vh] rounded-full bg-teal-500/20 border border-teal-500/30 transition-all duration-300 ease-out"
                                             style={{
-                                                width: 'calc(50% - 4px)',
-                                                left: mode === 'login' ? '4px' : '50%'
+                                                width: 'calc(50% - 0.65vh)',
+                                                left: mode === 'login' ? '0.65vh' : '50%'
                                             }}
                                         />
-                                        <button
-                                            type="button"
-                                            onClick={() => setMode('login')}
-                                            className={`relative z-10 w-32 h-9 rounded-full text-xs font-bold tracking-widest transition-colors duration-300 ${mode === 'login' ? 'text-white' : 'text-white/40 hover:text-white/70'}`}
-                                        >
+                                        <button onClick={() => setMode('login')} className={`relative z-10 px-[3.9vh] py-[1.3vh] rounded-full text-[clamp(13px,1.56vh,15.6px)] font-bold tracking-widest transition-colors duration-300 ${mode === 'login' ? 'text-white' : 'text-white/40'}`}>
                                             SIGN IN
                                         </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setMode('signup')}
-                                            className={`relative z-10 w-32 h-9 rounded-full text-xs font-bold tracking-widest transition-colors duration-300 ${mode === 'signup' ? 'text-white' : 'text-white/40 hover:text-white/70'}`}
-                                        >
+                                        <button onClick={() => setMode('signup')} className={`relative z-10 px-[3.9vh] py-[1.3vh] rounded-full text-[clamp(13px,1.56vh,15.6px)] font-bold tracking-widest transition-colors duration-300 ${mode === 'signup' ? 'text-white' : 'text-white/40'}`}>
                                             SIGN UP
                                         </button>
                                     </div>
                                 </div>
 
-                                <h3 className="text-3xl font-bold text-white mb-2 text-center drop-shadow-md">
-                                    {mode === 'login' ? 'Sign In' : 'Join Connekt'}
-                                </h3>
-                                <div className="text-teal-100/60 text-center mb-8 text-sm min-h-[20px] font-medium tracking-wide">
-                                    {mode === 'login' ? (
-                                        'Access your workspace'
-                                    ) : (
-                                        <span>
-                                            {typed}
-                                            <span className="inline-block w-[2px] h-[14px] bg-teal-400 ml-1 translate-y-[2px] animate-pulse"></span>
-                                        </span>
-                                    )}
+                                <div className="shrink-0 mb-[2.6vh]">
+                                    <h3 className="text-[clamp(26px,4.55vh,39px)] font-bold text-white text-center drop-shadow-md leading-tight">
+                                        {mode === 'login' ? 'Sign In' : 'Join Connekt'}
+                                    </h3>
+                                    <div className="text-teal-100/60 text-center text-[clamp(13px,1.95vh,18.2px)] min-h-[2.6vh] font-medium tracking-wide">
+                                        {mode === 'login' ? 'Access your workspace' : (
+                                            <span>
+                                                {typed}<span className="inline-block w-[2.6px] h-[1.95vh] bg-teal-400 ml-1 translate-y-[2.6px] animate-pulse"></span>
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
 
-                                <form onSubmit={handleSubmit} className="space-y-5">
-                                    {/* Email Input */}
-                                    <div className="space-y-1.5 group">
-                                        <label className="text-[11px] font-bold text-teal-100/40 uppercase tracking-widest ml-1 transition-colors group-focus-within:text-teal-400">Email</label>
-                                        <div className="relative">
-                                            <div className="absolute inset-0 bg-black/20 rounded-xl blur-[1px]" />
-                                            <div className="relative flex items-center bg-white/5 border border-white/10 rounded-xl px-4 h-14 transition-all duration-300 group-focus-within:bg-white/10 group-focus-within:border-teal-500/50 group-focus-within:shadow-[0_0_15px_rgba(20,184,166,0.15)]">
-                                                <Mail className="text-white/40 group-focus-within:text-teal-400 transition-colors mr-3" size={18} />
+                                <form onSubmit={handleSubmit} className="flex flex-col gap-[3.2vh] shrink">
+                                    {/* Email */}
+                                    <div className="space-y-[0.65vh] group">
+                                        <label className="text-[clamp(11.7px,1.43vh,14.3px)] font-bold text-teal-100/40 uppercase tracking-widest ml-1.3">Email</label>
+                                        <div className="relative h-[7.8vh] min-h-[46.8px]">
+                                            <div className="absolute inset-0 bg-black/20 rounded-xl blur-[1.3px]" />
+                                            <div className="relative flex items-center bg-white/5 border border-white/10 rounded-xl px-5.2 h-full transition-all duration-300 group-focus-within:bg-white/10 group-focus-within:border-teal-500/50">
+                                                <Mail className="text-white/40 mr-[5.2vh] w-[2.6vh] h-[2.6vh]" />
                                                 <input
                                                     type="email"
                                                     required
                                                     value={formData.email}
                                                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                                    className="w-full bg-transparent outline-none text-white placeholder-white/20 font-medium"
+                                                    className="w-full bg-transparent outline-none text-white placeholder-white/20 font-medium text-[clamp(15.6px,1.95vh,20.8px)]"
                                                     placeholder="name@connekt.com"
-                                                    autoComplete="email"
                                                 />
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* Password Input */}
-                                    <div className="space-y-1.5 group">
-                                        <label className="text-[11px] font-bold text-teal-100/40 uppercase tracking-widest ml-1 transition-colors group-focus-within:text-teal-400">Password</label>
-                                        <div className="relative">
-                                            <div className="absolute inset-0 bg-black/20 rounded-xl blur-[1px]" />
-                                            <div className="relative flex items-center bg-white/5 border border-white/10 rounded-xl px-4 h-14 transition-all duration-300 group-focus-within:bg-white/10 group-focus-within:border-teal-500/50 group-focus-within:shadow-[0_0_15px_rgba(20,184,166,0.15)]">
-                                                <Lock className="text-white/40 group-focus-within:text-teal-400 transition-colors mr-3" size={18} />
+                                    {/* Password */}
+                                    <div className="space-y-[0.65vh] group">
+                                        <label className="text-[clamp(11.7px,1.43vh,14.3px)] font-bold text-teal-100/40 uppercase tracking-widest ml-1.3">Password</label>
+                                        <div className="relative h-[7.8vh] min-h-[46.8px]">
+                                            <div className="absolute inset-0 bg-black/20 rounded-xl blur-[1.3px]" />
+                                            <div className="relative flex items-center bg-white/5 border border-white/10 rounded-xl px-5.2 h-full transition-all duration-300 group-focus-within:bg-white/10 group-focus-within:border-teal-500/50">
+                                                <Lock className="text-white/40 mr-[5.2vh] w-[2.6vh] h-[2.6vh]" />
                                                 <input
                                                     type={isPasswordVisible ? 'text' : 'password'}
                                                     required
                                                     value={formData.password}
                                                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                                    className="w-full bg-transparent outline-none text-white placeholder-white/20 font-medium"
+                                                    className="w-full bg-transparent outline-none text-white placeholder-white/20 font-medium text-[clamp(15.6px,1.95vh,20.8px)]"
                                                     placeholder="••••••••"
-                                                    autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                                                 />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setIsPasswordVisible(!isPasswordVisible)}
-                                                    className="text-white/40 hover:text-white transition-colors p-2 -mr-2"
-                                                >
-                                                    {isPasswordVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+                                                <button type="button" onClick={() => setIsPasswordVisible(!isPasswordVisible)} className="text-white/40 hover:text-white p-2.6 -mr-2.6">
+                                                    {isPasswordVisible ? <EyeOff className="w-[2.6vh] h-[2.6vh]" /> : <Eye className="w-[2.6vh] h-[2.6vh]" />}
                                                 </button>
                                             </div>
                                         </div>
                                     </div>
 
                                     {error && (
-                                        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-red-200 text-sm text-center font-medium backdrop-blur-sm">
+                                        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-[1.3vh] text-red-200 text-[1.69vh] text-center font-medium backdrop-blur-sm">
                                             {error}
                                         </div>
                                     )}
 
-                                    {/* Submit Button - Liquid Metal Look */}
-                                    <button 
-                                        type="submit" 
-                                        disabled={loading} 
-                                        className="relative w-full h-14 rounded-xl overflow-hidden group outline-none"
-                                    >
+                                    {/* Submit Button */}
+                                    <button type="submit" disabled={loading} className="relative w-full h-[7.8vh] min-h-[52px] rounded-xl overflow-hidden group outline-none shrink-0">
                                         <div className="absolute inset-0 bg-gradient-to-r from-teal-600 to-teal-400 transition-all duration-300 group-hover:scale-105" />
-                                        <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors" />
-                                        
-                                        {/* Glossy sheen overlay */}
                                         <div className="absolute inset-0 opacity-20 bg-gradient-to-b from-white/50 to-transparent pointer-events-none" />
-                                        
-                                        <div className="relative z-10 flex items-center justify-center gap-2 text-white font-bold text-base tracking-wide uppercase shadow-sm">
-                                            {loading ? <Loader2 className="animate-spin" /> : (mode === 'login' ? 'Enter Connekt' : 'Create Account')}
+                                        <div className="relative z-10 flex items-center justify-center gap-2.6 text-white font-bold text-[clamp(15.6px,1.95vh,20.8px)] tracking-wide uppercase">
+                                            {loading ? <Loader2 className="animate-spin w-[2.6vh] h-[2.6vh]" /> : (mode === 'login' ? 'Enter Connekt' : 'Create Account')}
                                         </div>
                                     </button>
                                 </form>
 
-                                <div className="my-8 flex items-center gap-4">
+                                <div className="my-[2.6vh] flex items-center gap-5.2 shrink-0">
                                     <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent flex-1" />
-                                    <span className="text-[10px] font-bold text-teal-100/30 uppercase tracking-widest">Or continue with</span>
+                                    <span className="text-[clamp(10.4px,1.3vh,13px)] font-bold text-teal-100/30 uppercase tracking-widest">Or continue with</span>
                                     <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent flex-1" />
                                 </div>
 
-                                <button 
-                                    onClick={handleGoogle} 
-                                    disabled={loading} 
-                                    className="w-full h-12 relative flex items-center justify-center gap-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl transition-all duration-300 group outline-none"
-                                >
-                                    <FcGoogle size={20} className="filter drop-shadow-md group-hover:scale-110 transition-transform" />
-                                    <span className="text-white/80 font-medium text-sm">Google Account</span>
+                                <button onClick={handleGoogle} disabled={loading} className="w-full h-[6.5vh] min-h-[46.8px] relative flex items-center justify-center gap-3.9 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl transition-all duration-300 group outline-none shrink-0">
+                                    <FcGoogle className="w-[3.25vh] h-[3.25vh] filter drop-shadow-md group-hover:scale-110 transition-transform" />
+                                    <span className="text-white/80 font-medium text-[clamp(14.3px,1.69vh,18.2px)]">Google Account</span>
                                 </button>
                                 
-                            </GlassSurface>
-                        </motion.div>
+                            </div>
+                        </GlassSurface>
                     </motion.div>
+                </motion.div>
 
-                </div>
             </div>
         </div>
     );
