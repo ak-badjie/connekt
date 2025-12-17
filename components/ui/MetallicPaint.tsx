@@ -322,7 +322,10 @@ void main() {
     vec2 uv = vUv;
     uv.y = 1. - uv.y;
     uv.x *= u_ratio;
+    
+    // Diagonal for the noise pattern (keeps 45 deg angle)
     float diagonal = uv.x - uv.y;
+    
     float t = .001 * u_time;
     vec2 img_uv = get_img_uv();
     vec4 img = texture(u_image_texture, img_uv);
@@ -331,8 +334,15 @@ void main() {
     vec3 color1 = vec3(.98, 0.98, 1.);
     vec3 color2 = vec3(.1, .1, .1 + .1 * smoothstep(.7, 1.3, uv.x + uv.y));
     float edge = img.r;
-    vec2 grad_uv = uv;
-    grad_uv -= .5;
+    
+    // --- FIX FOR WIDE ASPECT RATIOS ---
+    // Instead of using the scaled 'uv' for the bulge gradient (which pushes the 
+    // center off-screen for wide objects), we use the unscaled vUv.
+    // This creates an "oval" bulge that stretches with the text.
+    vec2 grad_uv = vUv;
+    grad_uv.y = 1. - grad_uv.y;
+    grad_uv -= .5; 
+    
     float dist = length(grad_uv + vec2(0., .2 * diagonal));
     grad_uv = rotate(grad_uv, (.25 - .2 * diagonal) * PI);
     float bulge = pow(1.8 * dist, 1.2);

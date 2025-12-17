@@ -423,24 +423,26 @@ const MetallicLogoGroup = () => {
                 />
             </motion.div>
 
-      {/* METALLIC TEXT */}
-      {/* UPDATED: Added Negative Margins (-mt-10 for mobile, -ml-24 for desktop) to pull them very close */}
-      <motion.div
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 0.5, duration: 1 }}
-        className="relative w-[95vw] md:w-[70rem] h-24 md:h-52 -mt-10 md:mt-0 md:-ml-24"
-      >
-        <MetallicPaint
-          svg={CONNEKT_WORDMARK_SVG}
-          className="block w-full h-full"
-          params={{
-              speed: 0.2,   // Slower speed for heavier look
-              liquid: 0.1,  // Enhanced liquid distortion
-              edge: 0.5     // Softer edges
-          }}
-        />
-      </motion.div>
+
+{/* METALLIC TEXT */}
+<motion.div
+  initial={{ opacity: 0, x: -20 }}
+  animate={{ opacity: 1, x: 0 }}
+  transition={{ delay: 0.5, duration: 1 }}
+  className="relative w-[95vw] md:w-[70rem] h-24 md:h-52 -mt-10 md:mt-0 md:-ml-24"
+>
+  <MetallicPaint
+    svg={CONNEKT_WORDMARK_SVG}
+    className="block w-full h-full"
+    params={{
+        speed: 0.2,   
+        liquid: 0.1,  
+        edge: 0.5,
+        patternScale: 3, // Increased scale slightly for the wide text
+        refraction: 0.02 // Slight bump to make the "NEKT" part pop more
+    }}
+  />
+</motion.div>
         </div>
     );
 }
