@@ -186,7 +186,7 @@ const TextPressure = ({
 };
 
 // ==============================================
-// 2️⃣ COMPONENT: BLUR TEXT (UPDATED FOR RE-ENTRY)
+// 2️⃣ COMPONENT: BLUR TEXT
 // ==============================================
 const buildKeyframes = (from: any, steps: any[]) => {
     const keys = new Set([...Object.keys(from), ...steps.flatMap(s => Object.keys(s))]);
@@ -222,7 +222,6 @@ const BlurText = ({
           if (entry.isIntersecting) {
             setInView(true);
           } else {
-            // FIX: Reset animation when leaving view
             setInView(false);
           }
         },
@@ -266,7 +265,7 @@ const BlurText = ({
               className="inline-block will-change-[transform,filter,opacity]"
               key={index}
               initial={fromSnapshot}
-              animate={inView ? animateKeyframes : fromSnapshot} // Uses inView state to toggle
+              animate={inView ? animateKeyframes : fromSnapshot}
               transition={spanTransition}
               onAnimationComplete={index === elements.length - 1 ? onAnimationComplete : undefined}
             >
@@ -291,7 +290,7 @@ interface BubbleProps {
     label: string;
     subLabel?: string;
     className?: string;
-    show: boolean; // Controlled by Orchestrator
+    show: boolean; 
 }
 
 const BubbleFeature = ({ id, icon: Icon, label, subLabel, className, show }: BubbleProps) => {
@@ -302,9 +301,9 @@ const BubbleFeature = ({ id, icon: Icon, label, subLabel, className, show }: Bub
             animate={show ? { scale: 1, opacity: 1 } : { scale: 0, opacity: 0 }}
             transition={{ 
                 type: "spring", 
-                stiffness: 300, 
-                damping: 20, 
-                mass: 0.8
+                stiffness: 400, 
+                damping: 25, 
+                mass: 0.5 // Lighter mass for snappier pop
             }}
             className={cn(
                 "relative flex items-center gap-3 px-4 py-2 rounded-full border border-teal-100/50 bg-white shadow-lg shadow-teal-900/5 cursor-pointer z-20 group transition-all duration-300",
@@ -323,35 +322,42 @@ const BubbleFeature = ({ id, icon: Icon, label, subLabel, className, show }: Bub
     );
 };
 
-// --- Sequenced Schematic Component ---
+// --- Sequenced Schematic Component (REFACTORED FOR SMOOTHNESS) ---
 const SchematicSequence = () => {
     const updateXarrow = useXarrow();
     const containerRef = useRef(null);
-    const isInView = useInView(containerRef, { amount: 0.5, once: false });
+    const isInView = useInView(containerRef, { amount: 0.4, once: false });
     
-    // Stages: 
-    // 0: Reset/Hidden
-    // 1: Hub Pop
-    // 2: Arrows Draw
-    // 3: Satellites Pop
-    const [step, setStep] = useState(0);
+    // Using a counter to progress the animation scene
+    const [sequenceStep, setSequenceStep] = useState(0);
 
     useEffect(() => {
         if (isInView) {
-            setStep(1); // Pop Hub
-            const t1 = setTimeout(() => setStep(2), 500); // Start Arrows
-            const t2 = setTimeout(() => setStep(3), 1000); // Pop Satellites (After arrow draw time)
+            // Sequence: 
+            // 0: Hub appears
+            // 1: Arrow to Video draws
+            // 2: Video Bubble pops
+            // 3: Arrow to Bio draws
+            // 4: Bio Bubble pops
+            // ... etc
             
-            return () => { clearTimeout(t1); clearTimeout(t2); };
+            const interval = setInterval(() => {
+                setSequenceStep(prev => (prev < 12 ? prev + 1 : prev)); 
+            }, 300); // 300ms beat for the animation
+
+            return () => clearInterval(interval);
         } else {
-            setStep(0); // Reset when scrolled away
+            setSequenceStep(0); // Reset when scrolled out
         }
     }, [isInView]);
 
-    // Force redraw on step change
+    // Force redraw on window resize or step change
     useEffect(() => {
         updateXarrow();
-    }, [step, updateXarrow]);
+    }, [sequenceStep, updateXarrow]);
+
+    // Helper to calculate visibility
+    const isVisible = (stepThreshold: number) => sequenceStep >= stepThreshold;
 
     return (
         <div 
@@ -363,7 +369,7 @@ const SchematicSequence = () => {
             }}
         >
             <Xwrapper>
-                {/* Central Hub - Shows on Step 1+ */}
+                {/* 1. The Core Hub (Appears at Step 1) */}
                 <div className="absolute left-1/2 top-[40%] -translate-x-1/2 -translate-y-1/2 z-10">
                     <BubbleFeature 
                         id="hub" 
@@ -371,40 +377,92 @@ const SchematicSequence = () => {
                         label="Your Profile" 
                         subLabel="The Core"
                         className="scale-125 border-teal-200 bg-white"
-                        show={step >= 1}
+                        show={isVisible(1)}
                     />
                 </div>
 
-                {/* Satellite Features - Show on Step 3+ */}
+                {/* 2. Top Left: Trailer Video (Arrow at 2, Node at 3) */}
                 <div className="absolute top-0 left-[18%]">
-                    <BubbleFeature id="f1" icon={Video} label="Trailer Video" subLabel="Visual Intro" show={step >= 3} />
-                </div>
-                <div className="absolute bottom-16 left-[20%]">
-                    <BubbleFeature id="f2" icon={ShieldCheck} label="Trust Score" subLabel="Verified" show={step >= 3} />
-                </div>
-                <div className="absolute top-4 right-[22%]">
-                    <BubbleFeature id="f3" icon={Sparkles} label="Bio Enhancer" subLabel="AI Written" show={step >= 3} />
-                </div>
-                <div className="absolute bottom-20 right-[15%]">
-                    <BubbleFeature id="f4" icon={Target} label="Auto Match" subLabel="Best Fit" show={step >= 3} />
-                </div>
-                <div className="absolute top-[45%] left-[5%]">
-                    <BubbleFeature id="f5" icon={BarChart3} label="Skill Metrics" subLabel="Analytic" show={step >= 3} />
+                    <BubbleFeature id="f1" icon={Video} label="Trailer Video" subLabel="Visual Intro" show={isVisible(3)} />
                 </div>
 
-                {/* Arrows - Render on Step 2+, they will animate their path automatically */}
-                {step >= 2 && (
-                    <>
-                         <Xarrow start="f1" end="hub" color={TEAL_HEX} strokeWidth={2} showHead={true} path="smooth" animateDrawing={0.4} />
-                         <Xarrow start="f3" end="hub" color={TEAL_HEX} strokeWidth={2} showHead={true} path="smooth" animateDrawing={0.4} />
-                         
-                         <Xarrow start="hub" end="f2" color={TEAL_HEX} strokeWidth={2} showHead={true} path="smooth" animateDrawing={0.4} />
-                         <Xarrow start="hub" end="f4" color={TEAL_HEX} strokeWidth={2} showHead={true} path="smooth" animateDrawing={0.4} />
-                         
-                         {/* Dashed line appears with nodes */}
-                         <Xarrow start="f5" end="f2" color={TEAL_HEX} strokeWidth={1} dashed showHead={false} path="grid" zIndex={0} animateDrawing={0.4} />
-                    </>
+                {/* 3. Top Right: Bio Enhancer (Arrow at 4, Node at 5) */}
+                <div className="absolute top-4 right-[22%]">
+                    <BubbleFeature id="f3" icon={Sparkles} label="Bio Enhancer" subLabel="AI Written" show={isVisible(5)} />
+                </div>
+
+                {/* 4. Bottom Right: Auto Match (Arrow at 6, Node at 7) */}
+                <div className="absolute bottom-20 right-[15%]">
+                    <BubbleFeature id="f4" icon={Target} label="Auto Match" subLabel="Best Fit" show={isVisible(7)} />
+                </div>
+
+                {/* 5. Bottom Left: Trust Score (Arrow at 8, Node at 9) */}
+                <div className="absolute bottom-16 left-[20%]">
+                    <BubbleFeature id="f2" icon={ShieldCheck} label="Trust Score" subLabel="Verified" show={isVisible(9)} />
+                </div>
+                
+                {/* 6. Middle Left: Metrics (Dashed Line at 10, Node at 11) */}
+                <div className="absolute top-[45%] left-[5%]">
+                    <BubbleFeature id="f5" icon={BarChart3} label="Skill Metrics" subLabel="Analytic" show={isVisible(11)} />
+                </div>
+
+                {/* 
+                   ARROWS 
+                   We use `animateDrawing={0.4}` which takes 400ms.
+                   Our step interval is 300ms. 
+                   This creates a slight overlap where the node pops just as the line finishes.
+                */}
+                
+                {/* Hub -> Video */}
+                {isVisible(2) && (
+                    <Xarrow 
+                        start="hub" end="f1" 
+                        color={TEAL_HEX} strokeWidth={2} showHead={true} 
+                        path="smooth" curveness={0.5} 
+                        animateDrawing={0.4} 
+                    />
                 )}
+
+                {/* Hub -> Bio */}
+                {isVisible(4) && (
+                    <Xarrow 
+                        start="hub" end="f3" 
+                        color={TEAL_HEX} strokeWidth={2} showHead={true} 
+                        path="smooth" curveness={0.5} 
+                        animateDrawing={0.4} 
+                    />
+                )}
+                
+                {/* Hub -> Match */}
+                {isVisible(6) && (
+                    <Xarrow 
+                        start="hub" end="f4" 
+                        color={TEAL_HEX} strokeWidth={2} showHead={true} 
+                        path="smooth" curveness={0.5} 
+                        animateDrawing={0.4} 
+                    />
+                )}
+
+                {/* Hub -> Trust */}
+                {isVisible(8) && (
+                    <Xarrow 
+                        start="hub" end="f2" 
+                        color={TEAL_HEX} strokeWidth={2} showHead={true} 
+                        path="smooth" curveness={0.5} 
+                        animateDrawing={0.4} 
+                    />
+                )}
+                
+                {/* Metric -> Trust (Dashed) */}
+                {isVisible(10) && (
+                    <Xarrow 
+                        start="f5" end="f2" 
+                        color={TEAL_HEX} strokeWidth={1} dashed showHead={false} 
+                        path="grid" zIndex={0} 
+                        animateDrawing={0.4} 
+                    />
+                )}
+
             </Xwrapper>
         </div>
     );
@@ -428,13 +486,13 @@ const VideoShowcase = () => {
         <motion.div 
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: false, amount: 0.3 }} // FIX: Re-animates on scroll
+            viewport={{ once: false, amount: 0.3 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
             className="relative w-full group origin-bottom" 
         >
             <div className="absolute -inset-4 bg-teal-500/20 rounded-[3rem] blur-3xl opacity-40 group-hover:opacity-70 transition-opacity duration-700" />
             <video 
-                src="/video.mp4"
+                src="/video.mp4" // Ensure this path is correct
                 autoPlay 
                 loop 
                 muted 
@@ -469,7 +527,7 @@ export default function ProfileSection() {
                         <motion.div 
                             initial={{ opacity: 0, x: 50 }} 
                             whileInView={{ opacity: 1, x: 0 }}
-                            viewport={{ once: false }} // FIX: Re-animates
+                            viewport={{ once: false }}
                             className="inline-flex flex-row-reverse items-center gap-2 px-4 py-2 rounded-full bg-teal-600 w-fit shadow-lg shadow-teal-600/20"
                         >
                             <span className="text-xs font-bold uppercase tracking-widest text-white">
