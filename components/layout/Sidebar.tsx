@@ -364,7 +364,7 @@ export function Sidebar({ agency = null }: SidebarProps) {
                 initial="expanded"
                 animate={isCollapsed ? "collapsed" : "expanded"}
                 variants={sidebarVariants}
-              className="fixed left-6 top-6 bottom-6 z-[110] hidden lg:flex flex-col relative"
+                className="fixed left-6 top-6 bottom-6 z-[110] hidden lg:flex flex-col overflow-visible"
                 onMouseMove={(e) => mouseY.set(e.clientY)}
                 onMouseLeave={() => mouseY.set(Infinity)}
                 ref={containerRef}
@@ -377,13 +377,17 @@ export function Sidebar({ agency = null }: SidebarProps) {
                     className="shadow-2xl shadow-black/10"
                 />
 
-              {/* Sidebar Toggle (Pinned to collapsing container) */}
+              {/* Sidebar Toggle (Fixed to sidebar edge, never scrolls) */}
               <button
                 type="button"
                 onClick={toggleSidebar}
                 aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                className="absolute -right-3 top-8 z-50 flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-md transition-transform duration-300 ease-in-out hover:text-[#008080] dark:border-zinc-700 dark:bg-zinc-800"
-                style={{ transform: `rotate(${isCollapsed ? 180 : 0}deg)` }}
+                className="fixed z-[120] flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-md transition-all duration-300 ease-in-out hover:text-[#008080] dark:border-zinc-700 dark:bg-zinc-800"
+                style={{ 
+                  left: isCollapsed ? 'calc(1.5rem + 90px - 0.75rem)' : 'calc(1.5rem + 288px - 0.75rem)',
+                  top: '3.5rem',
+                  transform: `rotate(${isCollapsed ? 180 : 0}deg)` 
+                }}
               >
                 <ChevronLeft size={16} />
               </button>
