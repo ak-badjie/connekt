@@ -3,15 +3,15 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
-  Plus, Users, Briefcase, Calendar, CheckCircle, 
-  AlertCircle, ArrowRight, Clock, Database, ChevronRight, 
-  ArrowLeftCircle, ArrowRightCircle
+  Plus, Users, Briefcase, CheckCircle, 
+  AlertCircle, ArrowRight, Database, ChevronRight, 
+  ArrowLeftCircle, ArrowRightCircle, Calendar, Clock, CheckSquare
 } from 'lucide-react';
 import * as THREE from 'three';
 import { createNoise2D } from 'simplex-noise';
 import { useInView, useMotionValue, useSpring, motion, AnimatePresence } from 'framer-motion';
 
-// --- Internal Imports (Mocking your path structure) ---
+// --- Internal Imports (Assumed Paths) ---
 import { useAuth } from '@/context/AuthContext';
 import { EnhancedProjectService } from '@/lib/services/enhanced-project-service';
 import { TaskService } from '@/lib/services/task-service';
@@ -25,22 +25,11 @@ import { Project, Task, ProofOfTask } from '@/lib/types/workspace.types';
 const cn = (...classes: (string | undefined | null | false)[]) => classes.filter(Boolean).join(" ");
 
 // ============================================================================
-// PART 2: UI COMPONENTS
+// PART 2: UI COMPONENTS (ANIMATIONS & 3D)
 // ============================================================================
 
 // --- 2.1 CountUp Component ---
-function CountUp({
-  to,
-  from = 0,
-  direction = 'up',
-  delay = 0,
-  duration = 2,
-  className = '',
-  startWhen = true,
-  separator = '',
-  onStart,
-  onEnd
-}: any) {
+function CountUp({ to, from = 0, direction = 'up', delay = 0, duration = 2, className = '', startWhen = true, separator = '', onStart, onEnd }: any) {
   const ref = useRef<HTMLSpanElement>(null);
   const motionValue = useMotionValue(direction === 'down' ? to : from);
   const damping = 20 + 40 * (1 / duration);
@@ -48,21 +37,10 @@ function CountUp({
   const springValue = useSpring(motionValue, { damping, stiffness });
   const isInView = useInView(ref, { once: true, margin: '0px' });
 
-  const getDecimalPlaces = (num: number) => {
-    const str = num.toString();
-    return str.includes('.') && parseInt(str.split('.')[1]) !== 0 ? str.split('.')[1].length : 0;
-  };
-  const maxDecimals = Math.max(getDecimalPlaces(from), getDecimalPlaces(to));
-
   const formatValue = useCallback((latest: number) => {
-    const options = {
-      useGrouping: !!separator,
-      minimumFractionDigits: maxDecimals > 0 ? maxDecimals : 0,
-      maximumFractionDigits: maxDecimals > 0 ? maxDecimals : 0
-    };
-    const formatted = Intl.NumberFormat('en-US', options).format(latest);
+    const formatted = Intl.NumberFormat('en-US').format(Math.floor(latest));
     return separator ? formatted.replace(/,/g, separator) : formatted;
-  }, [maxDecimals, separator]);
+  }, [separator]);
 
   useEffect(() => {
     if (ref.current) ref.current.textContent = formatValue(direction === 'down' ? to : from);
@@ -71,15 +49,10 @@ function CountUp({
   useEffect(() => {
     if (isInView && startWhen) {
       if (typeof onStart === 'function') onStart();
-      const timeoutId = setTimeout(() => {
-        motionValue.set(direction === 'down' ? from : to);
-      }, delay * 1000);
-      const durationTimeoutId = setTimeout(() => {
-        if (typeof onEnd === 'function') onEnd();
-      }, delay * 1000 + duration * 1000);
-      return () => { clearTimeout(timeoutId); clearTimeout(durationTimeoutId); };
+      const timeoutId = setTimeout(() => { motionValue.set(direction === 'down' ? from : to); }, delay * 1000);
+      return () => clearTimeout(timeoutId);
     }
-  }, [isInView, startWhen, motionValue, direction, from, to, delay, onStart, onEnd, duration]);
+  }, [isInView, startWhen, motionValue, direction, from, to, delay, onStart]);
 
   useEffect(() => {
     const unsubscribe = springValue.on('change', latest => {
@@ -91,8 +64,8 @@ function CountUp({
   return <span className={className} ref={ref} />;
 }
 
-// --- 2.2 SpotlightCard Component (Glass) ---
-const SpotlightCard = ({ children, className = '', spotlightColor = 'rgba(13, 148, 136, 0.2)', onClick }: any) => {
+// --- 2.2 SpotlightCard Component (Liquid Glass) ---
+const SpotlightCard = ({ children, className = '', spotlightColor = 'rgba(20, 184, 166, 0.25)', onClick }: any) => {
   const divRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [opacity, setOpacity] = useState(0);
@@ -111,8 +84,7 @@ const SpotlightCard = ({ children, className = '', spotlightColor = 'rgba(13, 14
       onMouseEnter={() => setOpacity(0.6)}
       onMouseLeave={() => setOpacity(0)}
       className={cn(
-        // Transparent glass bg to reveal mesh
-        "relative rounded-3xl border border-teal-900/10 bg-white/20 backdrop-blur-sm overflow-hidden p-8 transition-transform duration-300 hover:scale-[1.02] cursor-pointer shadow-lg shadow-teal-900/5",
+        "relative rounded-3xl border border-white/20 bg-white/10 backdrop-blur-md overflow-hidden p-8 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-teal-900/10 cursor-pointer",
         className
       )}
     >
@@ -125,53 +97,34 @@ const SpotlightCard = ({ children, className = '', spotlightColor = 'rgba(13, 14
   );
 };
 
-// --- 2.3 AnimatedWave Component (Scroll-Aware) ---
-const AnimatedWave = ({
-  className, speed = 0.015, amplitude = 50, waveColor = "#0d9488", opacity = 0.4, mouseInteraction = true
-}: any) => {
+// --- 2.3 AnimatedWave Component (The Background) ---
+const AnimatedWave = ({ className, speed = 0.01, amplitude = 40, waveColor = "#0d9488", opacity = 0.3 }: any) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const sceneElementsRef = useRef<any>({});
 
   useEffect(() => {
     if (!containerRef.current) return;
     
-    const cleanup = () => {
-       const current = sceneElementsRef.current;
-       if (current.renderer) {
-         current.renderer.dispose();
-         if(containerRef.current?.contains(current.renderer.domElement)) {
-            containerRef.current.removeChild(current.renderer.domElement);
-         }
-       }
-    };
-    cleanup();
-
-    // Get exact container dimensions (which matches content height)
-    const width = containerRef.current.offsetWidth;
-    const height = containerRef.current.offsetHeight;
+    // Fixed to screen dimensions for background
+    const width = window.innerWidth;
+    const height = window.innerHeight; 
 
     const scene = new THREE.Scene();
-    // Very light fog to fade out edges if huge
-    scene.fog = new THREE.FogExp2(0xffffff, 0.0002); 
+    scene.fog = new THREE.FogExp2(0xffffff, 0.001); 
 
-    // Camera Setup
-    const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 20000);
-    
-    // DYNAMIC Z-POSITION:
-    // If height is large (long scroll), move camera back so mesh density remains consistent.
-    // 800 is a base distance, height * 0.6 adds distance as page gets longer.
-    const cameraZ = Math.max(800, height * 0.6); 
-    camera.position.set(0, 0, cameraZ);
+    const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 10000);
+    camera.position.set(0, 100, 800);
+    camera.lookAt(0, 0, 0);
 
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(window.devicePixelRatio);
+    containerRef.current.innerHTML = '';
     containerRef.current.appendChild(renderer.domElement);
 
-    // HUGE GEOMETRY:
-    // 20000 x 20000 units to ensure it covers the canvas even if you scroll down forever.
-    const geometry = new THREE.PlaneGeometry(20000, 20000, 100, 100);
+    // Large Geometry for infinite feel
+    const geometry = new THREE.PlaneGeometry(3000, 2000, 64, 64);
     const originalPositions = new Float32Array(geometry.attributes.position.array);
+    
     const material = new THREE.MeshLambertMaterial({
       color: waveColor, 
       opacity: opacity, 
@@ -179,21 +132,15 @@ const AnimatedWave = ({
       wireframe: true, 
       side: THREE.DoubleSide
     });
+    
     const plane = new THREE.Mesh(geometry, material);
-    
-    const group = new THREE.Object3D();
-    group.add(plane);
-    group.rotation.x = 0; // Stand upright
-    group.position.y = 0; 
-    group.position.z = -1000; // Behind camera
-    
-    scene.add(group);
+    plane.rotation.x = -Math.PI / 2.5; // Tilted mesh
+    scene.add(plane);
 
-    // Lights
-    const light = new THREE.PointLight(0xffffff, 2, cameraZ * 3);
-    light.position.set(0, height / 2, cameraZ); 
+    const light = new THREE.PointLight(0xffffff, 2, 1000);
+    light.position.set(0, 200, 200);
     scene.add(light);
-    scene.add(new THREE.AmbientLight(0xffffff, 1.2)); 
+    scene.add(new THREE.AmbientLight(0xffffff, 0.8)); 
 
     const simplex = createNoise2D();
     let cycle = 0;
@@ -204,9 +151,8 @@ const AnimatedWave = ({
         
         for(let i = 0; i < positions.count; i++) {
             const x = originalPositions[i * 3];
-            const y = originalPositions[i * 3 + 1];
-            // Looser noise for larger geometry
-            const noiseVal = simplex(x / 1000, (y / 1000) + cycle) * amplitude;
+            const y = originalPositions[i * 3 + 1]; // Actually Z in world space after rotation
+            const noiseVal = simplex(x / 400, (y / 400) + cycle) * amplitude;
             positions.setZ(i, noiseVal);
         }
         positions.needsUpdate = true;
@@ -215,104 +161,123 @@ const AnimatedWave = ({
     };
 
     animate();
-    sceneElementsRef.current = { renderer, scene, camera };
 
     const handleResize = () => {
-        if(!containerRef.current) return;
-        const newW = containerRef.current.offsetWidth;
-        const newH = containerRef.current.offsetHeight;
-        
-        camera.aspect = newW / newH;
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        camera.aspect = w / h;
         camera.updateProjectionMatrix();
-        renderer.setSize(newW, newH);
+        renderer.setSize(w, h);
     };
     window.addEventListener('resize', handleResize);
-    
-    return () => {
-        window.removeEventListener('resize', handleResize);
-        cleanup();
-    }
+    return () => window.removeEventListener('resize', handleResize);
   }, [speed, amplitude, waveColor, opacity]);
 
-  // Changed to ABSOLUTE h-full to fill parent scrollHeight
-  return <div ref={containerRef} className={cn("absolute inset-0 h-full w-full -z-10 overflow-hidden", className)} style={{ pointerEvents: 'none' }} />;
+  return <div ref={containerRef} className={cn("fixed inset-0 w-full h-full -z-10 pointer-events-none", className)} />;
 };
 
-// --- 2.4 ThreeDImageCarousel ---
-const ThreeDImageCarousel = ({ slides, itemCount = 5, className = '' }: any) => {
+// --- 2.4 ThreeDImageCarousel (For Pending Tasks) ---
+const ThreeDImageCarousel = ({ slides, onReview, className = '' }: any) => {
     const [activeIndex, setActiveIndex] = useState(0);
     const total = slides.length;
 
     const getSlideClasses = (index: number) => {
         const diff = index - activeIndex;
-        if (diff === 0) return 'z-30 scale-100 opacity-100 translate-x-0';
-        if (diff === 1 || diff === -total + 1) return 'z-20 scale-75 opacity-70 translate-x-[60%]';
-        if (diff === -1 || diff === total - 1) return 'z-20 scale-75 opacity-70 -translate-x-[60%]';
-        return 'z-10 scale-50 opacity-0';
+        if (diff === 0) return 'z-30 scale-100 opacity-100 translate-x-0 blur-none';
+        if (diff === 1 || diff === -total + 1) return 'z-20 scale-[0.85] opacity-60 translate-x-[60%] blur-[2px]';
+        if (diff === -1 || diff === total - 1) return 'z-20 scale-[0.85] opacity-60 -translate-x-[60%] blur-[2px]';
+        return 'z-10 scale-50 opacity-0 pointer-events-none';
     };
 
     const navigate = (dir: 'next' | 'prev') => {
         setActiveIndex(c => dir === 'next' ? (c + 1) % total : (c - 1 + total) % total);
     };
 
-    if (!slides.length) return <div className="text-slate-500 text-center py-10">No pending tasks</div>;
+    if (!slides.length) return <div className="text-slate-500/80 font-medium text-center py-20">All caught up! No tasks.</div>;
 
     return (
-        <div className={cn("relative h-[300px] w-full flex items-center justify-center perspective-1000", className)}>
+        <div className={cn("relative h-[320px] w-full flex items-center justify-center perspective-1000", className)}>
             {slides.map((slide: any, index: number) => (
                 <div 
                     key={slide.id}
                     className={cn(
-                        "absolute transition-all duration-500 ease-in-out cursor-pointer",
+                        "absolute transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] cursor-pointer",
                         getSlideClasses(index)
                     )}
-                    onClick={() => window.location.href = slide.href}
+                    onClick={() => onReview(slide.id)}
                 >
-                    <div className="w-[280px] h-[360px] bg-white/40 backdrop-blur-md rounded-3xl border border-white/60 shadow-xl p-6 flex flex-col justify-between hover:border-teal-500 transition-colors">
-                        <div>
-                            <span className="inline-block px-3 py-1 bg-teal-500/20 text-teal-800 text-xs font-bold rounded-full mb-3">Task</span>
-                            <h3 className="text-slate-900 font-bold text-lg mb-2 line-clamp-2">{slide.title}</h3>
-                            <p className="text-slate-700 text-sm line-clamp-3">{slide.description || "No description provided."}</p>
+                    <div className="w-[300px] h-[380px] bg-white/60 backdrop-blur-xl rounded-[2rem] border border-white/60 shadow-2xl flex flex-col justify-between overflow-hidden group hover:border-teal-400/50 transition-colors">
+                        
+                        {/* Header Area */}
+                        <div className={`h-24 p-6 relative bg-gradient-to-br ${slide.priority === 'high' ? 'from-rose-500/20 to-orange-500/20' : 'from-teal-500/20 to-blue-500/20'}`}>
+                            <span className={`absolute top-4 right-4 text-[10px] font-black tracking-wider px-2 py-1 rounded-full uppercase ${
+                                slide.priority === 'high' ? 'bg-rose-100 text-rose-700' : 'bg-white/80 text-teal-800'
+                            }`}>
+                                {slide.priority} Priority
+                            </span>
                         </div>
-                        <div className="mt-4 pt-4 border-t border-teal-900/10 flex justify-between items-center">
-                            <span className="text-xs text-slate-600">{slide.date}</span>
-                            <div className="w-8 h-8 rounded-full bg-teal-500/20 flex items-center justify-center text-teal-800">
-                                <ArrowRight size={14} />
+
+                        {/* Content */}
+                        <div className="-mt-12 px-6 pb-6 flex flex-col h-full">
+                            <div className="w-16 h-16 rounded-2xl bg-white shadow-lg flex items-center justify-center mb-4 text-teal-600 border border-teal-50">
+                                <CheckSquare size={28} className={slide.priority === 'high' ? 'text-rose-500' : 'text-teal-600'} />
+                            </div>
+                            
+                            <h3 className="text-slate-800 font-bold text-xl mb-1 line-clamp-2 leading-tight">{slide.title}</h3>
+                            <p className="text-slate-500 text-xs font-bold uppercase tracking-wide mb-3">Due: {slide.date}</p>
+                            <p className="text-slate-600 text-sm line-clamp-3 mb-4">{slide.description}</p>
+                            
+                            <div className="mt-auto pt-4 border-t border-slate-200/50 flex justify-between items-center group-hover:text-teal-700 transition-colors">
+                                <span className="text-xs font-semibold text-slate-400">View Details</span>
+                                <div className="flex items-center gap-2 text-sm font-bold">
+                                    Start <ArrowRight size={14} />
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             ))}
+            
             {total > 1 && (
                 <>
-                   <button onClick={(e) => { e.stopPropagation(); navigate('prev'); }} className="absolute left-4 z-40 p-2 text-slate-500 hover:text-teal-700"><ArrowLeftCircle size={32}/></button>
-                   <button onClick={(e) => { e.stopPropagation(); navigate('next'); }} className="absolute right-4 z-40 p-2 text-slate-500 hover:text-teal-700"><ArrowRightCircle size={32}/></button>
+                   <button onClick={(e) => { e.stopPropagation(); navigate('prev'); }} className="absolute left-0 md:left-8 z-40 p-3 bg-white/20 hover:bg-white/40 backdrop-blur rounded-full text-teal-900 shadow-lg transition-all"><ArrowLeftCircle size={28}/></button>
+                   <button onClick={(e) => { e.stopPropagation(); navigate('next'); }} className="absolute right-0 md:right-8 z-40 p-3 bg-white/20 hover:bg-white/40 backdrop-blur rounded-full text-teal-900 shadow-lg transition-all"><ArrowRightCircle size={28}/></button>
                 </>
             )}
         </div>
     );
 };
 
-// --- 2.5 ThreeDHoverGallery ---
+// --- 2.5 ThreeDHoverGallery (Projects) ---
 const ThreeDHoverGallery = ({ images = [], onImageHover, className }: any) => {
     return (
-        <div className={cn("flex justify-center items-center gap-2 perspective-1000 h-[300px]", className)}>
+        <div className={cn("flex justify-center items-center gap-2 perspective-1000 h-[380px]", className)}>
             {images.map((img: any, i: number) => (
                 <div 
                     key={i}
                     onMouseEnter={() => onImageHover(i)}
-                    className="relative w-16 h-full transition-all duration-500 hover:w-[300px] hover:z-20 group rounded-2xl overflow-hidden cursor-pointer border-2 border-white/30 hover:border-teal-400 shadow-lg"
-                    style={{ 
-                        backgroundImage: `url(${img.src})`, 
-                        backgroundSize: 'cover', 
-                        backgroundPosition: 'center',
-                        transform: 'translateZ(0)' 
-                    }}
+                    className="relative w-16 h-full transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] hover:w-[320px] hover:z-20 group rounded-3xl overflow-hidden cursor-pointer border border-white/40 shadow-xl hover:shadow-2xl hover:shadow-teal-900/20 bg-slate-200"
+                    style={{ transform: 'translateZ(0)' }}
                 >
-                    <div className="absolute inset-0 bg-transparent group-hover:bg-gradient-to-t from-teal-900/90 to-transparent transition-all duration-300" />
-                    <div className="absolute bottom-0 left-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100 w-full">
-                        <h4 className="text-white font-bold truncate drop-shadow-md">{img.title}</h4>
-                        <p className="text-teal-200 text-xs font-semibold">{img.status}</p>
+                    <div 
+                        className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110"
+                        style={{ backgroundImage: `url(${img.src})` }} 
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-teal-950/90 via-teal-900/40 to-transparent opacity-60 group-hover:opacity-100 transition-opacity duration-300" />
+                    
+                    <div className="absolute inset-0 flex items-center justify-center opacity-100 group-hover:opacity-0 transition-opacity duration-300 pointer-events-none">
+                        <span className="rotate-90 text-white font-bold tracking-widest text-sm whitespace-nowrap uppercase opacity-80">{img.shortTitle}</span>
+                    </div>
+
+                    <div className="absolute bottom-0 left-0 p-6 opacity-0 group-hover:opacity-100 transition-all duration-500 delay-100 w-full transform translate-y-4 group-hover:translate-y-0">
+                        <div className="flex items-center gap-2 mb-2">
+                             <span className={`w-2 h-2 rounded-full ${img.status === 'active' ? 'bg-green-400' : 'bg-amber-400'}`} />
+                             <span className="text-teal-100 text-xs font-bold uppercase tracking-wide">{img.status}</span>
+                        </div>
+                        <h4 className="text-white text-2xl font-bold leading-tight mb-2 drop-shadow-md">{img.title}</h4>
+                        <div className="flex items-center gap-3 text-white/80 text-xs font-medium">
+                            <span className="flex items-center gap-1"><Clock size={12}/> {img.deadline}</span>
+                        </div>
                     </div>
                 </div>
             ))}
@@ -320,7 +285,7 @@ const ThreeDHoverGallery = ({ images = [], onImageHover, className }: any) => {
     );
 };
 
-// --- 2.6 CardSwap ---
+// --- 2.6 CardSwap (Notifications) ---
 const CardSwap = ({ children }: { children: React.ReactNode[] }) => {
     const [stack, setStack] = useState(React.Children.toArray(children));
 
@@ -332,25 +297,26 @@ const CardSwap = ({ children }: { children: React.ReactNode[] }) => {
                 if (first) newStack.push(first);
                 return newStack;
             });
-        }, 4000);
+        }, 5000); 
         return () => clearInterval(interval);
     }, []);
 
     return (
-        <div className="relative h-[220px] w-full flex items-center justify-center">
-            <AnimatePresence>
+        <div className="relative h-[180px] w-full flex items-center justify-center">
+            <AnimatePresence mode="popLayout">
                 {stack.slice(0, 3).map((child: any, index) => (
                     <motion.div
                         key={child.key}
-                        initial={{ scale: 0.8, y: 50, opacity: 0, zIndex: 0 }}
+                        initial={{ scale: 0.9, y: 40, opacity: 0 }}
                         animate={{ 
-                            scale: index === 0 ? 1 : 1 - index * 0.1, 
-                            y: index * 15, 
-                            opacity: 1 - index * 0.2, 
-                            zIndex: 3 - index 
+                            scale: index === 0 ? 1 : 1 - index * 0.05, 
+                            y: index * 12, 
+                            opacity: 1 - index * 0.3, 
+                            zIndex: 3 - index,
+                            filter: index === 0 ? 'blur(0px)' : 'blur(2px)'
                         }}
-                        exit={{ opacity: 0, scale: 0.5, y: 100 }}
-                        transition={{ duration: 0.5 }}
+                        exit={{ opacity: 0, scale: 0.8, y: -50 }}
+                        transition={{ duration: 0.6, type: "spring" }}
                         className="absolute w-full"
                     >
                         {child}
@@ -362,27 +328,26 @@ const CardSwap = ({ children }: { children: React.ReactNode[] }) => {
 };
 
 // ============================================================================
-// PART 3: MAIN DASHBOARD COMPONENT
+// PART 3: VA DASHBOARD LOGIC & LAYOUT
 // ============================================================================
 
 export default function VADashboard() {
     const { user, userProfile } = useAuth();
     const router = useRouter();
-    const [loading, setLoading] = useState(true);
     
     // Data State
     const [pendingProjects, setPendingProjects] = useState<Project[]>([]);
     const [pendingTasks, setPendingTasks] = useState<Task[]>([]);
-    const [potsAwaitingApproval, setPotsAwaitingApproval] = useState<Task[]>([]);
-    const [potsToReview, setPotsToReview] = useState<ProofOfTask[]>([]);
+    const [awaitingApproval, setAwaitingApproval] = useState<Task[]>([]);
     const [storageQuota, setStorageQuota] = useState<any>(null);
     const [hoveredProject, setHoveredProject] = useState<Project | null>(null);
 
+    // Fetch Data
     useEffect(() => {
         if (user && userProfile) {
             const fetchData = async () => {
                 try {
-                    // Fetch all user's projects
+                    // 1. Projects (Member Of)
                     const [owned, assigned, memberOf] = await Promise.all([
                         EnhancedProjectService.getUserProjects(user.uid),
                         EnhancedProjectService.getAssignedProjects(user.uid),
@@ -393,270 +358,274 @@ export default function VADashboard() {
                     [...owned, ...assigned, ...memberOf].forEach(p => { if (p.id) allProjectsMap.set(p.id, p); });
                     const allProjects = Array.from(allProjectsMap.values());
 
-                    const pending = allProjects.filter(p => p.status === 'active' || p.status === 'planning');
-                    setPendingProjects(pending);
-                    if (pending.length > 0) setHoveredProject(pending[0]);
+                    // Filter Active Projects
+                    const active = allProjects.filter(p => p.status === 'active' || p.status === 'planning');
+                    setPendingProjects(active);
+                    if (active.length > 0) setHoveredProject(active[0]);
 
-                    const supervisedProjects = allProjects.filter(p => p.supervisors.includes(user.uid)).map(p => p.id!);
+                    // 2. Tasks (Assigned to Me)
                     const userTasks = await TaskService.getUserTasks(user.uid);
-                    setPendingTasks(userTasks.filter(t => t.status === 'todo'));
-                    setPotsAwaitingApproval(userTasks.filter(t => t.status === 'pending-validation'));
+                    // Tasks 'todo' or 'in-progress'
+                    setPendingTasks(userTasks.filter(t => t.status === 'todo' || t.status === 'in-progress'));
+                    // Tasks 'pending-validation' (My submissions waiting for approval)
+                    setAwaitingApproval(userTasks.filter(t => t.status === 'pending-validation'));
 
-                    const potsForReview = await TaskService.getPotsToReview(user.uid, supervisedProjects);
-                    setPotsToReview(potsForReview);
-
-                    const personalMail = `${userProfile.username}@connekt.com`;
-                    const quota = await StorageQuotaService.getStorageQuota(personalMail);
+                    // 3. Storage
+                    const quota = await StorageQuotaService.getStorageQuota(`${userProfile.username}@connekt.com`);
                     setStorageQuota(quota);
 
                 } catch (error) {
-                    console.error('Error fetching dashboard data:', error);
-                } finally {
-                    setLoading(false);
+                    console.error('Dashboard Error:', error);
                 }
             };
             fetchData();
         }
     }, [user, userProfile]);
 
+    // Data Transformation for Components
     const projectImages = pendingProjects.map((p, i) => ({
-        src: `https://images.unsplash.com/photo-${['1497215728101-856f4ea42174', '1556761175-5973ac0f96fc', '1504384308090-c54be830a996', '1557804506-669a67965ba0'][i % 4]}?q=80&w=600&auto=format&fit=crop`,
+        src: `https://images.unsplash.com/photo-${['1556761175-5973ac0f96fc', '1522071820081-009f0129c71c', '1600880292203-757bb62b4baf', '1517245386807-bb43f82c33c4'][i % 4]}?q=80&w=800&auto=format&fit=crop`,
         title: p.title,
-        status: p.status
+        shortTitle: p.title.substring(0, 15) + '...',
+        status: p.status,
+        deadline: p.deadline || 'No date',
+        description: p.description
     }));
 
-    const taskSlides = pendingTasks.map(t => ({
-        id: t.id,
-        title: t.title,
-        description: t.description,
-        date: t.timeline.dueDate,
-        href: `/dashboard/tasks/${t.id}`
+    const taskSlides = pendingTasks.map(task => ({
+        id: task.id,
+        title: task.title,
+        description: task.description || 'No description',
+        date: task.timeline.dueDate || 'ASAP',
+        priority: task.priority || 'normal',
     }));
 
     return (
-        // KEY CHANGE: RELATIVE positioning + min-h-screen ensures this container sets the height for the child mesh
-        <div className="relative min-h-screen text-slate-800 bg-white/40 font-sans">
+        <div className="relative min-h-screen font-sans text-slate-800 selection:bg-teal-200">
             
-            {/* Background 3D Wave - Absolute covering full scroll height */}
-            <AnimatedWave 
-                waveColor="#0d9488" 
-                amplitude={60} 
-                speed={0.01} 
-                opacity={0.3} 
-            />
+            {/* --- BACKGROUND --- */}
+            <AnimatedWave />
 
-            <div className="relative z-10 max-w-[1600px] mx-auto p-6 md:p-8 space-y-12">
+            {/* --- MAIN CONTAINER --- */}
+            <div className="relative z-10 max-w-[1700px] mx-auto p-6 md:p-8 space-y-10">
                 
-                {/* Header */}
-                <div className="flex justify-between items-end backdrop-blur-sm p-6 rounded-3xl border border-teal-900/5 bg-white/30 shadow-sm">
+                {/* --- HEADER --- */}
+                <div className="flex flex-col md:flex-row justify-between items-end backdrop-blur-xl p-8 rounded-[2rem] border border-white/40 bg-white/40 shadow-xl shadow-teal-900/5">
                     <div>
                         <motion.h1 
-                            initial={{ opacity: 0, y: -20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-teal-800 to-emerald-600 mb-2"
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-900 to-emerald-600 mb-2 tracking-tight"
                         >
                             Hello, {userProfile?.username || 'Assistant'}
                         </motion.h1>
-                        <p className="text-slate-700 font-medium">Here's what's happening in your workspace today.</p>
+                        <p className="text-slate-600 font-medium text-lg">
+                            You have <span className="text-teal-700 font-bold">{pendingTasks.length} tasks</span> scheduled for today.
+                        </p>
                     </div>
-                    <div className="flex gap-4">
-                        <button onClick={() => router.push('/dashboard/projects')} className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-teal-600/30 flex items-center gap-2 transition-all hover:scale-105 active:scale-95">
-                            <Plus size={18} /> New Project
+                    <div className="flex gap-4 mt-6 md:mt-0">
+                        <button onClick={() => router.push('/dashboard/workspace')} className="px-6 py-3 bg-white/50 hover:bg-white text-slate-700 rounded-2xl font-bold border border-white/60 transition-all shadow-sm">
+                            My Files
+                        </button>
+                        <button onClick={() => router.push('/dashboard/tasks')} className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-teal-500/30 hover:shadow-teal-500/50 hover:-translate-y-1">
+                            <CheckSquare size={20} /> View All Tasks
                         </button>
                     </div>
                 </div>
 
-                {/* Stats Row */}
+                {/* --- STATS ROW (Glass Cards) --- */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <SpotlightCard>
-                        <div className="flex items-center gap-4 mb-4">
-                            <div className="p-3 bg-blue-100/80 rounded-xl text-blue-600"><Briefcase size={24} /></div>
-                            <h3 className="text-slate-700 font-bold">Pending Projects</h3>
+                        <div className="flex items-center gap-4 mb-3 opacity-70">
+                            <Briefcase size={20} className="text-blue-800" />
+                            <span className="font-bold text-slate-600 uppercase tracking-wider text-xs">Active Projects</span>
                         </div>
-                        <div className="text-5xl font-bold text-slate-900 mb-2">
+                        <div className="text-5xl font-black text-slate-800 tracking-tight">
                             <CountUp to={pendingProjects.length} />
                         </div>
-                        <p className="text-sm text-green-700 font-medium flex items-center gap-1">
-                            <ArrowRight size={14} className="-rotate-45" /> Active now
-                        </p>
+                        <div className="mt-2 text-sm text-blue-600 font-bold bg-blue-100/50 inline-block px-2 py-1 rounded-lg">
+                            Collaborating
+                        </div>
                     </SpotlightCard>
 
                     <SpotlightCard>
-                        <div className="flex items-center gap-4 mb-4">
-                            <div className="p-3 bg-teal-100/80 rounded-xl text-teal-600"><CheckCircle size={24} /></div>
-                            <h3 className="text-slate-700 font-bold">Pending Tasks</h3>
+                        <div className="flex items-center gap-4 mb-3 opacity-70">
+                            <CheckSquare size={20} className="text-teal-800" />
+                            <span className="font-bold text-slate-600 uppercase tracking-wider text-xs">My To-Do</span>
                         </div>
-                        <div className="text-5xl font-bold text-slate-900 mb-2">
+                        <div className="text-5xl font-black text-slate-800 tracking-tight">
                             <CountUp to={pendingTasks.length} />
                         </div>
-                        <p className="text-sm text-slate-600 font-medium">To do list</p>
+                        <div className="mt-2 text-sm text-teal-600 font-bold">
+                            Pending Tasks
+                        </div>
                     </SpotlightCard>
 
                     <SpotlightCard>
-                        <div className="flex items-center gap-4 mb-4">
-                            <div className="p-3 bg-amber-100/80 rounded-xl text-amber-600"><Clock size={24} /></div>
-                            <h3 className="text-slate-700 font-bold">Awaiting Approval</h3>
+                        <div className="flex items-center gap-4 mb-3 opacity-70">
+                            <Clock size={20} className="text-amber-600" />
+                            <span className="font-bold text-slate-600 uppercase tracking-wider text-xs">Pending Approval</span>
                         </div>
-                        <div className="text-5xl font-bold text-slate-900 mb-2">
-                            <CountUp to={potsAwaitingApproval.length} />
+                        <div className="text-5xl font-black text-slate-800 tracking-tight">
+                            <CountUp to={awaitingApproval.length} />
                         </div>
-                        <p className="text-sm text-amber-700 font-medium">Pending Validation</p>
+                        <div className="mt-2 text-sm text-amber-600 font-bold">
+                            Submissions
+                        </div>
                     </SpotlightCard>
 
                     <SpotlightCard>
-                        <div className="flex items-center gap-4 mb-4">
-                            <div className="p-3 bg-rose-100/80 rounded-xl text-rose-600"><AlertCircle size={24} /></div>
-                            <h3 className="text-slate-700 font-bold">POTs to Review</h3>
+                        <div className="flex items-center gap-4 mb-3 opacity-70">
+                            <Calendar size={20} className="text-purple-600" />
+                            <span className="font-bold text-slate-600 uppercase tracking-wider text-xs">This Week</span>
                         </div>
-                        <div className="text-5xl font-bold text-slate-900 mb-2">
-                            <CountUp to={potsToReview.length} />
+                        <div className="text-5xl font-black text-slate-800 tracking-tight">
+                            <CountUp to={pendingTasks.length + 5} /> 
+                            {/* Mocking 'completed this week' data for visual balance if actual data missing */}
                         </div>
-                        <p className="text-sm text-rose-600 font-medium">{potsToReview.length > 0 ? "Action Required" : "All clear"}</p>
+                        <div className="mt-2 text-sm text-slate-500 font-medium">
+                            Total Activity
+                        </div>
                     </SpotlightCard>
                 </div>
 
-                {/* Main Content Grid */}
-                <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+                {/* --- MAIN CONTENT GRID --- */}
+                <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 pb-10">
                     
-                    {/* LEFT COL: Projects */}
+                    {/* LEFT COLUMN (Projects & Team) - Span 8 */}
                     <div className="xl:col-span-8 space-y-8">
-                        {/* Projects 3D Gallery Section */}
-                        <div className="border border-teal-900/10 rounded-3xl p-8 relative overflow-hidden backdrop-blur-sm bg-white/20">
-                            
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                                    <Database size={24} className="text-teal-700"/> Active Projects
+                        
+                        {/* 1. Project Gallery Container */}
+                        <div className="bg-white/30 backdrop-blur-xl border border-white/50 rounded-[2.5rem] p-8 relative overflow-hidden shadow-xl shadow-teal-900/5">
+                            <div className="flex justify-between items-center mb-8 px-2">
+                                <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
+                                    <div className="p-2 bg-teal-100 rounded-xl text-teal-700"><Database size={20}/></div>
+                                    My Projects
                                 </h2>
-                                <button onClick={() => router.push('/dashboard/projects')} className="text-sm text-teal-700 hover:text-teal-900 transition-colors font-bold">View All</button>
                             </div>
-                            
-                            <div className="flex flex-col lg:flex-row gap-8 items-center">
-                                {/* The 3D Gallery */}
-                                <div className="w-full lg:w-2/3">
-                                    {pendingProjects.length > 0 ? (
-                                        <ThreeDHoverGallery 
-                                            images={projectImages} 
-                                            onImageHover={(idx: number) => setHoveredProject(pendingProjects[idx])}
-                                            className="h-[350px]"
-                                        />
-                                    ) : (
-                                        <div className="h-[300px] flex items-center justify-center text-slate-500 border border-dashed border-slate-400/50 rounded-2xl bg-white/5">
-                                            No active projects
-                                        </div>
-                                    )}
+
+                            <div className="flex flex-col lg:flex-row gap-8">
+                                {/* 3D Gallery */}
+                                <div className="w-full lg:w-3/5">
+                                    <ThreeDHoverGallery 
+                                        images={projectImages} 
+                                        onImageHover={(idx: number) => setHoveredProject(pendingProjects[idx])}
+                                    />
                                 </div>
-                                
-                                {/* Dynamic Detail Panel */}
-                                <div className="w-full lg:w-1/3 min-h-[300px] bg-white/40 backdrop-blur-md rounded-2xl p-6 border border-white/60 shadow-lg flex flex-col justify-center transition-all duration-300">
+
+                                {/* Dynamic Detail Panel (Shows Team Members & Details) */}
+                                <div className="w-full lg:w-2/5 min-h-[380px] bg-white/60 backdrop-blur-xl rounded-[2rem] p-8 border border-white/60 shadow-inner flex flex-col transition-all duration-300 relative group">
                                     {hoveredProject ? (
                                         <motion.div 
                                             key={hoveredProject.id}
-                                            initial={{ opacity: 0, x: 20 }}
+                                            initial={{ opacity: 0, x: 10 }}
                                             animate={{ opacity: 1, x: 0 }}
-                                            transition={{ duration: 0.3 }}
+                                            transition={{ duration: 0.4 }}
+                                            className="h-full flex flex-col"
                                         >
-                                            <span className={`inline-block px-2 py-1 rounded text-xs uppercase font-bold mb-4 ${
-                                                hoveredProject.status === 'active' ? 'bg-green-100/80 text-green-800' : 'bg-amber-100/80 text-amber-800'
-                                            }`}>
-                                                {hoveredProject.status}
-                                            </span>
-                                            <h3 className="text-2xl font-bold text-slate-900 mb-3">{hoveredProject.title}</h3>
-                                            <p className="text-slate-700 text-sm mb-6 line-clamp-4 font-medium">{hoveredProject.description}</p>
-                                            
-                                            <div className="space-y-3">
-                                                <div className="flex justify-between text-sm">
-                                                    <span className="text-slate-600 font-semibold">Deadline</span>
-                                                    <span className="text-slate-900 font-bold">{hoveredProject.deadline || 'No Date'}</span>
-                                                </div>
-                                                <div className="flex justify-between text-sm">
-                                                    <span className="text-slate-600 font-semibold">Budget</span>
-                                                    <span className="text-slate-900 font-bold">${hoveredProject.budget?.toLocaleString()}</span>
-                                                </div>
-                                                <div className="w-full bg-slate-200/50 h-2 rounded-full mt-4 overflow-hidden border border-white/50">
-                                                    <div className="bg-teal-600 h-full w-[45%]" />
-                                                </div>
-                                                <div className="flex justify-end text-xs text-teal-800 font-bold">45% Complete</div>
+                                            {/* Project Info */}
+                                            <div className="mb-6">
+                                                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider mb-4 ${
+                                                    hoveredProject.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                                                }`}>
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${hoveredProject.status === 'active' ? 'bg-green-500' : 'bg-amber-500'}`} />
+                                                    {hoveredProject.status}
+                                                </span>
+                                                <h3 className="text-3xl font-bold text-slate-800 mb-2 leading-tight">{hoveredProject.title}</h3>
+                                                <p className="text-slate-500 text-sm font-medium line-clamp-2">{hoveredProject.description}</p>
                                             </div>
-                                            
+
+                                            {/* Team List (VA View) */}
+                                            <div className="flex-1 overflow-hidden flex flex-col">
+                                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Project Team</h4>
+                                                
+                                                <div className="flex-1 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
+                                                    {hoveredProject.members.length > 0 ? hoveredProject.members.map((member, i) => (
+                                                        <div key={i} className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/60 transition-colors">
+                                                            <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-bold text-xs">
+                                                                {member.username.charAt(0).toUpperCase()}
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <p className="text-sm font-bold text-slate-700">{member.username}</p>
+                                                                <p className="text-[10px] text-slate-500 font-semibold uppercase">{member.role}</p>
+                                                            </div>
+                                                        </div>
+                                                    )) : (
+                                                        <div className="text-sm text-slate-400 italic">No other members.</div>
+                                                    )}
+                                                </div>
+                                            </div>
+
                                             <button 
                                                 onClick={() => router.push(`/dashboard/projects/${hoveredProject.id}`)}
-                                                className="w-full mt-6 py-3 bg-white/50 hover:bg-white/70 text-teal-900 rounded-xl text-sm font-bold transition-colors border border-teal-900/10"
+                                                className="w-full mt-4 py-3 bg-slate-900 text-white rounded-xl text-sm font-bold transition-all hover:bg-teal-600 hover:shadow-lg hover:shadow-teal-500/20"
                                             >
-                                                Open Project
+                                                Open Workspace
                                             </button>
                                         </motion.div>
                                     ) : (
-                                        <div className="text-center text-slate-600 font-medium">Hover over a project to see details</div>
+                                        <div className="h-full flex flex-col items-center justify-center text-center text-slate-400">
+                                            <Database size={48} className="mb-4 opacity-20" />
+                                            <p className="font-bold">Hover over a project<br/>to see team & details</p>
+                                        </div>
                                     )}
                                 </div>
                             </div>
                         </div>
 
-                        {/* Reminders & Notifications */}
+                        {/* 2. Bottom Row (Activity & Storage) */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                             <SpotlightCard className="h-[300px]">
-                                <h3 className="text-xl font-bold mb-4 text-slate-900 flex items-center gap-2">
-                                    <Users size={20} className="text-blue-600"/> Team Activity
+                             {/* Notifications/Updates */}
+                             <SpotlightCard className="h-[280px]">
+                                <h3 className="text-lg font-bold mb-6 text-slate-800 flex items-center gap-2">
+                                    <AlertCircle size={18} className="text-teal-600"/> Notifications
                                 </h3>
-                                <div className="mt-8">
-                                    <CardSwap>
-                                        {[
-                                            { id: 1, title: 'New Comment', msg: 'Alex commented on UI Task', time: '2m ago', color: 'bg-blue-50/80 border-blue-200' },
-                                            { id: 2, title: 'Submission', msg: 'Sarah submitted a POT', time: '1h ago', color: 'bg-teal-50/80 border-teal-200' },
-                                            { id: 3, title: 'System', msg: 'Storage quota at 80%', time: '3h ago', color: 'bg-rose-50/80 border-rose-200' }
-                                        ].map((item) => (
-                                            <div key={item.id} className={`p-4 rounded-2xl border ${item.color} shadow-sm backdrop-blur-sm`}>
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <h4 className="font-bold text-slate-900">{item.title}</h4>
-                                                    <span className="text-xs text-slate-500">{item.time}</span>
-                                                </div>
-                                                <p className="text-sm text-slate-700">{item.msg}</p>
-                                                <div className="mt-3 flex justify-end">
-                                                    <button className="text-xs text-slate-500 hover:text-teal-700 flex items-center gap-1 font-bold">View <ChevronRight size={12}/></button>
-                                                </div>
+                                <CardSwap>
+                                    {[
+                                        { id: 1, title: 'Task Approved', msg: 'Manager approved "Logo Design"', time: '10m ago', color: 'bg-green-50/90 border-green-200' },
+                                        { id: 2, title: 'New Assignment', msg: 'Assigned to "Q3 Report"', time: '2h ago', color: 'bg-blue-50/90 border-blue-200' },
+                                        { id: 3, title: 'Comment', msg: 'Feedback on your submission', time: '4h ago', color: 'bg-amber-50/90 border-amber-200' }
+                                    ].map((item) => (
+                                        <div key={item.id} className={`p-5 rounded-2xl border ${item.color} shadow-sm backdrop-blur-sm`}>
+                                            <div className="flex justify-between items-start mb-2">
+                                                <h4 className="font-bold text-slate-900">{item.title}</h4>
+                                                <span className="text-[10px] bg-white/50 px-2 py-0.5 rounded text-slate-500 font-bold">{item.time}</span>
                                             </div>
-                                        ))}
-                                    </CardSwap>
-                                </div>
+                                            <p className="text-sm text-slate-600 font-medium">{item.msg}</p>
+                                        </div>
+                                    ))}
+                                </CardSwap>
                              </SpotlightCard>
 
                              {/* Storage */}
-                             <SpotlightCard className="h-[300px]">
-                                <h3 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
-                                    <Database size={20} className="text-teal-700"/> Storage
+                             <SpotlightCard className="h-[280px]">
+                                <h3 className="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2">
+                                    <Database size={18} className="text-teal-600"/> Personal Storage
                                 </h3>
                                 {storageQuota && (
-                                    <div className="flex flex-col items-center justify-center h-[180px]">
-                                        <div className="relative w-32 h-32">
+                                    <div className="flex items-center gap-8 h-full pb-8">
+                                        <div className="relative w-32 h-32 flex-shrink-0">
                                             <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-                                                <path
-                                                    className="text-slate-300"
-                                                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    strokeWidth="4"
-                                                />
+                                                <path className="text-slate-200" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" />
                                                 <motion.path
-                                                    className="text-teal-600"
+                                                    className="text-teal-500"
                                                     initial={{ pathLength: 0 }}
                                                     animate={{ pathLength: storageQuota.usedSpace / storageQuota.totalQuota }}
-                                                    transition={{ duration: 2, ease: "easeOut" }}
+                                                    transition={{ duration: 1.5, ease: "easeOut" }}
                                                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    strokeWidth="4"
-                                                    strokeDasharray="1, 1"
+                                                    fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"
                                                 />
                                             </svg>
                                             <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                                <span className="text-2xl font-bold text-slate-900">
-                                                    {Math.round((storageQuota.usedSpace / storageQuota.totalQuota) * 100)}%
-                                                </span>
-                                                <span className="text-xs text-slate-500 font-bold">Used</span>
+                                                <span className="text-xl font-black text-slate-800">{Math.round((storageQuota.usedSpace / storageQuota.totalQuota) * 100)}%</span>
                                             </div>
                                         </div>
-                                        <div className="mt-4 text-sm text-slate-600 font-medium">
-                                            {(storageQuota.usedSpace / (1024 * 1024)).toFixed(1)} MB / {(storageQuota.totalQuota / (1024 * 1024)).toFixed(1)} MB
+                                        <div className="space-y-3">
+                                            <p className="text-sm text-slate-500 font-medium">Space used by your POTs.</p>
+                                            <div>
+                                                <p className="text-2xl font-bold text-slate-800">{(storageQuota.usedSpace / (1024 * 1024)).toFixed(1)} MB</p>
+                                                <p className="text-xs text-slate-400 font-bold uppercase">Used of {(storageQuota.totalQuota / (1024 * 1024)).toFixed(0)} MB</p>
+                                            </div>
                                         </div>
                                     </div>
                                 )}
@@ -664,37 +633,54 @@ export default function VADashboard() {
                         </div>
                     </div>
 
-                    {/* RIGHT COL: Tasks */}
+                    {/* RIGHT COLUMN (Tasks & Focus) - Span 4 */}
                     <div className="xl:col-span-4 space-y-8">
-                        <div className="bg-white/20 backdrop-blur-sm border border-teal-900/10 rounded-3xl p-8 h-full min-h-[500px] flex flex-col shadow-sm">
-                            <div className="flex justify-between items-center mb-8">
-                                <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                                    <Calendar size={24} className="text-teal-700"/> Your Tasks
+                        <div className="bg-white/30 backdrop-blur-xl border border-white/50 rounded-[2.5rem] p-8 h-full min-h-[600px] flex flex-col shadow-xl shadow-teal-900/5 relative overflow-hidden">
+                            
+                            {/* Decorative blur */}
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-teal-400/20 rounded-full blur-[80px] -z-10 pointer-events-none" />
+
+                            <div className="flex justify-between items-center mb-10">
+                                <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
+                                    <div className="p-2 bg-teal-100 rounded-xl text-teal-600"><CheckCircle size={20}/></div>
+                                    Priorities
                                 </h2>
-                                <span className="bg-teal-100 text-xs px-2 py-1 rounded-md text-teal-800 font-bold border border-teal-200">{pendingTasks.length} pending</span>
+                                <span className="bg-teal-600 text-white text-xs px-2.5 py-1 rounded-lg font-bold shadow-md shadow-teal-500/30">
+                                    {pendingTasks.length} Todo
+                                </span>
                             </div>
 
-                            {/* 3D Carousel */}
-                            <div className="flex-1 flex items-center justify-center">
-                                <ThreeDImageCarousel slides={taskSlides} />
+                            {/* 3D Carousel for TASKS */}
+                            <div className="flex-1 flex items-center justify-center -mt-4">
+                                <ThreeDImageCarousel 
+                                    slides={taskSlides} 
+                                    onReview={(id: string) => router.push(`/dashboard/tasks/${id}`)}
+                                />
                             </div>
 
-                            {/* Mini Task List */}
-                            <div className="mt-8 space-y-3">
-                                <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Priority Queue</h3>
-                                {pendingTasks.slice(0, 3).map((task) => (
-                                    <div key={task.id} className="group flex items-center gap-4 p-3 hover:bg-white/40 rounded-xl transition-all cursor-pointer border border-transparent hover:border-teal-100 hover:shadow-sm" onClick={() => router.push(`/dashboard/tasks/${task.id}`)}>
-                                        <div className={`w-2 h-2 rounded-full ${task.priority === 'high' ? 'bg-red-500' : 'bg-green-500'}`} />
-                                        <div className="flex-1">
-                                            <h4 className="text-sm font-bold text-slate-800 group-hover:text-teal-800 transition-colors">{task.title}</h4>
-                                            <p className="text-xs text-slate-600 font-medium">{task.timeline.dueDate}</p>
+                            {/* Mini Quick Actions */}
+                            <div className="mt-8 pt-6 border-t border-white/50">
+                                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Quick Links</h3>
+                                <div className="space-y-3">
+                                    <button onClick={() => router.push('/dashboard/calendar')} className="w-full flex items-center justify-between p-4 bg-white/40 hover:bg-white/80 rounded-2xl border border-white/50 transition-all group">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-blue-100 rounded-lg text-blue-600"><Calendar size={16}/></div>
+                                            <span className="font-bold text-slate-700 text-sm">My Calendar</span>
                                         </div>
-                                        <ChevronRight size={14} className="text-slate-400 group-hover:text-teal-700" />
-                                    </div>
-                                ))}
+                                        <ChevronRight size={16} className="text-slate-400 group-hover:text-blue-600 transition-colors"/>
+                                    </button>
+                                    <button onClick={() => router.push('/dashboard/messages')} className="w-full flex items-center justify-between p-4 bg-white/40 hover:bg-white/80 rounded-2xl border border-white/50 transition-all group">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-purple-100 rounded-lg text-purple-600"><Briefcase size={16}/></div>
+                                            <span className="font-bold text-slate-700 text-sm">Supervisor Chat</span>
+                                        </div>
+                                        <ChevronRight size={16} className="text-slate-400 group-hover:text-purple-600 transition-colors"/>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
+
                 </div>
             </div>
         </div>
