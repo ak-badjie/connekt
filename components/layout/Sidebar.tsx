@@ -1,16 +1,16 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useId, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useId, createContext, useContext } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
   LayoutGrid, Briefcase, FolderKanban, CheckSquare, BarChart2, 
-  Users, Settings, HelpCircle, LogOut, HardDrive, User as UserIcon, 
-  Wallet, Calendar, Crown, ChevronRight, Search 
+  Users, Settings, LogOut, HardDrive, User as UserIcon, 
+  Wallet, Calendar, Crown, ChevronLeft 
 } from 'lucide-react';
-import { motion, useMotionValue, useSpring, useTransform, AnimatePresence, useAnimation } from 'framer-motion';
+import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from 'framer-motion';
 
-// --- Services & Context Imports (Preserved from your project) ---
+// --- Services & Context Imports ---
 import { useAuth } from '@/context/AuthContext';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
@@ -20,18 +20,40 @@ import ConnektIcon from '@/components/branding/ConnektIcon';
 import UpgradeModal from '@/components/subscription/UpgradeModal';
 
 // ==========================================
-// 1. UTILITY: GlassSurface (The Liquid Effect)
+// 1. CONTEXT: Sidebar State Management
 // ==========================================
-// Matches the style of your MainNavbar exactly
-const GlassSurface = ({
-  width = '100%', height = '100%', borderRadius = 24, borderWidth = 1,
-  brightness = 1.1, opacity = 1, blur = 12, className = ''
-}: any) => {
-  const uniqueId = useId().replace(/:/g, '-');
-  const filterId = `glass-filter-${uniqueId}`;
+// We export this so the DashboardLayout can listen to changes and stretch the content
+interface SidebarContextType {
+  isCollapsed: boolean;
+  toggleSidebar: () => void;
+}
 
-  // Check for dark mode to adjust glass tint
+const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
+
+export const useSidebar = () => {
+  const context = useContext(SidebarContext);
+  if (!context) throw new Error('useSidebar must be used within a SidebarProvider');
+  return context;
+};
+
+export const SidebarProvider = ({ children }: { children: React.ReactNode }) => {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const toggleSidebar = () => setIsCollapsed(prev => !prev);
+  return (
+    <SidebarContext.Provider value={{ isCollapsed, toggleSidebar }}>
+      {children}
+    </SidebarContext.Provider>
+  );
+};
+
+// ==========================================
+// 2. UTILITY: GlassSurface (The Liquid Effect)
+// ==========================================
+const GlassSurface = ({
+  borderRadius = 24, borderWidth = 1, opacity = 1, blur = 12, className = ''
+}: any) => {
   const [isDark, setIsDark] = useState(false);
+  
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
@@ -43,18 +65,6 @@ const GlassSurface = ({
 
   return (
     <div className={`absolute inset-0 pointer-events-none ${className}`} style={{ borderRadius }}>
-      {/* SVG Filter Definition */}
-      <svg className="absolute w-0 h-0" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <filter id={filterId} colorInterpolationFilters="sRGB">
-            <feGaussianBlur in="SourceGraphic" stdDeviation={blur} result="blur" />
-            <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 19 -9" result="goo" />
-            <feComposite in="SourceGraphic" in2="goo" operator="atop" />
-          </filter>
-        </defs>
-      </svg>
-
-      {/* The Glass Layer */}
       <div 
         className="absolute inset-0 z-0 transition-colors duration-500"
         style={{
@@ -70,82 +80,126 @@ const GlassSurface = ({
             : '0 20px 50px rgba(0,128,128,0.1), inset 0 0 0 1px rgba(255,255,255,0.6)'
         }}
       />
-      
-      {/* Iridescent Sheen */}
-      <div className="absolute inset-0 z-0 opacity-20 pointer-events-none"
-           style={{
-             background: 'linear-gradient(45deg, transparent 40%, rgba(0,128,128,0.2) 50%, transparent 60%)',
-             borderRadius
-           }}
-      />
     </div>
   );
 };
 
 // ==========================================
-// 2. COMPONENT: VerticalDockItem
+// 3. COMPONENT: Spotlight Upgrade Card
 // ==========================================
-// Handles the "Physics" magnification on the Y-axis
+const SpotlightCard = ({ onClick, isCollapsed }: { onClick: () => void, isCollapsed: boolean }) => {
+  const divRef = useRef<HTMLButtonElement>(null);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [opacity, setOpacity] = useState(0);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (!divRef.current) return;
+    const rect = divRef.current.getBoundingClientRect();
+    setPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  };
+
+  const handleMouseEnter = () => setOpacity(1);
+  const handleMouseLeave = () => setOpacity(0);
+
+  return (
+    <button
+      ref={divRef}
+      onClick={onClick}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      className={`relative w-full group overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 transition-all duration-300 ${isCollapsed ? 'h-14' : 'h-32'}`}
+    >
+      {/* Spotlight Effect */}
+      <div
+        className="pointer-events-none absolute -inset-px opacity-0 transition duration-300 group-hover:opacity-100"
+        style={{
+          opacity,
+          background: `radial-gradient(600px circle at ${position.x}px ${position.y}px, rgba(0,128,128,0.15), transparent 40%)`,
+        }}
+      />
+      
+      {/* Content */}
+      <div className="relative h-full flex flex-col items-center justify-center z-10 p-4">
+        {isCollapsed ? (
+           <Crown size={20} className="text-[#008080]" />
+        ) : (
+          <>
+            <div className="w-10 h-10 mb-3 rounded-full bg-gradient-to-tr from-[#008080] to-teal-400 flex items-center justify-center shadow-lg shadow-teal-500/20">
+              <Crown size={18} className="text-white" />
+            </div>
+            <div className="text-center">
+              <h4 className="text-sm font-bold text-gray-900 dark:text-white leading-none mb-1">Upgrade to Pro</h4>
+              <p className="text-[10px] text-gray-500 font-medium">Unlock full potential</p>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Border Highlight on Hover */}
+      <div
+        className="absolute inset-0 rounded-2xl border-2 border-[#008080] opacity-0 transition-opacity duration-300 group-hover:opacity-10 pointer-events-none"
+      />
+    </button>
+  );
+};
+
+// ==========================================
+// 4. COMPONENT: VerticalDockItem
+// ==========================================
 interface DockItemProps {
   icon: any;
   label: string;
   href: string;
   isActive: boolean;
-  mouseY: any; // MotionValue
+  mouseY: any;
   isChild?: boolean;
-  isLastChild?: boolean; // For tree lines
-  hasChildren?: boolean; // For tree lines
+  isLastChild?: boolean;
+  isCollapsed: boolean;
 }
 
-function VerticalDockItem({ icon: Icon, label, href, isActive, mouseY, isChild, isLastChild, hasChildren }: DockItemProps) {
+function VerticalDockItem({ icon: Icon, label, href, isActive, mouseY, isChild, isLastChild, isCollapsed }: DockItemProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const distance = 100; // Distance of influence
+  const distance = 100;
   
-  // Calculate distance from mouse to center of this item (vertical)
+  // Physics only active when NOT collapsed
   const y = useTransform(mouseY, (val: number) => {
+    if (isCollapsed) return 0;
     const bounds = ref.current?.getBoundingClientRect() ?? { y: 0, height: 0 };
     return val - bounds.y - bounds.height / 2;
   });
 
-  // Scale transform based on distance
-  const scaleSync = useTransform(y, [-distance, 0, distance], [1, 1.35, 1]);
+  const scaleSync = useTransform(y, [-distance, 0, distance], [1, 1.25, 1]);
   const scale = useSpring(scaleSync, { mass: 0.1, stiffness: 150, damping: 12 });
-  
-  // Color shifting
-  const activeColor = "rgba(0, 128, 128, 1)";
-  const inactiveColor = "rgba(107, 114, 128, 1)"; // gray-500
   
   return (
     <Link href={href} className="relative group w-full block outline-none">
-       {/* --- VISUAL TREE LINES (Connecting Parent to Children) --- */}
-       {isChild && (
+       {/* Tree Lines - Only show when NOT collapsed */}
+       {isChild && !isCollapsed && (
         <div className="absolute left-[22px] top-[-24px] w-[16px] h-[calc(100%+8px)] -z-10 pointer-events-none">
-          {/* Vertical Line Segment */}
           <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-gradient-to-b from-gray-300/50 via-gray-300/30 to-transparent dark:from-white/20 dark:via-white/10"
-               style={{ height: isLastChild ? '50%' : '100%' }} // Stop halfway for last child
+               style={{ height: isLastChild ? '50%' : '100%' }} 
           />
-          {/* Horizontal Connector */}
           <div className="absolute left-0 top-1/2 w-[12px] h-[2px] bg-gray-300/50 dark:bg-white/10" />
         </div>
       )}
 
-      {/* --- THE ITEM --- */}
-      <div ref={ref} className={`relative flex items-center ${isChild ? 'pl-10 pr-2 py-1.5' : 'px-3 py-2.5'} transition-all duration-300`}>
+      <div ref={ref} className={`relative flex items-center ${isCollapsed ? 'justify-center px-0 py-3' : isChild ? 'pl-10 pr-2 py-1.5' : 'px-3 py-2.5'} transition-all duration-300`}>
         
-        {/* Background Hover Pill */}
+        {/* Hover Background */}
         {isActive && (
           <motion.div
             layoutId="activePill"
-            className="absolute inset-0 bg-[#008080]/10 border border-[#008080]/20 rounded-xl"
+            className={`absolute inset-0 bg-[#008080]/10 border border-[#008080]/20 ${isCollapsed ? 'rounded-xl mx-2' : 'rounded-xl'}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
           />
         )}
 
-        {/* The Animated Icon Container */}
+        {/* Icon */}
         <motion.div 
-          style={{ scale }}
+          style={{ scale: isCollapsed ? 1 : scale }}
           className={`relative z-10 p-2 rounded-xl transition-colors duration-200 ${
             isActive ? 'bg-[#008080] text-white shadow-lg shadow-teal-500/30' : 'text-gray-500 group-hover:text-[#008080] group-hover:bg-white/50 dark:group-hover:bg-white/10'
           }`}
@@ -153,33 +207,54 @@ function VerticalDockItem({ icon: Icon, label, href, isActive, mouseY, isChild, 
           <Icon size={isChild ? 16 : 20} strokeWidth={isActive ? 2.5 : 2} />
         </motion.div>
 
-        {/* Label */}
-        <div className="ml-3 flex-1">
-          <span className={`text-sm font-medium transition-colors ${isActive ? 'text-[#008080] font-bold' : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-white'}`}>
-            {label}
-          </span>
-        </div>
-
-        {/* Active Dot indicator */}
-        {isActive && (
-          <motion.div 
-            initial={{ scale: 0 }} animate={{ scale: 1 }}
-            className="w-1.5 h-1.5 rounded-full bg-[#008080] shadow-[0_0_8px_rgba(0,128,128,0.8)]"
-          />
-        )}
+        {/* Label - Animate out when collapsed */}
+        <AnimatePresence>
+          {!isCollapsed && (
+            <motion.div 
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -10 }}
+              transition={{ duration: 0.2 }}
+              className="ml-3 flex-1 overflow-hidden whitespace-nowrap"
+            >
+              <span className={`text-sm font-medium transition-colors ${isActive ? 'text-[#008080] font-bold' : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-white'}`}>
+                {label}
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </Link>
   );
 }
 
 // ==========================================
-// 3. COMPONENT: Storage Glass Widget
+// 5. COMPONENT: Storage Widget (Minimal on Collapse)
 // ==========================================
-const StorageWidget = ({ quota }: { quota: StorageQuota | null }) => {
+const StorageWidget = ({ quota, isCollapsed }: { quota: StorageQuota | null, isCollapsed: boolean }) => {
   if (!quota) return null;
   const percent = Math.min((quota.usedSpace / quota.totalQuota) * 100, 100);
-  const usedGB = (quota.usedSpace / (1024 * 1024 * 1024)).toFixed(2);
   
+  if (isCollapsed) {
+    // Minimal Circle Version
+    return (
+        <div className="flex justify-center py-2 group cursor-default relative">
+            <div className="relative w-8 h-8 flex items-center justify-center">
+                <svg className="w-full h-full -rotate-90">
+                    <circle cx="16" cy="16" r="14" stroke="currentColor" strokeWidth="3" fill="transparent" className="text-gray-200 dark:text-gray-800" />
+                    <circle cx="16" cy="16" r="14" stroke="#008080" strokeWidth="3" fill="transparent" strokeDasharray={88} strokeDashoffset={88 - (88 * percent) / 100} className="transition-all duration-1000" />
+                </svg>
+                <HardDrive size={10} className="absolute text-gray-500" />
+            </div>
+            {/* Tooltip on Hover */}
+            <div className="absolute left-10 top-1/2 -translate-y-1/2 px-2 py-1 bg-black text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
+                {Math.round(percent)}% Storage
+            </div>
+        </div>
+    );
+  }
+
+  // Full Version
   return (
     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-white/10 to-transparent border border-white/20 p-4 group cursor-default">
       <div className="flex items-center justify-between mb-2">
@@ -189,29 +264,19 @@ const StorageWidget = ({ quota }: { quota: StorageQuota | null }) => {
         </div>
         <span className="text-xs font-bold text-[#008080]">{Math.round(percent)}%</span>
       </div>
-      
-      {/* Progress Bar */}
       <div className="relative h-2 w-full bg-gray-200/50 dark:bg-black/40 rounded-full overflow-hidden mb-2">
         <motion.div 
-          initial={{ width: 0 }}
-          animate={{ width: `${percent}%` }}
-          transition={{ duration: 1.5, ease: "circOut" }}
-          className="absolute top-0 left-0 h-full bg-gradient-to-r from-[#008080] to-teal-400 rounded-full shadow-[0_0_10px_rgba(20,184,166,0.5)]"
+          initial={{ width: 0 }} animate={{ width: `${percent}%` }}
+          className="absolute top-0 left-0 h-full bg-gradient-to-r from-[#008080] to-teal-400 rounded-full"
         />
       </div>
-      
-      <p className="text-[10px] text-gray-400 text-right">
-        <span className="text-gray-700 dark:text-gray-200 font-bold">{usedGB} GB</span> used
-      </p>
-
-      {/* Decorative Glow */}
-      <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-[#008080]/20 rounded-full blur-xl group-hover:bg-[#008080]/30 transition-all duration-500" />
+      <p className="text-[10px] text-gray-400 text-right"><span className="text-gray-700 dark:text-gray-200 font-bold">{(quota.usedSpace / (1024 ** 3)).toFixed(1)} GB</span> used</p>
     </div>
   );
 };
 
 // ==========================================
-// 4. MAIN COMPONENT: Sidebar
+// 6. MAIN COMPONENT: Sidebar
 // ==========================================
 interface SidebarProps {
     agency?: Agency | null;
@@ -220,6 +285,8 @@ interface SidebarProps {
 export function Sidebar({ agency = null }: SidebarProps) {
     const pathname = usePathname();
     const { user, userProfile } = useAuth();
+    const { isCollapsed, toggleSidebar } = useSidebar(); // Accessing context
+    
     const [storageQuota, setStorageQuota] = useState<StorageQuota | null>(null);
     const [showUpgradeModal, setShowUpgradeModal] = useState(false);
     
@@ -248,11 +315,8 @@ export function Sidebar({ agency = null }: SidebarProps) {
     }, [user, userProfile, agency]);
 
     // --- Menu Configuration ---
-    // Defined inside component to access dynamic routes
     const getMenuItems = () => {
         const baseHref = agency ? `/agency/${agency.username}/dashboard` : '/dashboard';
-        
-        // Structure: Main items, with optional 'children' array
         const items = agency ? [
             { 
                 id: 'teams', label: 'Teams', icon: LayoutGrid, href: baseHref,
@@ -288,15 +352,24 @@ export function Sidebar({ agency = null }: SidebarProps) {
 
     const items = getMenuItems();
 
+    // Elastic Animation Config
+    const sidebarVariants = {
+        expanded: { width: 288, transition: { type: "spring", stiffness: 300, damping: 30 } },
+        collapsed: { width: 90, transition: { type: "spring", stiffness: 300, damping: 30 } }
+    };
+
     return (
         <>
-            <aside 
-                className="fixed left-6 top-6 bottom-6 w-72 z-[110] hidden lg:flex flex-col"
+            <motion.aside 
+                initial="expanded"
+                animate={isCollapsed ? "collapsed" : "expanded"}
+                variants={sidebarVariants}
+              className="fixed left-6 top-6 bottom-6 z-[110] hidden lg:flex flex-col relative"
                 onMouseMove={(e) => mouseY.set(e.clientY)}
                 onMouseLeave={() => mouseY.set(Infinity)}
                 ref={containerRef}
             >
-                {/* 1. The Glass Background Container */}
+                {/* 1. Glass Background */}
                 <GlassSurface 
                     opacity={0.85} 
                     blur={20} 
@@ -304,52 +377,69 @@ export function Sidebar({ agency = null }: SidebarProps) {
                     className="shadow-2xl shadow-black/10"
                 />
 
+              {/* Sidebar Toggle (Pinned to collapsing container) */}
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                className="absolute -right-3 top-8 z-50 flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-md transition-transform duration-300 ease-in-out hover:text-[#008080] dark:border-zinc-700 dark:bg-zinc-800"
+                style={{ transform: `rotate(${isCollapsed ? 180 : 0}deg)` }}
+              >
+                <ChevronLeft size={16} />
+              </button>
+
                 {/* 2. Content Wrapper */}
-                <div className="relative z-10 flex flex-col h-full px-5 py-6 overflow-hidden">
+                <div className={`relative z-10 flex flex-col h-full py-6 overflow-hidden ${isCollapsed ? 'px-2' : 'px-5'}`}>
                     
-                    {/* Header: Logo */}
-                    <div className="mb-8 px-2">
+                    {/* Header: Logo & Toggle */}
+                    <div className="mb-8 px-2 flex items-center">
                         <Link href="/" className="flex items-center gap-3 group">
-                            <div className="relative">
+                            <div className="relative flex-shrink-0">
                                 <div className="absolute inset-0 bg-[#008080] blur-lg opacity-20 group-hover:opacity-40 transition-opacity rounded-full"/>
                                 <ConnektIcon className="w-10 h-10 text-[#008080] relative z-10" />
                             </div>
-                            <span className="text-xl font-bold font-headline text-[#008080] tracking-[0.2em] group-hover:text-teal-600 transition-colors">
-                                CONNEKT
-                            </span>
+                            <AnimatePresence>
+                                {!isCollapsed && (
+                                    <motion.span 
+                                        initial={{ opacity: 0, width: 0 }} 
+                                        animate={{ opacity: 1, width: 'auto' }} 
+                                        exit={{ opacity: 0, width: 0 }}
+                                        className="text-xl font-bold font-headline text-[#008080] tracking-[0.2em] whitespace-nowrap overflow-hidden"
+                                    >
+                                        CONNEKT
+                                    </motion.span>
+                                )}
+                            </AnimatePresence>
                         </Link>
                     </div>
 
-                    {/* Scrollable Navigation Area */}
+                    {/* Navigation Items */}
                     <div className="flex-1 overflow-y-auto custom-scrollbar -mr-4 pr-4 pb-4 space-y-1">
-                        
-                        {/* Main Navigation Loop */}
                         <div className="space-y-1">
                             {items.map((item) => {
-                                // Logic to determine if Parent is active based on children
                                 const isParentActive = pathname === item.href;
                                 const isChildActive = item.children?.some(child => pathname.startsWith(child.href));
-                                const isOpen = isParentActive || isChildActive;
+                                const isOpen = (isParentActive || isChildActive) && !isCollapsed;
 
                                 return (
                                     <div key={item.id} className="relative">
-                                        {/* Parent Item */}
                                         <VerticalDockItem 
                                             icon={item.icon}
                                             label={item.label}
                                             href={item.href}
-                                            isActive={isParentActive} // Only active if exact match or specific logic
+                                            isActive={isParentActive || (isCollapsed && isChildActive || false)}
                                             mouseY={mouseY}
+                                            isCollapsed={isCollapsed}
                                         />
 
-                                        {/* Vertical Connector Line from Parent */}
-                                        {item.children && (
+                                        {/* Connector Line (Hidden when collapsed) */}
+                                        {!isCollapsed && item.children && (
                                            <div className={`absolute left-[23px] top-[38px] w-[2px] bg-gray-300/30 dark:bg-white/10 transition-all duration-300 ${isOpen ? 'h-[calc(100%-45px)] opacity-100' : 'h-0 opacity-0'}`} />
                                         )}
 
-                                        {/* Children Items (Rendered if parent group "Teams" is relevant) */}
+                                        {/* Children */}
                                         <AnimatePresence initial={false}>
-                                            {(true) && item.children && ( // Always render structure, let visual cues handle focus
+                                            {isOpen && item.children && (
                                                 <motion.div
                                                     initial={{ height: 0, opacity: 0 }}
                                                     animate={{ height: 'auto', opacity: 1 }}
@@ -366,6 +456,7 @@ export function Sidebar({ agency = null }: SidebarProps) {
                                                             mouseY={mouseY}
                                                             isChild={true}
                                                             isLastChild={idx === item.children!.length - 1}
+                                                            isCollapsed={isCollapsed}
                                                         />
                                                     ))}
                                                 </motion.div>
@@ -377,46 +468,32 @@ export function Sidebar({ agency = null }: SidebarProps) {
                         </div>
                     </div>
 
-                    {/* Bottom Actions Area */}
-                    <div className="mt-auto space-y-4 pt-6 relative">
-                        {/* Divider */}
+                    {/* Bottom Actions */}
+                    <div className={`mt-auto pt-6 relative ${isCollapsed ? 'space-y-2' : 'space-y-4'}`}>
                         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gray-200 dark:via-gray-700 to-transparent opacity-50" />
 
-                        {/* Storage Widget */}
-                        <StorageWidget quota={storageQuota} />
+                        <StorageWidget quota={storageQuota} isCollapsed={isCollapsed} />
 
-                        {/* General Links */}
                         <div className="space-y-1">
-                            <Link href="/settings" className="flex items-center gap-3 px-3 py-2 rounded-xl text-gray-500 hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
+                            <Link href="/settings" className={`flex items-center gap-3 py-2 rounded-xl text-gray-500 hover:bg-black/5 dark:hover:bg-white/10 transition-colors ${isCollapsed ? 'justify-center px-0' : 'px-3'}`}>
                                 <Settings size={18} />
-                                <span className="text-sm font-medium">Settings</span>
+                                {!isCollapsed && <span className="text-sm font-medium">Settings</span>}
                             </Link>
 
                             <button 
                                 onClick={() => signOut(auth)}
-                                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                className={`w-full flex items-center gap-3 py-2 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors ${isCollapsed ? 'justify-center px-0' : 'px-3'}`}
                             >
                                 <LogOut size={18} />
-                                <span className="text-sm font-medium">Logout</span>
+                                {!isCollapsed && <span className="text-sm font-medium">Logout</span>}
                             </button>
                         </div>
 
-                        {/* Upgrade Button (Animated Gradient) */}
-                        <button
-                            onClick={() => setShowUpgradeModal(true)}
-                            className="relative w-full group overflow-hidden rounded-xl p-[1px]"
-                        >
-                            <div className="absolute inset-0 bg-gradient-to-r from-teal-400 via-emerald-500 to-teal-600 animate-gradient-x" />
-                            <div className="relative bg-white dark:bg-zinc-900 rounded-[11px] px-4 py-3 flex items-center justify-center gap-2 group-hover:bg-opacity-90 transition-all">
-                                <Crown size={16} className="text-[#008080] fill-current" />
-                                <span className="text-sm font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-600 to-emerald-600">
-                                    Upgrade to Pro
-                                </span>
-                            </div>
-                        </button>
+                        {/* Upgrade Button - Spotlight Card */}
+                        <SpotlightCard onClick={() => setShowUpgradeModal(true)} isCollapsed={isCollapsed} />
                     </div>
                 </div>
-            </aside>
+            </motion.aside>
 
             {/* Upgrade Modal */}
             <UpgradeModal

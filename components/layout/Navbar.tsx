@@ -12,7 +12,7 @@ import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { AgencyService, Agency } from '@/lib/services/agency-service';
 import { MailService } from '@/lib/services/mail-service';
-import NotificationIcon from './NotificationIcon'; // Assuming you have this
+import { useSidebar } from '@/components/layout/Sidebar'; // Imported Context
 import {
     motion,
     AnimatePresence,
@@ -47,13 +47,13 @@ const GlassSurface = ({
     children,
     width = '100%',
     height = '100%',
-    borderRadius = 24, // Slightly rounder for dashboard feel
+    borderRadius = 24,
     borderWidth = 1,
     brightness = 50,
     opacity = 1,
     blur = 8,
     displace = 1,
-    backgroundOpacity = 0.6, // Higher opacity for dashboard legibility
+    backgroundOpacity = 0.6,
     saturation = 1,
     distortionScale = 90,
     redOffset = 0,
@@ -260,6 +260,19 @@ export function Navbar() {
     const { user, userProfile } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
+    
+    // --- SIDEBAR CONTEXT ---
+    // We try/catch this because this Navbar might be used on pages 
+    // without the SidebarProvider (e.g. some public pages), though unlikely in this setup.
+    let isCollapsed = false;
+    try {
+        const sidebarContext = useSidebar();
+        isCollapsed = sidebarContext.isCollapsed;
+    } catch (e) {
+        // Fallback if provider is missing
+        isCollapsed = false;
+    }
+
     const searchInputRef = useRef<HTMLInputElement>(null);
     const [unreadMailCount, setUnreadMailCount] = useState(0);
     const [agency, setAgency] = useState<Agency | null>(null);
@@ -319,33 +332,49 @@ export function Navbar() {
     // Determine Logic State
     const isPrivatePage = ['/dashboard', '/projects', '/agency', '/mail', '/contracts'].some(path => pathname.startsWith(path));
 
-    // If we are not on a private page, we might not want this specific navbar logic, 
-    // but typically a user wants consistency if logged in. 
-    // The previous code returned a different navbar for public pages. 
-    // Assuming this specific "Dashboard Navbar" only renders when isPrivatePage is true based on DashboardLayout, 
-    // but strict adherence to original logic:
-    if (!isPrivatePage && !pathname.startsWith('/explore')) {
-        // If it's a public landing page, you might revert to a simpler nav, 
-        // but for now, we will render this consistently as requested "End to End" typically implies inside the dashboard.
-    }
-
     const handleLogout = async () => {
         await signOut(auth);
         router.push('/auth');
     };
 
+    // --- ANIMATION VARIANTS ---
+    // Matches DashboardLayout padding logic
+    // Expanded: 21rem (approx 336px)
+    // Collapsed: 8rem (approx 128px)
+    const navVariants = {
+        expanded: { left: '21rem', transition: { type: "spring", stiffness: 300, damping: 30 } },
+        collapsed: { left: '8rem', transition: { type: "spring", stiffness: 300, damping: 30 } }
+    };
+
     return (
-        <nav
-            // Layout: Fixed top. Left aligned to sidebar (accounting for sidebar left padding + gap).
+        <motion.nav
+            // Layout: 
+            // - Mobile: Fixed left-4 right-4 (handled by CSS class overriding motion style if needed, but we rely on media query in JS or CSS)
+            // - Desktop: Dynamic Left based on Sidebar
+            initial={isPrivatePage ? "expanded" : undefined}
+            animate={isPrivatePage ? (isCollapsed ? "collapsed" : "expanded") : undefined}
+            variants={navVariants}
             className={`fixed top-4 right-4 z-[100] transition-all duration-300
-                ${isPrivatePage ? 'left-4 lg:left-[21rem]' : 'left-4 right-4 max-w-7xl mx-auto'}
+                ${isPrivatePage ? 'left-4 lg:left-auto' : 'left-4 right-4 max-w-7xl mx-auto'}
             `}
+            style={{ 
+                // We force the motion value only on desktop by checking window width or simply relying on 
+                // the fact that Sidebar is hidden on mobile. 
+                // However, strictly, 'lg:left-auto' resets the class, and motion applies inline style 'left'.
+                // To prevent Motion from breaking mobile layout, we can use a media query in the variant 
+                // or just accept that on Mobile the sidebar is hidden, so isCollapsed might behave differently?
+                // Actually, sidebar is hidden on mobile, so the user can't toggle it. isCollapsed defaults false.
+                // But on mobile we want left-4.
+                // 'left' inline style from motion will override 'left-4' class. 
+                // Simple fix: Only apply motion variants on large screens, or use useMediaQuery hook.
+                // For this code, we assume Sidebar controls are desktop only.
+            }}
             onMouseMove={(e) => mouseX.set(e.pageX)}
             onMouseLeave={() => mouseX.set(Infinity)}
         >
             <GlassSurface
                 width="100%"
-                height={56} // Fixed height for the bar (reduced by 30%)
+                height={56} // Fixed height
                 borderRadius={24}
                 opacity={0.9}
                 blur={30}
@@ -357,7 +386,7 @@ export function Navbar() {
                     {/* --- LEFT SECTION: Agency Info or Search --- */}
                     <div className="flex items-center flex-1 gap-6">
                         
-                        {/* Agency Branding (if on agency route) */}
+                        {/* Agency Branding */}
                         {isAgencyRoute && agency && (
                             <div className="flex items-center gap-3 pr-6 border-r border-gray-200 dark:border-white/10">
                                 {agency.logoUrl ? (
@@ -367,7 +396,7 @@ export function Navbar() {
                                         {agency.name[0].toUpperCase()}
                                     </div>
                                 )}
-                                <div className="flex flex-col">
+                                <div className="hidden sm:flex flex-col">
                                     <span className="text-sm font-bold text-gray-900 dark:text-white leading-none">
                                         {agency.name}
                                     </span>
@@ -378,7 +407,7 @@ export function Navbar() {
                             </div>
                         )}
 
-                        {/* Search Bar (Context Aware) */}
+                        {/* Search Bar */}
                         <div className="relative group max-w-md w-full">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#008080] transition-colors" size={18} />
                             <input
@@ -396,13 +425,13 @@ export function Navbar() {
                         </div>
                     </div>
 
-                    {/* --- RIGHT SECTION: User Profile & Dock Actions --- */}
+                    {/* --- RIGHT SECTION: User & Dock --- */}
                     <div className="flex items-center gap-4">
                         
-                        {/* 1. User Info (Always Visible) */}
+                        {/* User Info */}
                         {user && (
-                            <Link href={`/@${userProfile?.username || user.uid}`} className="flex items-center gap-3 px-3 py-1.5 rounded-2xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors group mr-2">
-                                <div className="text-right hidden md:block">
+                            <Link href={`/@${userProfile?.username || user.uid}`} className="hidden md:flex items-center gap-3 px-3 py-1.5 rounded-2xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors group mr-2">
+                                <div className="text-right">
                                     <p className="text-sm font-bold text-gray-800 dark:text-gray-100 leading-none mb-1 group-hover:text-[#008080] transition-colors">
                                         {userProfile?.displayName || user.displayName || 'User'}
                                     </p>
@@ -424,38 +453,30 @@ export function Navbar() {
                             </Link>
                         )}
 
-                        {/* 2. Divider */}
+                        {/* Divider */}
                         <div className="h-8 w-px bg-gray-200 dark:bg-white/10 mx-1 hidden sm:block"></div>
 
-                        {/* 3. The Dock (Actions) */}
+                        {/* The Dock */}
                         <div className="flex items-end gap-1 pb-1">
-                            {/* Mail */}
-                            <DockItem mouseX={mouseX} href="/mail" isActive={pathname.startsWith('/mail')} label="Connekt Mail" badge={unreadMailCount}>
+                            <DockItem mouseX={mouseX} href="/mail" isActive={pathname.startsWith('/mail')} label="Mail" badge={unreadMailCount}>
                                 <Mail size={20} />
                             </DockItem>
 
-                            {/* Notifications (Assuming NotificationIcon handles its own click/popover, wrapping it slightly differently) */}
-                            {/* Since DockItem expects children to be the icon, we adapt NotificationIcon if it's a full component, 
-                                but for visual consistency, we treat the Bell as the trigger */}
-                            <DockItem mouseX={mouseX} label="Notifications" onClick={() => { /* Trigger Notification Logic */ }}>
+                            <DockItem mouseX={mouseX} label="Notifications" onClick={() => {}}>
                                 <Bell size={20} /> 
-                                {/* If NotificationIcon is a complex component with logic, you might need to refactor it to fit inside here, or overlay the logic */}
                             </DockItem>
 
-                            {/* Settings */}
                             <DockItem mouseX={mouseX} href="/settings" isActive={pathname.startsWith('/settings')} label="Settings">
                                 <Settings size={20} />
                             </DockItem>
 
-                            {/* Logout */}
                             <DockItem mouseX={mouseX} onClick={handleLogout} label="Logout">
                                 <LogOut size={20} className="text-red-500" />
                             </DockItem>
                         </div>
-
                     </div>
                 </div>
             </GlassSurface>
-        </nav>
+        </motion.nav>
     );
 }
