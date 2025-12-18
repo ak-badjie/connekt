@@ -1,5 +1,4 @@
 'use client';
-
 import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
@@ -12,6 +11,7 @@ import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
 import ConnektWalletIcon from '@/components/branding/ConnektWalletIcon';
 import ConnektTeamsIcon from '@/components/branding/ConnektTeamsIcon';
 import { AuthService } from '@/lib/services/auth-service';
+import { useTypewriterPhrases } from '@/hooks/useTypewriterPhrases';
 
 // ==========================================
 // 0. HELPER FUNCTIONS
@@ -491,31 +491,7 @@ export default function AuthPage() {
         []
     );
 
-    const [phraseIndex, setPhraseIndex] = useState(0);
-    const [typed, setTyped] = useState('');
-    const [isDeleting, setIsDeleting] = useState(false);
-
-    useEffect(() => {
-        if (mode !== 'signup') return;
-        const full = signupPhrases[phraseIndex] ?? '';
-        const nextText = isDeleting ? full.slice(0, Math.max(0, typed.length - 1)) : full.slice(0, typed.length + 1);
-        const isDoneTyping = !isDeleting && nextText.length === full.length;
-        const isDoneDeleting = isDeleting && nextText.length === 0;
-
-        const baseDelay = isDeleting ? 28 : 36;
-        const pauseDelay = isDoneTyping ? 900 : isDoneDeleting ? 320 : 0;
-
-        const id = window.setTimeout(() => {
-            setTyped(nextText);
-            if (isDoneTyping) setIsDeleting(true);
-            if (isDoneDeleting) {
-                setIsDeleting(false);
-                setPhraseIndex((i) => (i + 1) % signupPhrases.length);
-            }
-        }, baseDelay + pauseDelay);
-
-        return () => window.clearTimeout(id);
-    }, [mode, isDeleting, phraseIndex, signupPhrases, typed, setTyped]);
+    const { text: typed } = useTypewriterPhrases({ phrases: signupPhrases });
 
     // 3D Tilt
     const tiltRef = useRef<HTMLDivElement>(null);
@@ -691,11 +667,9 @@ export default function AuthPage() {
                                         {mode === 'login' ? 'Sign In' : 'Join Connekt'}
                                     </h3>
                                     <div className="text-teal-100/60 text-center text-[clamp(13px,1.95vh,18.2px)] min-h-[2.6vh] font-medium tracking-wide">
-                                        {mode === 'login' ? 'Access your workspace' : (
-                                            <span>
-                                                {typed}<span className="inline-block w-[2.6px] h-[1.95vh] bg-teal-400 ml-1 translate-y-[2.6px] animate-pulse"></span>
-                                            </span>
-                                        )}
+                                        <span>
+                                            {typed}<span className="inline-block w-[2.6px] h-[1.95vh] bg-teal-400 ml-1 translate-y-[2.6px] animate-pulse"></span>
+                                        </span>
                                     </div>
                                 </div>
 
