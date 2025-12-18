@@ -17,7 +17,7 @@ export default function ProjectsLayout({ children }: { children: React.ReactNode
         <div className="min-h-screen bg-zinc-50 dark:bg-black text-gray-900 dark:text-gray-100">
             <Sidebar />
             <Navbar />
-            <main className="lg:pl-[280px] pt-[88px] pr-6 pl-6 pb-6 min-h-screen transition-all duration-300">
+            <main className="lg:pl-[21rem] pt-[88px] pr-6 pl-6 pb-6 min-h-screen transition-all duration-300">
                 {children}
             </main>
         </div>

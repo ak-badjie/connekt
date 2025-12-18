@@ -96,7 +96,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             <Sidebar />
             <Navbar />
-            <main className="lg:pl-72 pt-24 pr-6 pl-6 pb-6 min-h-screen transition-all duration-300">
+            <main className="lg:pl-[21rem] pt-24 pr-6 pl-6 pb-6 min-h-screen transition-all duration-300">
                 <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-white/20 dark:border-white/5 rounded-3xl shadow-xl p-6 min-h-[calc(100vh-8rem)] overflow-hidden">
                     {children}
                 </div>
