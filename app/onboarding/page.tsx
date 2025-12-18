@@ -6,12 +6,13 @@ import { useAuth } from '@/context/AuthContext';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
-import { Loader2, User, Briefcase, CheckCircle2, ChevronRight, ChevronLeft, X, Plus } from 'lucide-react'; // Removed Sparkles
+import { Loader2, User, Briefcase, CheckCircle2, ChevronRight, ChevronLeft, X, Plus, Mail, Globe, ShieldCheck } from 'lucide-react';
 import { UsernameInput } from '@/components/auth/UsernameInput';
 import { ProfilePictureUpload } from '@/components/profile/ProfilePictureUpload';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RoleSelector } from '@/components/ui/RoleSelector';
-import ConnektIcon from '@/components/branding/ConnektIcon'; // Ensure this path is correct
+import ConnektIcon from '@/components/branding/ConnektIcon';
+import ConnektMailIcon from '@/components/branding/ConnektMailIcon';
 
 // ==========================================
 // DATA: PREDEFINED SKILLS (100+)
@@ -76,7 +77,8 @@ function Stepper({
         setCurrentStep(newStep);
     };
 
-    const isRoleStep = currentStep === 2;
+    // NOTE: Role Selection is now Step 3
+    const isRoleStep = currentStep === 3;
 
     return (
         <div className={`flex flex-col w-full flex-1 min-h-0 ${isRoleStep ? 'justify-between' : ''}`}>
@@ -220,7 +222,6 @@ export default function OnboardingPage() {
 
     // Derived state for skills
     const availableCanvasSkills = useMemo(() => {
-        // Show all skills that are NOT selected
         return PREDEFINED_SKILLS.filter(s => !skills.includes(s));
     }, [skills]);
 
@@ -236,7 +237,7 @@ export default function OnboardingPage() {
         if (skills.includes(skill)) {
             setSkills(skills.filter(s => s !== skill));
         } else {
-            if (skills.length >= 20) return; // Cap at 20
+            if (skills.length >= 20) return;
             setSkills([...skills, skill]);
         }
         setCurrentSkillInput('');
@@ -246,24 +247,27 @@ export default function OnboardingPage() {
     const handleInputKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            // If there's an exact match in suggestions, pick it
             const exactMatch = suggestions.find(s => s.toLowerCase() === currentSkillInput.toLowerCase());
             if (exactMatch) {
                 toggleSkill(exactMatch);
             } else if (currentSkillInput.trim() && !skills.includes(currentSkillInput.trim())) {
-                // Allow custom skills
                 setSkills([...skills, currentSkillInput.trim()]);
                 setCurrentSkillInput('');
             }
         }
     };
 
+    // UPDATED VALIDATION LOGIC FOR 4 STEPS
     const isStepDisabled = (step: number) => {
         if (loading) return true;
         switch (step) {
-            case 1: return !displayName.trim() || !username || !isUsernameValid;
-            case 2: return false; 
-            case 3: 
+            case 1: // Profile Identity
+                return !displayName.trim();
+            case 2: // Username & Credentials
+                return !username || !isUsernameValid;
+            case 3: // Role (Full screen)
+                return false; 
+            case 4: // Skills
                 if (role === 'recruiter') return false;
                 return skills.length < 5; 
             default: return false;
@@ -293,8 +297,7 @@ export default function OnboardingPage() {
                 displayName: displayName.trim(),
                 photoURL,
                 introSeen: false,
-                bio: role === 'va' ? bio : undefined,
-                skills: role === 'va' ? skills : undefined
+                ...(role === 'va' && { bio, skills })
             };
 
             await setDoc(userRef, userData, { merge: true });
@@ -313,14 +316,13 @@ export default function OnboardingPage() {
         }
     };
 
-    const isRoleStep = currentStep === 2;
-    const showSideVectors = !isRoleStep && (currentStep === 1 || currentStep === 3);
+    // Step 3 is now the Full Screen Role step
+    const isRoleStep = currentStep === 3;
+    const showSideVectors = !isRoleStep;
 
     const card = (
         <motion.div 
             layout
-            // FIX 1: UPDATED TRANSITION
-            // Replaced "bounce" with spring stiffness/damping for smooth full-screen expansion
             transition={{ duration: 0.5, type: "spring", stiffness: 200, damping: 25 }}
             className={`
                 relative z-10 flex flex-col transition-all duration-500 ease-in-out
@@ -330,15 +332,18 @@ export default function OnboardingPage() {
                 }
             `}
         >
-            {/* FIX 2: CONNEKT ICON ON FIRST PAGE */}
-            {/* Replaced Sparkles header with ConnektIcon header matching Step 3 style */}
-            {!isRoleStep && currentStep === 1 && (
+            {/* Header logic */}
+            {!isRoleStep && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center flex-shrink-0 mb-4">
                     <div className="w-16 h-16 mb-2">
                         <ConnektIcon className="w-full h-full" />
                     </div>
-                    <h1 className="text-2xl font-bold bg-gradient-to-r from-[#008080] to-teal-400 bg-clip-text text-transparent">Identity</h1>
-                    <p className="text-xs text-gray-500">How should we recognize you?</p>
+                    <h1 className="text-2xl font-bold bg-gradient-to-r from-[#008080] to-teal-400 bg-clip-text text-transparent">
+                        {currentStep === 1 ? 'Who are you?' : currentStep === 2 ? 'Claim your Corner' : 'Your Skillset'}
+                    </h1>
+                    <p className="text-xs text-gray-500">
+                        {currentStep === 1 ? 'How should we recognize you?' : currentStep === 2 ? 'Establish your digital presence' : 'Build your professional DNA'}
+                    </p>
                 </motion.div>
             )}
 
@@ -349,27 +354,13 @@ export default function OnboardingPage() {
                 isNextDisabled={isStepDisabled}
             >
                 
-                {/* STEP 1: IDENTITY */}
-                {/* Removed title="Identity" here because we added the custom ConnektIcon header above */}
+                {/* STEP 1: IDENTITY (Name & Photo) */}
                 <Step>
-                    <div className="max-w-sm mx-auto w-full flex flex-col flex-1 min-h-0">
-                        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar py-2">
-                            <div className="space-y-3 text-[0.95rem]">
-                                <div>
-                                    <label className="block text-[0.65rem] font-bold text-[#008080] uppercase mb-1">Display Name</label>
-                                    <div className="relative">
-                                        <User className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                                        <input
-                                            type="text"
-                                            value={displayName}
-                                            onChange={(e) => setDisplayName(e.target.value)}
-                                            placeholder="Full Name"
-                                            className="w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:border-[#008080] outline-none transition-all"
-                                        />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="block text-[0.65rem] font-bold text-[#008080] uppercase mb-1">Profile Picture</label>
+                    <div className="max-w-sm mx-auto w-full flex flex-col flex-1 min-h-0 items-center justify-center">
+                        <div className="w-full space-y-6 text-[0.95rem]">
+                            <div>
+                                <label className="block text-center text-[0.65rem] font-bold text-[#008080] uppercase mb-4">Profile Picture</label>
+                                <div className="flex justify-center">
                                     <ProfilePictureUpload
                                         currentPhotoURL={profilePicturePreview || undefined}
                                         currentDisplayName={displayName}
@@ -379,16 +370,87 @@ export default function OnboardingPage() {
                                         }}
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-[0.65rem] font-bold text-[#008080] uppercase mb-1">Unique Handle</label>
-                                    <UsernameInput value={username} onChange={setUsername} onValidityChange={setIsUsernameValid} />
+                            </div>
+                            <div>
+                                <label className="block text-[0.65rem] font-bold text-[#008080] uppercase mb-1">Display Name</label>
+                                <div className="relative">
+                                    <User className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        value={displayName}
+                                        onChange={(e) => setDisplayName(e.target.value)}
+                                        placeholder="Full Name"
+                                        className="w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:border-[#008080] outline-none transition-all"
+                                    />
                                 </div>
                             </div>
                         </div>
                     </div>
                 </Step>
 
-                {/* STEP 2: ROLE SELECTION (Full Screen) */}
+                {/* STEP 2: CREDENTIALS (Username & ConnektMail) */}
+                <Step>
+                    <div className="max-w-sm mx-auto w-full flex flex-col flex-1 min-h-0">
+                        {/* Input Section - Fixed at top */}
+                        <div className="flex-shrink-0 mb-4">
+                            <label className="block text-[0.65rem] font-bold text-[#008080] uppercase mb-1">Unique Handle</label>
+                            <UsernameInput value={username} onChange={setUsername} onValidityChange={setIsUsernameValid} />
+                        </div>
+
+                        {/* Scrollable content area */}
+                        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pr-1 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-zinc-700 scrollbar-track-transparent hover:scrollbar-thumb-gray-400 dark:hover:scrollbar-thumb-zinc-600">
+                            {/* Info Card / Visual Preview */}
+                            <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-zinc-800 dark:to-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-2xl p-4 shadow-inner relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 p-2 opacity-10">
+                                    <ConnektIcon className="w-24 h-24 rotate-12" />
+                                </div>
+                                
+                                <div className="relative z-10 space-y-3">
+                                    <div className="flex items-start gap-3">
+                                        <div className="p-2 bg-white dark:bg-zinc-950 rounded-lg shadow-sm text-blue-500">
+                                            <Globe size={18} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Public Profile</p>
+                                            <p className="text-sm font-medium text-gray-900 dark:text-white break-all">
+                                                connekt.com/@<span className="text-[#008080]">{username || 'username'}</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="h-px bg-gray-200 dark:bg-zinc-700 w-full" />
+
+                                    <div className="flex items-start gap-3">
+                                        <div className="p-2 bg-white dark:bg-zinc-950 rounded-lg shadow-sm">
+                                            <ConnektMailIcon className="w-[18px] h-[18px]" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">ConnektMail</p>
+                                            <p className="text-sm font-medium text-gray-900 dark:text-white break-all">
+                                                <span className="text-[#008080]">{username || 'username'}</span>@connekt.com
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Explanation Text */}
+                            <div className="bg-blue-50/50 dark:bg-blue-900/10 rounded-xl p-3 border border-blue-100 dark:border-blue-800/30 flex gap-3 items-start">
+                                <ShieldCheck className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                                <div className="space-y-2 text-xs text-blue-800 dark:text-blue-200">
+                                    <p>
+                                        <strong>Why this matters:</strong> Your username reserves your unique profile URL for discovery and creates your internal <span className="font-semibold">ConnektMail</span> address.
+                                    </p>
+                                    <p className="opacity-80">
+                                        ConnektMail is used for professional communication within the workspace ecosystem.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </Step>
+
+                {/* STEP 3: ROLE SELECTION (Full Screen) */}
                 <Step isFullScreen>
                     <RoleSelector 
                         items={ROLE_ITEMS} 
@@ -397,19 +459,10 @@ export default function OnboardingPage() {
                     />
                 </Step>
 
-                {/* STEP 3: DETAILS (Modified for Canvas Layout) */}
+                {/* STEP 4: SKILLS (Modified for Canvas Layout) */}
                 <Step>
                     {role === 'va' ? (
                         <div className="flex flex-col h-full w-full">
-                            {/* Top: Animated Icon & Header */}
-                            <div className="flex flex-col items-center justify-center flex-shrink-0 mb-4">
-                                <div className="w-16 h-16 mb-2">
-                                    <ConnektIcon className="w-full h-full" />
-                                </div>
-                                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Your Skillset</h2>
-                                <p className="text-xs text-gray-500">Build your professional DNA</p>
-                            </div>
-
                             {/* Middle: Selected Skills & Input */}
                             <div className="flex-shrink-0 relative z-20 mb-4">
                                 <div className="flex justify-between items-center mb-1.5">

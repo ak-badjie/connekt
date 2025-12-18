@@ -44,6 +44,38 @@
     background-color: rgba(156, 163, 175, 0.8);
   }
 
+  /* Thin scrollbar utilities for subtle scrolling */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+
+  .scrollbar-thumb-gray-300::-webkit-scrollbar-thumb {
+    background-color: rgb(209 213 219);
+    border-radius: 20px;
+  }
+
+  .scrollbar-thumb-zinc-700::-webkit-scrollbar-thumb {
+    background-color: rgb(63 63 70);
+    border-radius: 20px;
+  }
+
+  .scrollbar-track-transparent::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thumb-gray-400:hover::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(156 163 175);
+  }
+
+  .scrollbar-thumb-zinc-600:hover::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(82 82 91);
+  }
+
   /* Gold Theme Utilities */
   .text-gold {
     @apply text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500;
