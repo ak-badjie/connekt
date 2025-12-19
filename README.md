@@ -2,6 +2,10 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+### Environment variables
+
+- `OPENAI_API_KEY` (required for AI project cover generation via `POST /api/projects/generate-cover`)
+
 First, run the development server:
 
 ```bash

@@ -34,6 +34,7 @@ export const EnhancedProjectService = {
         budget: number;
         deadline?: string;
         recurringType?: 'none' | 'daily' | 'weekly' | 'monthly';
+        coverImage?: string;
     }): Promise<string> {
         // 1. Create potential Project ID first (for escrow reference)
         const projectRef = doc(collection(db, 'projects'));

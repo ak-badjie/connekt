@@ -384,7 +384,9 @@ export default function VADashboard() {
 
     // Data Transformation for Components
     const projectImages = pendingProjects.map((p, i) => ({
-        src: `https://images.unsplash.com/photo-${['1556761175-5973ac0f96fc', '1522071820081-009f0129c71c', '1600880292203-757bb62b4baf', '1517245386807-bb43f82c33c4'][i % 4]}?q=80&w=800&auto=format&fit=crop`,
+        src:
+            p.coverImage ||
+            `https://images.unsplash.com/photo-${['1556761175-5973ac0f96fc', '1522071820081-009f0129c71c', '1600880292203-757bb62b4baf', '1517245386807-bb43f82c33c4'][i % 4]}?q=80&w=800&auto=format&fit=crop`,
         title: p.title,
         shortTitle: p.title.substring(0, 15) + '...',
         status: p.status,

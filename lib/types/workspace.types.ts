@@ -57,6 +57,7 @@ export interface Project {
     ownerUsername: string;
     title: string;
     description: string;
+    coverImage?: string;
     budget: number;
     deadline?: string;
     status: 'planning' | 'active' | 'completed' | 'on-hold' | 'cancelled';

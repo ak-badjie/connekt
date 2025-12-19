@@ -478,7 +478,9 @@ const ProjectCard = ({ project, index, onClick }: any) => {
       {/* Background Image with Parallax Effect */}
       <div
         className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110 opacity-60 group-hover:opacity-100"
-        style={{ backgroundImage: `url('https://picsum.photos/seed/${project.id}/600/800')` }}
+        style={{
+          backgroundImage: `url(${project.coverImage || `https://picsum.photos/seed/${project.id}/600/800`})`
+        }}
       />
 
       {/* Gradient Overlay */}
