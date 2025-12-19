@@ -1,8 +1,10 @@
-'use client';
+"use client";
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { FirestoreService } from '@/lib/services/firestore-service';
+import { ChatService } from '@/lib/services/chat-service';
+import { useSearchParams } from 'next/navigation';
 import { ChatSidebar } from '@/components/chat/ChatSidebar';
 import { ChatWindow } from '@/components/chat/ChatWindow';
 import { Users, MessageSquare, Plus, Search, MoreVertical } from 'lucide-react';
@@ -15,7 +17,36 @@ export function AgencyTeamsView() {
     const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
     const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
     const [members, setMembers] = useState<any[]>([]);
-    const { user } = useAuth();
+    const { user, userProfile } = useAuth();
+    const searchParams = useSearchParams();
+    const chatWith = searchParams.get('chatWith');
+
+    const startDirectChat = async (otherUserId: string) => {
+        if (!user || !userProfile) return;
+
+        const other = await FirestoreService.getUserProfile(otherUserId);
+        if (!other) return;
+
+        const conversationId = await ChatService.createConversation({
+            type: 'direct',
+            createdBy: user.uid,
+            participants: [
+                {
+                    userId: user.uid,
+                    username: userProfile.username || userProfile.displayName || 'me',
+                    avatarUrl: userProfile.photoURL || undefined,
+                },
+                {
+                    userId: otherUserId,
+                    username: other.username || other.displayName || 'user',
+                    avatarUrl: other.photoURL || undefined,
+                }
+            ]
+        });
+
+        setSelectedConversationId(conversationId);
+        setActiveTab('groups');
+    };
 
     useEffect(() => {
         const fetchMembers = async () => {
@@ -26,10 +57,11 @@ export function AgencyTeamsView() {
 
                 setMembers(users.filter(u => u.uid !== user.uid).map(u => ({
                     id: u.uid,
-                    name: u.username || 'Unknown',
+                    name: u.displayName || u.username || 'Unknown',
                     role: u.role,
                     status: 'offline',
-                    avatar: (u.username || 'U')[0].toUpperCase()
+                    avatar: (u.displayName || u.username || 'U')[0].toUpperCase(),
+                    photoURL: u.photoURL
                 })));
             } catch (error) {
                 console.error("Error fetching team members:", error);
@@ -38,6 +70,25 @@ export function AgencyTeamsView() {
 
         fetchMembers();
     }, [user]);
+
+    useEffect(() => {
+        if (!chatWith) return;
+        if (!user || !userProfile) return;
+
+        let cancelled = false;
+        (async () => {
+            try {
+                await startDirectChat(chatWith);
+            } catch (e) {
+                if (!cancelled) console.error('Failed to open direct chat', e);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [chatWith, user, userProfile]);
 
     return (
         <div className="h-full flex flex-col md:flex-row rounded-3xl overflow-hidden border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xl">
@@ -93,15 +144,33 @@ export function AgencyTeamsView() {
                                 </div>
                             ) : (
                                 members.map(member => (
-                                    <div key={member.id} className="p-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-zinc-800/50 rounded-xl cursor-pointer transition-colors group">
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center text-white font-bold">
-                                            {member.avatar}
-                                        </div>
+                                    <div
+                                        key={member.id}
+                                        onClick={() => startDirectChat(member.id)}
+                                        className="p-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-zinc-800/50 rounded-xl cursor-pointer transition-colors group"
+                                    >
+                                        {member.photoURL ? (
+                                            <img
+                                                src={member.photoURL}
+                                                alt={member.name}
+                                                className="w-10 h-10 rounded-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center text-white font-bold">
+                                                {member.avatar}
+                                            </div>
+                                        )}
                                         <div className="flex-1 min-w-0">
                                             <h4 className="font-bold text-gray-900 dark:text-gray-100 text-sm">{member.name}</h4>
                                             <p className="text-xs text-gray-500">{member.role}</p>
                                         </div>
-                                        <button className="p-2 text-gray-400 hover:text-[#008080] hover:bg-[#008080]/10 rounded-full opacity-0 group-hover:opacity-100 transition-all">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                startDirectChat(member.id);
+                                            }}
+                                            className="p-2 text-gray-400 hover:text-[#008080] hover:bg-[#008080]/10 rounded-full opacity-0 group-hover:opacity-100 transition-all"
+                                        >
                                             <MessageSquare size={16} />
                                         </button>
                                     </div>
