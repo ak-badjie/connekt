@@ -23,6 +23,8 @@ import { ProfileService } from '@/lib/services/profile-service';
 
 import CircularGallery from '@/components/ui/CircularGallery';
 import ThreeDHoverGallery, { ProjectImageData } from '@/components/ui/ThreeDHoverGallery';
+import Folder from '@/components/ui/Folder';
+import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
 
 // --- Placeholder Imports for your existing Modals ---
 import AddWorkspaceMemberModal from '@/components/AddWorkspaceMemberModal';
@@ -153,6 +155,7 @@ function DockItem({
   className = '',
   onClick,
   mouseX,
+  label,
   baseItemSize = 50,
   magnification = 70,
   distance = 150
@@ -185,14 +188,14 @@ function DockItem({
       )}
     >
       <AnimatePresence>
-        {labelVisible && children.props.label && (
+        {labelVisible && label && (
           <motion.div
             initial={{ opacity: 0, y: 10, x: "-50%" }}
             animate={{ opacity: 1, y: -45, x: "-50%" }}
             exit={{ opacity: 0, y: 10, x: "-50%" }}
             className="absolute left-1/2 top-0 bg-gray-900 text-white text-[10px] px-2 py-1 rounded-md whitespace-nowrap z-50 pointer-events-none font-bold tracking-wide"
           >
-            {children.props.label}
+            {label}
             <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45" />
           </motion.div>
         )}
@@ -219,247 +222,15 @@ function Dock({ items, className = '' }: any) {
       )}
     >
       {items.map((item: any, idx: number) => (
-        <DockItem key={idx} onClick={item.onClick} mouseX={mouseX} baseItemSize={50} magnification={85}>
-          <div title={item.label} className="flex items-center justify-center w-full h-full text-gray-600 dark:text-gray-300">
-            {/* Note: I changed `label` prop to `title` here or passed it via props in DockItem logic above */}
-            {/* But based on DockItem logic, we need to attach the label prop to this div so DockItem can read it */}
-            {cloneElement(item.icon, { label: item.label })}
+        <DockItem key={idx} onClick={item.onClick} mouseX={mouseX} label={item.label} baseItemSize={50} magnification={85}>
+          <div className="flex items-center justify-center w-full h-full text-gray-600 dark:text-gray-300">
+            {item.icon}
           </div>
         </DockItem>
       ))}
     </motion.div>
   );
 }
-
-// ==========================================
-// COMPONENT: NEW FOLDER DESIGN
-// ==========================================
-
-const Folder = ({
-  color = '#008080',
-  label,
-  subLabel,
-  stats = [],
-  onClick,
-  onEdit,
-  onDelete,
-  className = ''
-}: {
-  color?: string,
-  label: string,
-  subLabel: string,
-  stats?: { icon: any, value: string, label: string }[],
-  onClick?: () => void,
-  onEdit?: () => void,
-  onDelete?: () => void,
-  className?: string
-}) => {
-  // Parse stats for the new layout
-  const viewsValue = stats.find(s => s.label.includes("Views"))?.value || "0";
-  const proposalsValue = stats.find(s => s.label.includes("Applicants"))?.value || "0";
-
-  const parsedViews = parseInt(viewsValue.replace(/k/g, '000').replace(/[^0-9]/g, '')) || 0;
-  const parsedProposals = parseInt(proposalsValue.replace(/[^0-9]/g, '')) || 0;
-
-  // Construct the 3 items (papers) for the new folder design
-  const items = [
-    // Paper 1 (Left): Proposals
-    <div key="proposals" className="flex flex-col items-center justify-center h-full w-full p-2 text-gray-800 bg-white">
-      <FileText size={20} className="mb-2 text-teal-600" />
-      <div className="font-bold text-lg leading-none">
-        <CountUp to={parsedProposals} />
-      </div>
-      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mt-1">Proposals</span>
-    </div>,
-
-    // Paper 2 (Right): Views
-    <div key="views" className="flex flex-col items-center justify-center h-full w-full p-2 text-gray-800 bg-white">
-      <Eye size={20} className="mb-2 text-teal-600" />
-      <div className="font-bold text-lg leading-none">
-        <CountUp to={parsedViews} />
-      </div>
-      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mt-1">Views</span>
-    </div>,
-
-    // Paper 3 (Center/Back): Job Title
-    <div key="title" className="flex flex-col items-center justify-center h-full w-full p-3 text-center bg-white border-b-2 border-gray-50">
-      <div className="w-8 h-8 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center mb-2">
-        <Briefcase size={14} />
-      </div>
-      <h4 className="font-bold text-gray-900 text-xs leading-tight line-clamp-3">{label}</h4>
-    </div>
-  ];
-
-  const maxItems = 3;
-  const papers = items.slice(0, maxItems) as Array<React.ReactElement | null>;
-  while (papers.length < maxItems) {
-    papers.push(null);
-  }
-
-  const [open, setOpen] = useState(false);
-  const [paperOffsets, setPaperOffsets] = useState(Array.from({ length: maxItems }, () => ({ x: 0, y: 0 })));
-
-  const folderBackColor = darkenColor(color, 0.2); // Darker for depth
-  const paper1 = darkenColor('#ffffff', 0.1);
-  const paper2 = darkenColor('#ffffff', 0.05);
-  const paper3 = '#ffffff';
-
-  const handlePaperMouseMove = (e: any, index: number) => {
-    if (!open) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    const offsetX = (e.clientX - centerX) * 0.15;
-    const offsetY = (e.clientY - centerY) * 0.15;
-    setPaperOffsets(prev => {
-      const newOffsets = [...prev];
-      newOffsets[index] = { x: offsetX, y: offsetY };
-      return newOffsets;
-    });
-  };
-
-  const handlePaperMouseLeave = (e: any, index: number) => {
-    setPaperOffsets(prev => {
-      const newOffsets = [...prev];
-      newOffsets[index] = { x: 0, y: 0 };
-      return newOffsets;
-    });
-  };
-
-  const folderStyle = {
-    '--folder-color': color,
-    '--folder-back-color': folderBackColor,
-    '--paper-1': paper1,
-    '--paper-2': paper2,
-    '--paper-3': paper3
-  } as React.CSSProperties;
-
-  // Original component was larger, scaling up slightly to fit dashboard grid
-  const scaleStyle = { transform: `scale(1.2)`, transformOrigin: 'center bottom' };
-
-  const getOpenTransform = (index: number) => {
-    if (index === 0) return 'translate(-120%, -70%) rotate(-15deg)'; // Left (Proposals)
-    if (index === 1) return 'translate(10%, -70%) rotate(15deg)'; // Right (Views)
-    if (index === 2) return 'translate(-50%, -100%) rotate(0deg)'; // Center (Title)
-    return '';
-  };
-
-  return (
-    <div style={scaleStyle} className={`relative w-full h-[220px] flex items-end justify-center mb-8 ${className}`}>
-      <div
-        className={`group relative transition-all duration-200 ease-in cursor-pointer ${!open ? 'hover:-translate-y-2' : ''
-          }`}
-        style={{
-          ...folderStyle,
-          transform: open ? 'translateY(20px)' : undefined
-        }}
-        onClick={() => {
-          setOpen(prev => !prev);
-          if (!open && onClick) onClick(); // Optional: trigger main click on open
-        }}
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => {
-          setOpen(false);
-          setPaperOffsets(Array.from({ length: maxItems }, () => ({ x: 0, y: 0 })));
-        }}
-      >
-        {/* Actions overlay (Edit/Delete) - Only visible when open */}
-        <AnimatePresence>
-          {open && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute -top-32 left-1/2 -translate-x-1/2 flex gap-2 z-50 pointer-events-auto"
-            >
-              {onEdit && (
-                <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="p-2 bg-white rounded-full shadow-lg hover:bg-gray-50 text-gray-700 border border-gray-100">
-                  <Edit2 size={14} />
-                </button>
-              )}
-              {onDelete && (
-                <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="p-2 bg-white rounded-full shadow-lg hover:bg-red-50 text-red-500 border border-gray-100">
-                  <Trash2 size={14} />
-                </button>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <div
-          className="relative w-[140px] h-[100px] rounded-tl-0 rounded-tr-[10px] rounded-br-[10px] rounded-bl-[10px]"
-          style={{ backgroundColor: folderBackColor }}
-        >
-          {/* Tab */}
-          <span
-            className="absolute z-0 bottom-[98%] left-0 w-[40px] h-[12px] rounded-tl-[5px] rounded-tr-[5px] rounded-bl-0 rounded-br-0"
-            style={{ backgroundColor: folderBackColor }}
-          ></span>
-
-          {/* Papers */}
-          {papers.map((item, i) => {
-            // Adjust sizing for dashboard context
-            let sizeClasses = '';
-            if (i === 0) sizeClasses = open ? 'w-[90px] h-[100px]' : 'w-[70%] h-[80%]'; // Left
-            if (i === 1) sizeClasses = open ? 'w-[90px] h-[100px]' : 'w-[80%] h-[70%]'; // Right
-            if (i === 2) sizeClasses = open ? 'w-[120px] h-[90px]' : 'w-[90%] h-[60%]'; // Center
-
-            const transformStyle = open
-              ? `${getOpenTransform(i)} translate(${paperOffsets[i].x}px, ${paperOffsets[i].y}px)`
-              : undefined;
-
-            return (
-              <div
-                key={i}
-                onMouseMove={e => handlePaperMouseMove(e, i)}
-                onMouseLeave={e => handlePaperMouseLeave(e, i)}
-                className={`absolute z-20 bottom-[10%] left-1/2 transition-all duration-300 ease-in-out shadow-sm border border-gray-100 overflow-hidden ${!open ? 'transform -translate-x-1/2 translate-y-[10%] group-hover:translate-y-0' : 'hover:scale-105 hover:z-30 hover:shadow-md'
-                  } ${sizeClasses}`}
-                style={{
-                  ...(!open ? {} : { transform: transformStyle }),
-                  backgroundColor: i === 0 ? paper1 : i === 1 ? paper2 : paper3,
-                  borderRadius: '8px'
-                }}
-              >
-                {item}
-              </div>
-            );
-          })}
-
-          {/* Front Flap (Back Layer for Thickness) */}
-          <div
-            className={`absolute z-30 w-full h-full origin-bottom transition-all duration-300 ease-in-out ${!open ? 'group-hover:[transform:skew(15deg)_scaleY(0.6)]' : ''
-              }`}
-            style={{
-              backgroundColor: color,
-              borderRadius: '5px 10px 10px 10px',
-              ...(open && { transform: 'skew(15deg) scaleY(0.6)' })
-            }}
-          ></div>
-
-          {/* Front Flap (Main) */}
-          <div
-            className={`absolute z-30 w-full h-full origin-bottom transition-all duration-300 ease-in-out ${!open ? 'group-hover:[transform:skew(-15deg)_scaleY(0.6)]' : ''
-              }`}
-            style={{
-              backgroundColor: color,
-              borderRadius: '5px 10px 10px 10px',
-              ...(open && { transform: 'skew(-15deg) scaleY(0.6)' })
-            }}
-          >
-            {/* Folder Face Decor */}
-            <div className="absolute inset-0 flex items-center justify-center opacity-20">
-              <Briefcase className="text-white w-12 h-12" />
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ==========================================
-// TEAM GALLERY
 
 // ==========================================
 // COMPONENT: EXPANDING PROJECT CARDS
@@ -847,12 +618,19 @@ export default function WorkspaceDetailPage() {
                   <Folder
                     key={job.id}
                     label={job.title}
-                    subLabel={job.description}
                     color="#0d9488"
-                    stats={[
-                      { icon: Eye, value: "1.2k", label: "Views" },
-                      { icon: Users, value: "12", label: "Applicants" }
-                    ]}
+                    size={1.2}
+                    jobDetails={{
+                      title: job.title,
+                      payRate: job.payRate || job.budget?.toString(),
+                      payType: job.payType || 'fixed',
+                      postedAt: job.createdAt,
+                      description: job.description
+                    }}
+                    stats={{
+                      views: job.views || 0,
+                      applicants: job.applicantCount || 0
+                    }}
                     onEdit={() => { setSelectedItem(job); toggleModal('editJob', true); }}
                     onDelete={() => { setSelectedItem(job); toggleModal('deleteJob', true); }}
                   />
@@ -952,11 +730,17 @@ export default function WorkspaceDetailPage() {
 
       {/* Project Creator Modal (Inline for visual consistency) */}
       <Transition appear show={modals.projectMode} as={Fragment}>
-        <Dialog as="div" className="relative z-[60]" onClose={() => toggleModal('projectMode', false)}>
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-md" />
-          <div className="fixed inset-0 overflow-y-auto">
+        <Dialog as="div" className="relative z-[150]" onClose={() => toggleModal('projectMode', false)}>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[150]" />
+          <div className="fixed inset-0 overflow-y-auto z-[150]">
             <div className="flex min-h-full items-center justify-center p-4">
-              <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-3xl bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 p-8 shadow-2xl transition-all">
+              <Dialog.Panel className="relative w-full max-w-2xl transform overflow-hidden rounded-3xl bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 p-8 shadow-2xl transition-all">
+                <button
+                  onClick={() => toggleModal('projectMode', false)}
+                  className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                </button>
                 <Dialog.Title as="h3" className="text-2xl font-black text-gray-900 dark:text-white mb-8 text-center">
                   Start a New Project
                 </Dialog.Title>
@@ -966,8 +750,8 @@ export default function WorkspaceDetailPage() {
                     className="group relative p-8 rounded-3xl border-2 border-teal-500 bg-teal-50/50 dark:bg-teal-900/10 hover:bg-teal-100 dark:hover:bg-teal-900/30 transition-all text-center overflow-hidden"
                   >
                     <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10" />
-                    <div className="w-16 h-16 rounded-2xl bg-white shadow-lg flex items-center justify-center text-teal-600 mx-auto mb-6 group-hover:scale-110 transition-transform">
-                      <Sparkles size={32} />
+                    <div className="w-16 h-16 rounded-2xl bg-white shadow-lg flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
+                      <ConnektAIIcon className="w-10 h-10" />
                     </div>
                     <h4 className="text-xl font-bold text-teal-900 dark:text-teal-400 mb-2">AI Architect</h4>
                     <p className="text-sm text-teal-700/70">Let AI structure the tasks, budget, and timeline automatically.</p>

@@ -610,7 +610,7 @@ export default function WorkspacesStartupPage() {
                 <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-blue-200/30 rounded-full blur-[100px]" />
             </div>
 
-            <div className="max-w-[1600px] mx-auto h-full flex pt-32 px-12 relative z-10">
+            <div className="max-w-[1600px] mx-auto h-full flex pt-12 px-12 relative z-10">
 
                 {/* --- Left Column: Text & Stats (30%) --- */}
                 <div className="w-[35%] flex flex-col justify-center space-y-8 z-20">
