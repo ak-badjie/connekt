@@ -2,11 +2,11 @@
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  Plus, Users, Building2, Wallet, Briefcase, 
-  CheckSquare, FileCheck, ArrowRight, Database, 
-  ChevronRight, ArrowLeftCircle, ArrowRightCircle, 
-  TrendingUp, ShieldCheck
+import {
+    Plus, Users, Building2, Wallet, Briefcase,
+    CheckSquare, FileCheck, ArrowRight, Database,
+    ChevronRight, ArrowLeftCircle, ArrowRightCircle,
+    TrendingUp, ShieldCheck
 } from 'lucide-react';
 import * as THREE from 'three';
 import { createNoise2D } from 'simplex-noise';
@@ -18,6 +18,7 @@ import { EnhancedProjectService } from '@/lib/services/enhanced-project-service'
 import { TaskService } from '@/lib/services/task-service';
 import { StorageQuotaService } from '@/lib/services/storage-quota-service';
 import { Project, Task, ProofOfTask } from '@/lib/types/workspace.types';
+import ThreeDHoverGallery, { ProjectImageData } from '@/components/ui/ThreeDHoverGallery';
 
 // ============================================================================
 // PART 1: UTILITIES & ANIMATIONS
@@ -26,31 +27,31 @@ import { Project, Task, ProofOfTask } from '@/lib/types/workspace.types';
 const cn = (...classes: (string | undefined | null | false)[]) => classes.filter(Boolean).join(" ");
 
 function CountUp({ to, from = 0, direction = 'up', delay = 0, duration = 2, className = '', startWhen = true, separator = '', prefix = '', onStart }: any) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const motionValue = useMotionValue(direction === 'down' ? to : from);
-  const springValue = useSpring(motionValue, { damping: 20 + 40 * (1 / duration), stiffness: 100 * (1 / duration) });
-  const isInView = useInView(ref, { once: true, margin: '0px' });
+    const ref = useRef<HTMLSpanElement>(null);
+    const motionValue = useMotionValue(direction === 'down' ? to : from);
+    const springValue = useSpring(motionValue, { damping: 20 + 40 * (1 / duration), stiffness: 100 * (1 / duration) });
+    const isInView = useInView(ref, { once: true, margin: '0px' });
 
-  const formatValue = useCallback((latest: number) => {
-    const formatted = Intl.NumberFormat('en-US').format(Math.floor(latest));
-    return prefix + (separator ? formatted.replace(/,/g, separator) : formatted);
-  }, [separator, prefix]);
+    const formatValue = useCallback((latest: number) => {
+        const formatted = Intl.NumberFormat('en-US').format(Math.floor(latest));
+        return prefix + (separator ? formatted.replace(/,/g, separator) : formatted);
+    }, [separator, prefix]);
 
-  useEffect(() => {
-    if (isInView && startWhen) {
-      const timeoutId = setTimeout(() => { motionValue.set(direction === 'down' ? from : to); }, delay * 1000);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [isInView, startWhen, motionValue, direction, from, to, delay]);
+    useEffect(() => {
+        if (isInView && startWhen) {
+            const timeoutId = setTimeout(() => { motionValue.set(direction === 'down' ? from : to); }, delay * 1000);
+            return () => clearTimeout(timeoutId);
+        }
+    }, [isInView, startWhen, motionValue, direction, from, to, delay]);
 
-  useEffect(() => {
-    const unsubscribe = springValue.on('change', latest => {
-      if (ref.current) ref.current.textContent = formatValue(latest);
-    });
-    return () => unsubscribe();
-  }, [springValue, formatValue]);
+    useEffect(() => {
+        const unsubscribe = springValue.on('change', latest => {
+            if (ref.current) ref.current.textContent = formatValue(latest);
+        });
+        return () => unsubscribe();
+    }, [springValue, formatValue]);
 
-  return <span className={className} ref={ref} />;
+    return <span className={className} ref={ref} />;
 }
 
 // ============================================================================
@@ -59,96 +60,96 @@ function CountUp({ to, from = 0, direction = 'up', delay = 0, duration = 2, clas
 
 // --- 2.1 SpotlightCard ---
 const SpotlightCard = ({ children, className = '', spotlightColor = 'rgba(20, 184, 166, 0.25)', onClick }: any) => {
-  const divRef = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [opacity, setOpacity] = useState(0);
+    const divRef = useRef<HTMLDivElement>(null);
+    const [position, setPosition] = useState({ x: 0, y: 0 });
+    const [opacity, setOpacity] = useState(0);
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!divRef.current) return;
-    const rect = divRef.current.getBoundingClientRect();
-    setPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-  };
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (!divRef.current) return;
+        const rect = divRef.current.getBoundingClientRect();
+        setPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    };
 
-  return (
-    <div
-      ref={divRef}
-      onClick={onClick}
-      onMouseMove={handleMouseMove}
-      onMouseEnter={() => setOpacity(0.6)}
-      onMouseLeave={() => setOpacity(0)}
-      className={cn(
-        "relative rounded-3xl border border-white/20 bg-white/10 backdrop-blur-md overflow-hidden p-8 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-teal-900/10 cursor-pointer",
-        className
-      )}
-    >
-      <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500"
-        style={{ opacity, background: `radial-gradient(circle at ${position.x}px ${position.y}px, ${spotlightColor}, transparent 80%)` }}
-      />
-      <div className="relative z-10">{children}</div>
-    </div>
-  );
+    return (
+        <div
+            ref={divRef}
+            onClick={onClick}
+            onMouseMove={handleMouseMove}
+            onMouseEnter={() => setOpacity(0.6)}
+            onMouseLeave={() => setOpacity(0)}
+            className={cn(
+                "relative rounded-3xl border border-white/20 bg-white/10 backdrop-blur-md overflow-hidden p-8 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-teal-900/10 cursor-pointer",
+                className
+            )}
+        >
+            <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500"
+                style={{ opacity, background: `radial-gradient(circle at ${position.x}px ${position.y}px, ${spotlightColor}, transparent 80%)` }}
+            />
+            <div className="relative z-10">{children}</div>
+        </div>
+    );
 };
 
 // --- 2.2 AnimatedWave (Background) ---
 const AnimatedWave = ({ className, speed = 0.01, amplitude = 40, waveColor = "#0d9488", opacity = 0.3 }: any) => {
-  const containerRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0xffffff, 0.001); 
+    useEffect(() => {
+        if (!containerRef.current) return;
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0xffffff, 0.001);
 
-    const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 10000);
-    camera.position.set(0, 100, 800);
-    camera.lookAt(0, 0, 0);
+        const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 10000);
+        camera.position.set(0, 100, 800);
+        camera.lookAt(0, 0, 0);
 
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    containerRef.current.innerHTML = '';
-    containerRef.current.appendChild(renderer.domElement);
+        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        renderer.setSize(width, height);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        containerRef.current.innerHTML = '';
+        containerRef.current.appendChild(renderer.domElement);
 
-    const geometry = new THREE.PlaneGeometry(3000, 2000, 64, 64);
-    const originalPositions = new Float32Array(geometry.attributes.position.array);
-    const material = new THREE.MeshLambertMaterial({ color: waveColor, opacity, transparent: true, wireframe: true, side: THREE.DoubleSide });
-    const plane = new THREE.Mesh(geometry, material);
-    plane.rotation.x = -Math.PI / 2.5; 
-    scene.add(plane);
+        const geometry = new THREE.PlaneGeometry(3000, 2000, 64, 64);
+        const originalPositions = new Float32Array(geometry.attributes.position.array);
+        const material = new THREE.MeshLambertMaterial({ color: waveColor, opacity, transparent: true, wireframe: true, side: THREE.DoubleSide });
+        const plane = new THREE.Mesh(geometry, material);
+        plane.rotation.x = -Math.PI / 2.5;
+        scene.add(plane);
 
-    const light = new THREE.PointLight(0xffffff, 2, 1000);
-    light.position.set(0, 200, 200);
-    scene.add(light);
-    scene.add(new THREE.AmbientLight(0xffffff, 0.8)); 
+        const light = new THREE.PointLight(0xffffff, 2, 1000);
+        light.position.set(0, 200, 200);
+        scene.add(light);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
 
-    const simplex = createNoise2D();
-    let cycle = 0;
+        const simplex = createNoise2D();
+        let cycle = 0;
 
-    const animate = () => {
-        cycle += speed;
-        const positions = geometry.attributes.position;
-        for(let i = 0; i < positions.count; i++) {
-            const x = originalPositions[i * 3];
-            const y = originalPositions[i * 3 + 1]; 
-            positions.setZ(i, simplex(x / 400, (y / 400) + cycle) * amplitude);
-        }
-        positions.needsUpdate = true;
-        renderer.render(scene, camera);
-        requestAnimationFrame(animate);
-    };
-    animate();
+        const animate = () => {
+            cycle += speed;
+            const positions = geometry.attributes.position;
+            for (let i = 0; i < positions.count; i++) {
+                const x = originalPositions[i * 3];
+                const y = originalPositions[i * 3 + 1];
+                positions.setZ(i, simplex(x / 400, (y / 400) + cycle) * amplitude);
+            }
+            positions.needsUpdate = true;
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        };
+        animate();
 
-    const handleResize = () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [speed, amplitude, waveColor, opacity]);
+        const handleResize = () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, [speed, amplitude, waveColor, opacity]);
 
-  return <div ref={containerRef} className={cn("fixed inset-0 w-full h-full -z-10 pointer-events-none", className)} />;
+    return <div ref={containerRef} className={cn("fixed inset-0 w-full h-full -z-10 pointer-events-none", className)} />;
 };
 
 // --- 2.3 ThreeDImageCarousel (Validations/Reviews) ---
@@ -193,47 +194,21 @@ const ThreeDImageCarousel = ({ slides, onAction, className = '' }: any) => {
             ))}
             {total > 1 && (
                 <>
-                   <button onClick={(e) => { e.stopPropagation(); navigate('prev'); }} className="absolute left-0 md:left-8 z-40 p-3 bg-white/20 hover:bg-white/40 backdrop-blur rounded-full text-teal-900 shadow-lg transition-all"><ArrowLeftCircle size={28}/></button>
-                   <button onClick={(e) => { e.stopPropagation(); navigate('next'); }} className="absolute right-0 md:right-8 z-40 p-3 bg-white/20 hover:bg-white/40 backdrop-blur rounded-full text-teal-900 shadow-lg transition-all"><ArrowRightCircle size={28}/></button>
+                    <button onClick={(e) => { e.stopPropagation(); navigate('prev'); }} className="absolute left-0 md:left-8 z-40 p-3 bg-white/20 hover:bg-white/40 backdrop-blur rounded-full text-teal-900 shadow-lg transition-all"><ArrowLeftCircle size={28} /></button>
+                    <button onClick={(e) => { e.stopPropagation(); navigate('next'); }} className="absolute right-0 md:right-8 z-40 p-3 bg-white/20 hover:bg-white/40 backdrop-blur rounded-full text-teal-900 shadow-lg transition-all"><ArrowRightCircle size={28} /></button>
                 </>
             )}
         </div>
     );
 };
 
-// --- 2.4 ThreeDHoverGallery (Projects) ---
-const ThreeDHoverGallery = ({ images = [], onImageHover, className }: any) => {
-    return (
-        <div className={cn("flex justify-center items-center gap-2 perspective-1000 h-[380px]", className)}>
-            {images.map((img: any, i: number) => (
-                <div key={i} onMouseEnter={() => onImageHover(i)} className="relative w-16 h-full transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] hover:w-[320px] hover:z-20 group rounded-3xl overflow-hidden cursor-pointer border border-white/40 shadow-xl hover:shadow-2xl hover:shadow-teal-900/20 bg-slate-200" style={{ transform: 'translateZ(0)' }}>
-                    <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" style={{ backgroundImage: `url(${img.src})` }} />
-                    <div className="absolute inset-0 bg-gradient-to-t from-teal-950/90 via-teal-900/40 to-transparent opacity-60 group-hover:opacity-100 transition-opacity duration-300" />
-                    <div className="absolute inset-0 flex items-center justify-center opacity-100 group-hover:opacity-0 transition-opacity duration-300 pointer-events-none">
-                        <span className="rotate-90 text-white font-bold tracking-widest text-sm whitespace-nowrap uppercase opacity-80">{img.shortTitle}</span>
-                    </div>
-                    <div className="absolute bottom-0 left-0 p-6 opacity-0 group-hover:opacity-100 transition-all duration-500 delay-100 w-full transform translate-y-4 group-hover:translate-y-0">
-                        <div className="flex items-center gap-2 mb-2">
-                             <span className={`w-2 h-2 rounded-full ${img.status === 'active' ? 'bg-green-400' : 'bg-amber-400'}`} />
-                             <span className="text-teal-100 text-xs font-bold uppercase tracking-wide">{img.status}</span>
-                        </div>
-                        <h4 className="text-white text-2xl font-bold leading-tight mb-2 drop-shadow-md">{img.title}</h4>
-                        <div className="flex items-center gap-3 text-white/80 text-xs font-medium">
-                            <span className="flex items-center gap-1"><Users size={12}/> {img.memberCount} Members</span>
-                            {img.budget && <span>• ${img.budget.toLocaleString()}</span>}
-                        </div>
-                    </div>
-                </div>
-            ))}
-        </div>
-    );
-};
+// ThreeDHoverGallery is now imported from @/components/ui/ThreeDHoverGallery
 
 // --- 2.5 CardSwap (Notifications) ---
 const CardSwap = ({ children }: { children: React.ReactNode[] }) => {
     const [stack, setStack] = useState(React.Children.toArray(children));
     useEffect(() => {
-        const interval = setInterval(() => { setStack((prev) => { const newStack = [...prev]; const first = newStack.shift(); if (first) newStack.push(first); return newStack; }); }, 5000); 
+        const interval = setInterval(() => { setStack((prev) => { const newStack = [...prev]; const first = newStack.shift(); if (first) newStack.push(first); return newStack; }); }, 5000);
         return () => clearInterval(interval);
     }, []);
 
@@ -346,11 +321,11 @@ export default function AgencyDashboard() {
             <AnimatedWave />
 
             <div className="relative z-10 max-w-[1700px] mx-auto p-6 md:p-8 space-y-10">
-                
+
                 {/* Header */}
                 <div className="flex flex-col md:flex-row justify-between items-end backdrop-blur-xl p-8 rounded-[2rem] border border-white/40 bg-white/40 shadow-xl shadow-teal-900/5">
                     <div>
-                        <motion.h1 
+                        <motion.h1
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-900 to-indigo-600 mb-2 tracking-tight"
@@ -418,24 +393,24 @@ export default function AgencyDashboard() {
 
                 {/* Main Content */}
                 <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 pb-10">
-                    
+
                     {/* Left Col (Projects & Members) */}
                     <div className="xl:col-span-8 space-y-8">
                         {/* Gallery */}
                         <div className="bg-white/30 backdrop-blur-xl border border-white/50 rounded-[2.5rem] p-8 relative overflow-hidden shadow-xl shadow-teal-900/5">
                             <div className="flex justify-between items-center mb-8 px-2">
                                 <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
-                                    <div className="p-2 bg-teal-100 rounded-xl text-teal-700"><Database size={20}/></div>
+                                    <div className="p-2 bg-teal-100 rounded-xl text-teal-700"><Database size={20} /></div>
                                     Agency Projects
                                 </h2>
                                 <button onClick={() => router.push('/dashboard/projects')} className="text-sm font-bold text-teal-700 hover:text-teal-900 bg-white/50 px-4 py-2 rounded-xl transition-all">View All</button>
                             </div>
-                            
+
                             <div className="flex flex-col lg:flex-row gap-8">
                                 <div className="w-full lg:w-3/5">
                                     <ThreeDHoverGallery images={projectImages} onImageHover={(idx: number) => setHoveredProject(pendingProjects[idx])} />
                                 </div>
-                                
+
                                 {/* Detail Panel */}
                                 <div className="w-full lg:w-2/5 min-h-[380px] bg-white/60 backdrop-blur-xl rounded-[2rem] p-8 border border-white/60 shadow-inner flex flex-col transition-all duration-300 relative">
                                     {hoveredProject ? (
@@ -466,7 +441,7 @@ export default function AgencyDashboard() {
                                             <button onClick={() => router.push(`/dashboard/projects/${hoveredProject.id}`)} className="w-full mt-4 py-3 bg-slate-900 text-white rounded-xl text-sm font-bold transition-all hover:bg-teal-600 hover:shadow-lg">Manage Project</button>
                                         </motion.div>
                                     ) : (
-                                        <div className="h-full flex flex-col items-center justify-center text-center text-slate-400"><Database size={48} className="mb-4 opacity-20" /><p className="font-bold">Hover over a project<br/>to see details</p></div>
+                                        <div className="h-full flex flex-col items-center justify-center text-center text-slate-400"><Database size={48} className="mb-4 opacity-20" /><p className="font-bold">Hover over a project<br />to see details</p></div>
                                     )}
                                 </div>
                             </div>
@@ -474,8 +449,8 @@ export default function AgencyDashboard() {
 
                         {/* Bottom Stats */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                             <SpotlightCard className="h-[280px]">
-                                <h3 className="text-lg font-bold mb-6 text-slate-800 flex items-center gap-2"><TrendingUp size={18} className="text-teal-600"/> Agency Activity</h3>
+                            <SpotlightCard className="h-[280px]">
+                                <h3 className="text-lg font-bold mb-6 text-slate-800 flex items-center gap-2"><TrendingUp size={18} className="text-teal-600" /> Agency Activity</h3>
                                 <CardSwap>
                                     {[
                                         { id: 1, title: 'Revenue Milestone', msg: 'Crossed $5k in earnings', time: '1d ago', color: 'bg-emerald-50/90 border-emerald-200' },
@@ -488,10 +463,10 @@ export default function AgencyDashboard() {
                                         </div>
                                     ))}
                                 </CardSwap>
-                             </SpotlightCard>
+                            </SpotlightCard>
 
-                             <SpotlightCard className="h-[280px]">
-                                <h3 className="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2"><Database size={18} className="text-teal-600"/> Agency Storage</h3>
+                            <SpotlightCard className="h-[280px]">
+                                <h3 className="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2"><Database size={18} className="text-teal-600" /> Agency Storage</h3>
                                 {storageQuota && (
                                     <div className="flex items-center gap-8 h-full pb-8">
                                         <div className="relative w-32 h-32 flex-shrink-0">
@@ -507,7 +482,7 @@ export default function AgencyDashboard() {
                                         </div>
                                     </div>
                                 )}
-                             </SpotlightCard>
+                            </SpotlightCard>
                         </div>
                     </div>
 
@@ -516,7 +491,7 @@ export default function AgencyDashboard() {
                         <div className="bg-white/30 backdrop-blur-xl border border-white/50 rounded-[2.5rem] p-8 h-full min-h-[600px] flex flex-col shadow-xl shadow-teal-900/5 relative overflow-hidden">
                             <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-400/20 rounded-full blur-[80px] -z-10 pointer-events-none" />
                             <div className="flex justify-between items-center mb-10">
-                                <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-3"><div className="p-2 bg-indigo-100 rounded-xl text-indigo-600"><FileCheck size={20}/></div>Validations</h2>
+                                <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-3"><div className="p-2 bg-indigo-100 rounded-xl text-indigo-600"><FileCheck size={20} /></div>Validations</h2>
                                 <span className="bg-indigo-500 text-white text-xs px-2.5 py-1 rounded-lg font-bold shadow-md shadow-indigo-500/30">{potsToReview.length} Pending</span>
                             </div>
                             <div className="flex-1 flex items-center justify-center -mt-4"><ThreeDImageCarousel slides={reviewSlides} onAction={(id: string) => router.push(`/dashboard/tasks/${id}`)} /></div>
@@ -524,8 +499,8 @@ export default function AgencyDashboard() {
                                 <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Quick Actions</h3>
                                 <div className="space-y-3">
                                     <button onClick={() => router.push('/dashboard/payouts')} className="w-full flex items-center justify-between p-4 bg-white/40 hover:bg-white/80 rounded-2xl border border-white/50 transition-all group">
-                                        <div className="flex items-center gap-3"><div className="p-2 bg-emerald-100 rounded-lg text-emerald-600"><Wallet size={16}/></div><span className="font-bold text-slate-700 text-sm">Payouts & Finance</span></div>
-                                        <ChevronRight size={16} className="text-slate-400 group-hover:text-emerald-600 transition-colors"/>
+                                        <div className="flex items-center gap-3"><div className="p-2 bg-emerald-100 rounded-lg text-emerald-600"><Wallet size={16} /></div><span className="font-bold text-slate-700 text-sm">Payouts & Finance</span></div>
+                                        <ChevronRight size={16} className="text-slate-400 group-hover:text-emerald-600 transition-colors" />
                                     </button>
                                 </div>
                             </div>

@@ -22,6 +22,7 @@ import { toast } from 'react-hot-toast';
 import { ProfileService } from '@/lib/services/profile-service';
 
 import CircularGallery from '@/components/ui/CircularGallery';
+import ThreeDHoverGallery, { ProjectImageData } from '@/components/ui/ThreeDHoverGallery';
 
 // --- Placeholder Imports for your existing Modals ---
 import AddWorkspaceMemberModal from '@/components/AddWorkspaceMemberModal';
@@ -868,20 +869,27 @@ export default function WorkspaceDetailPage() {
             <h2 className="text-3xl font-bold">Projects</h2>
           </div>
 
-          <div className="flex flex-col md:flex-row gap-4 h-auto md:h-[400px]">
-            {projects.length > 0 ? projects.map((project, i) => (
-              <ProjectCard
-                key={project.id}
-                project={project}
-                index={i}
-                onClick={(id: string) => router.push(`/dashboard/projects/${id}`)}
+          {projects.length > 0 ? (
+            <div className="bg-white/30 dark:bg-zinc-900/30 backdrop-blur-xl border border-white/50 dark:border-zinc-800 rounded-[2.5rem] p-8 relative overflow-hidden shadow-xl shadow-teal-900/5">
+              <ThreeDHoverGallery
+                images={projects.map((p, i) => ({
+                  src: p.coverImage || `https://picsum.photos/seed/${p.id}/600/800`,
+                  title: p.title,
+                  shortTitle: p.title.substring(0, 15) + (p.title.length > 15 ? '...' : ''),
+                  status: p.status,
+                  memberCount: p.members?.length || 0,
+                  budget: p.budget,
+                  description: p.description,
+                }))}
+                onImageClick={(index) => router.push(`/dashboard/projects/${projects[index].id}`)}
+                height={380}
               />
-            )) : (
-              <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 dark:bg-zinc-900 rounded-3xl border border-gray-200 dark:border-zinc-800 p-12">
-                <p className="text-gray-400">No projects yet.</p>
-              </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="w-full h-[200px] flex flex-col items-center justify-center bg-gray-50 dark:bg-zinc-900 rounded-3xl border border-gray-200 dark:border-zinc-800 p-12">
+              <p className="text-gray-400">No projects yet.</p>
+            </div>
+          )}
         </section>
 
         {/* --- TEAM 3D VIEW --- */}

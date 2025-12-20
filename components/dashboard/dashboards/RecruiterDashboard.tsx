@@ -2,10 +2,10 @@
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  Plus, Users, Briefcase, CheckCircle, 
-  AlertCircle, ArrowRight, Database, ChevronRight, 
-  ArrowLeftCircle, ArrowRightCircle, Search, UserCheck
+import {
+    Plus, Users, Briefcase, CheckCircle,
+    AlertCircle, ArrowRight, Database, ChevronRight,
+    ArrowLeftCircle, ArrowRightCircle, Search, UserCheck
 } from 'lucide-react';
 import * as THREE from 'three';
 import { createNoise2D } from 'simplex-noise';
@@ -17,6 +17,7 @@ import { EnhancedProjectService } from '@/lib/services/enhanced-project-service'
 import { TaskService } from '@/lib/services/task-service';
 import { StorageQuotaService } from '@/lib/services/storage-quota-service';
 import { Project, Task, ProofOfTask } from '@/lib/types/workspace.types';
+import ThreeDHoverGallery, { ProjectImageData } from '@/components/ui/ThreeDHoverGallery';
 
 // ============================================================================
 // PART 1: UTILITIES
@@ -30,149 +31,149 @@ const cn = (...classes: (string | undefined | null | false)[]) => classes.filter
 
 // --- 2.1 CountUp Component ---
 function CountUp({ to, from = 0, direction = 'up', delay = 0, duration = 2, className = '', startWhen = true, separator = '', onStart, onEnd }: any) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const motionValue = useMotionValue(direction === 'down' ? to : from);
-  const damping = 20 + 40 * (1 / duration);
-  const stiffness = 100 * (1 / duration);
-  const springValue = useSpring(motionValue, { damping, stiffness });
-  const isInView = useInView(ref, { once: true, margin: '0px' });
+    const ref = useRef<HTMLSpanElement>(null);
+    const motionValue = useMotionValue(direction === 'down' ? to : from);
+    const damping = 20 + 40 * (1 / duration);
+    const stiffness = 100 * (1 / duration);
+    const springValue = useSpring(motionValue, { damping, stiffness });
+    const isInView = useInView(ref, { once: true, margin: '0px' });
 
-  const formatValue = useCallback((latest: number) => {
-    const formatted = Intl.NumberFormat('en-US').format(Math.floor(latest));
-    return separator ? formatted.replace(/,/g, separator) : formatted;
-  }, [separator]);
+    const formatValue = useCallback((latest: number) => {
+        const formatted = Intl.NumberFormat('en-US').format(Math.floor(latest));
+        return separator ? formatted.replace(/,/g, separator) : formatted;
+    }, [separator]);
 
-  useEffect(() => {
-    if (ref.current) ref.current.textContent = formatValue(direction === 'down' ? to : from);
-  }, [from, to, direction, formatValue]);
+    useEffect(() => {
+        if (ref.current) ref.current.textContent = formatValue(direction === 'down' ? to : from);
+    }, [from, to, direction, formatValue]);
 
-  useEffect(() => {
-    if (isInView && startWhen) {
-      if (typeof onStart === 'function') onStart();
-      const timeoutId = setTimeout(() => { motionValue.set(direction === 'down' ? from : to); }, delay * 1000);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [isInView, startWhen, motionValue, direction, from, to, delay, onStart]);
+    useEffect(() => {
+        if (isInView && startWhen) {
+            if (typeof onStart === 'function') onStart();
+            const timeoutId = setTimeout(() => { motionValue.set(direction === 'down' ? from : to); }, delay * 1000);
+            return () => clearTimeout(timeoutId);
+        }
+    }, [isInView, startWhen, motionValue, direction, from, to, delay, onStart]);
 
-  useEffect(() => {
-    const unsubscribe = springValue.on('change', latest => {
-      if (ref.current) ref.current.textContent = formatValue(latest);
-    });
-    return () => unsubscribe();
-  }, [springValue, formatValue]);
+    useEffect(() => {
+        const unsubscribe = springValue.on('change', latest => {
+            if (ref.current) ref.current.textContent = formatValue(latest);
+        });
+        return () => unsubscribe();
+    }, [springValue, formatValue]);
 
-  return <span className={className} ref={ref} />;
+    return <span className={className} ref={ref} />;
 }
 
 // --- 2.2 SpotlightCard Component (Liquid Glass) ---
 const SpotlightCard = ({ children, className = '', spotlightColor = 'rgba(20, 184, 166, 0.25)', onClick }: any) => {
-  const divRef = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [opacity, setOpacity] = useState(0);
+    const divRef = useRef<HTMLDivElement>(null);
+    const [position, setPosition] = useState({ x: 0, y: 0 });
+    const [opacity, setOpacity] = useState(0);
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!divRef.current) return;
-    const rect = divRef.current.getBoundingClientRect();
-    setPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-  };
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (!divRef.current) return;
+        const rect = divRef.current.getBoundingClientRect();
+        setPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    };
 
-  return (
-    <div
-      ref={divRef}
-      onClick={onClick}
-      onMouseMove={handleMouseMove}
-      onMouseEnter={() => setOpacity(0.6)}
-      onMouseLeave={() => setOpacity(0)}
-      className={cn(
-        "relative rounded-3xl border border-white/20 bg-white/10 backdrop-blur-md overflow-hidden p-8 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-teal-900/10 cursor-pointer",
-        className
-      )}
-    >
-      <div
-        className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 ease-in-out"
-        style={{ opacity, background: `radial-gradient(circle at ${position.x}px ${position.y}px, ${spotlightColor}, transparent 80%)` }}
-      />
-      <div className="relative z-10">{children}</div>
-    </div>
-  );
+    return (
+        <div
+            ref={divRef}
+            onClick={onClick}
+            onMouseMove={handleMouseMove}
+            onMouseEnter={() => setOpacity(0.6)}
+            onMouseLeave={() => setOpacity(0)}
+            className={cn(
+                "relative rounded-3xl border border-white/20 bg-white/10 backdrop-blur-md overflow-hidden p-8 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-teal-900/10 cursor-pointer",
+                className
+            )}
+        >
+            <div
+                className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 ease-in-out"
+                style={{ opacity, background: `radial-gradient(circle at ${position.x}px ${position.y}px, ${spotlightColor}, transparent 80%)` }}
+            />
+            <div className="relative z-10">{children}</div>
+        </div>
+    );
 };
 
 // --- 2.3 AnimatedWave Component (Background Mesh) ---
 const AnimatedWave = ({ className, speed = 0.01, amplitude = 40, waveColor = "#0d9488", opacity = 0.3 }: any) => {
-  const containerRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!containerRef.current) return;
-    
-    const width = window.innerWidth;
-    const height = window.innerHeight; // Fixed to screen height for background
+    useEffect(() => {
+        if (!containerRef.current) return;
 
-    const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0xffffff, 0.001); 
+        const width = window.innerWidth;
+        const height = window.innerHeight; // Fixed to screen height for background
 
-    const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 10000);
-    camera.position.set(0, 100, 800);
-    camera.lookAt(0, 0, 0);
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0xffffff, 0.001);
 
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    containerRef.current.innerHTML = '';
-    containerRef.current.appendChild(renderer.domElement);
+        const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 10000);
+        camera.position.set(0, 100, 800);
+        camera.lookAt(0, 0, 0);
 
-    // Large Geometry for infinite feel
-    const geometry = new THREE.PlaneGeometry(3000, 2000, 64, 64);
-    const originalPositions = new Float32Array(geometry.attributes.position.array);
-    
-    const material = new THREE.MeshLambertMaterial({
-      color: waveColor, 
-      opacity: opacity, 
-      transparent: true, 
-      wireframe: true, 
-      side: THREE.DoubleSide
-    });
-    
-    const plane = new THREE.Mesh(geometry, material);
-    plane.rotation.x = -Math.PI / 2.5; // Tilted mesh
-    scene.add(plane);
+        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        renderer.setSize(width, height);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        containerRef.current.innerHTML = '';
+        containerRef.current.appendChild(renderer.domElement);
 
-    const light = new THREE.PointLight(0xffffff, 2, 1000);
-    light.position.set(0, 200, 200);
-    scene.add(light);
-    scene.add(new THREE.AmbientLight(0xffffff, 0.8)); 
+        // Large Geometry for infinite feel
+        const geometry = new THREE.PlaneGeometry(3000, 2000, 64, 64);
+        const originalPositions = new Float32Array(geometry.attributes.position.array);
 
-    const simplex = createNoise2D();
-    let cycle = 0;
+        const material = new THREE.MeshLambertMaterial({
+            color: waveColor,
+            opacity: opacity,
+            transparent: true,
+            wireframe: true,
+            side: THREE.DoubleSide
+        });
 
-    const animate = () => {
-        cycle += speed;
-        const positions = geometry.attributes.position;
-        
-        for(let i = 0; i < positions.count; i++) {
-            const x = originalPositions[i * 3];
-            const y = originalPositions[i * 3 + 1]; // Actually Z in world space after rotation
-            const noiseVal = simplex(x / 400, (y / 400) + cycle) * amplitude;
-            positions.setZ(i, noiseVal);
-        }
-        positions.needsUpdate = true;
-        renderer.render(scene, camera);
-        requestAnimationFrame(animate);
-    };
+        const plane = new THREE.Mesh(geometry, material);
+        plane.rotation.x = -Math.PI / 2.5; // Tilted mesh
+        scene.add(plane);
 
-    animate();
+        const light = new THREE.PointLight(0xffffff, 2, 1000);
+        light.position.set(0, 200, 200);
+        scene.add(light);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
 
-    const handleResize = () => {
-        const w = window.innerWidth;
-        const h = window.innerHeight;
-        camera.aspect = w / h;
-        camera.updateProjectionMatrix();
-        renderer.setSize(w, h);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [speed, amplitude, waveColor, opacity]);
+        const simplex = createNoise2D();
+        let cycle = 0;
 
-  return <div ref={containerRef} className={cn("fixed inset-0 w-full h-full -z-10 pointer-events-none", className)} />;
+        const animate = () => {
+            cycle += speed;
+            const positions = geometry.attributes.position;
+
+            for (let i = 0; i < positions.count; i++) {
+                const x = originalPositions[i * 3];
+                const y = originalPositions[i * 3 + 1]; // Actually Z in world space after rotation
+                const noiseVal = simplex(x / 400, (y / 400) + cycle) * amplitude;
+                positions.setZ(i, noiseVal);
+            }
+            positions.needsUpdate = true;
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        };
+
+        animate();
+
+        const handleResize = () => {
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, [speed, amplitude, waveColor, opacity]);
+
+    return <div ref={containerRef} className={cn("fixed inset-0 w-full h-full -z-10 pointer-events-none", className)} />;
 };
 
 // --- 2.4 ThreeDImageCarousel (Tasks) ---
@@ -197,7 +198,7 @@ const ThreeDImageCarousel = ({ slides, onReview, className = '' }: any) => {
     return (
         <div className={cn("relative h-[320px] w-full flex items-center justify-center perspective-1000", className)}>
             {slides.map((slide: any, index: number) => (
-                <div 
+                <div
                     key={slide.id}
                     className={cn(
                         "absolute transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] cursor-pointer",
@@ -206,7 +207,7 @@ const ThreeDImageCarousel = ({ slides, onReview, className = '' }: any) => {
                     onClick={() => onReview(slide.id)}
                 >
                     <div className="w-[300px] h-[380px] bg-white/60 backdrop-blur-xl rounded-[2rem] border border-white/60 shadow-2xl flex flex-col justify-between overflow-hidden group hover:border-teal-400/50 transition-colors">
-                        
+
                         {/* Header Image/Color Area */}
                         <div className="h-24 bg-gradient-to-br from-teal-500/20 to-blue-500/20 p-6 relative">
                             <span className="absolute top-4 right-4 bg-white/80 backdrop-blur text-teal-800 text-[10px] font-black tracking-wider px-2 py-1 rounded-full uppercase">
@@ -219,11 +220,11 @@ const ThreeDImageCarousel = ({ slides, onReview, className = '' }: any) => {
                             <div className="w-16 h-16 rounded-2xl bg-white shadow-lg flex items-center justify-center mb-4 text-teal-600 border border-teal-50">
                                 {slide.type === 'pot' ? <UserCheck size={28} /> : <Briefcase size={28} />}
                             </div>
-                            
+
                             <h3 className="text-slate-800 font-bold text-xl mb-1 line-clamp-2 leading-tight">{slide.title}</h3>
                             <p className="text-slate-500 text-xs font-bold uppercase tracking-wide mb-3">{slide.submittedBy}</p>
                             <p className="text-slate-600 text-sm line-clamp-3 mb-4">{slide.description}</p>
-                            
+
                             <div className="mt-auto pt-4 border-t border-slate-200/50 flex justify-between items-center group-hover:text-teal-700 transition-colors">
                                 <span className="text-xs font-semibold text-slate-400">{slide.date}</span>
                                 <div className="flex items-center gap-2 text-sm font-bold">
@@ -234,60 +235,18 @@ const ThreeDImageCarousel = ({ slides, onReview, className = '' }: any) => {
                     </div>
                 </div>
             ))}
-            
+
             {total > 1 && (
                 <>
-                   <button onClick={(e) => { e.stopPropagation(); navigate('prev'); }} className="absolute left-0 md:left-8 z-40 p-3 bg-white/20 hover:bg-white/40 backdrop-blur rounded-full text-teal-900 shadow-lg transition-all"><ArrowLeftCircle size={28}/></button>
-                   <button onClick={(e) => { e.stopPropagation(); navigate('next'); }} className="absolute right-0 md:right-8 z-40 p-3 bg-white/20 hover:bg-white/40 backdrop-blur rounded-full text-teal-900 shadow-lg transition-all"><ArrowRightCircle size={28}/></button>
+                    <button onClick={(e) => { e.stopPropagation(); navigate('prev'); }} className="absolute left-0 md:left-8 z-40 p-3 bg-white/20 hover:bg-white/40 backdrop-blur rounded-full text-teal-900 shadow-lg transition-all"><ArrowLeftCircle size={28} /></button>
+                    <button onClick={(e) => { e.stopPropagation(); navigate('next'); }} className="absolute right-0 md:right-8 z-40 p-3 bg-white/20 hover:bg-white/40 backdrop-blur rounded-full text-teal-900 shadow-lg transition-all"><ArrowRightCircle size={28} /></button>
                 </>
             )}
         </div>
     );
 };
 
-// --- 2.5 ThreeDHoverGallery (Projects) ---
-const ThreeDHoverGallery = ({ images = [], onImageHover, className }: any) => {
-    return (
-        <div className={cn("flex justify-center items-center gap-2 perspective-1000 h-[380px]", className)}>
-            {images.map((img: any, i: number) => (
-                <div 
-                    key={i}
-                    onMouseEnter={() => onImageHover(i)}
-                    className="relative w-16 h-full transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] hover:w-[320px] hover:z-20 group rounded-3xl overflow-hidden cursor-pointer border border-white/40 shadow-xl hover:shadow-2xl hover:shadow-teal-900/20 bg-slate-200"
-                    style={{ transform: 'translateZ(0)' }}
-                >
-                    {/* Background Image */}
-                    <div 
-                        className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110"
-                        style={{ backgroundImage: `url(${img.src})` }} 
-                    />
-                    
-                    {/* Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-teal-950/90 via-teal-900/40 to-transparent opacity-60 group-hover:opacity-100 transition-opacity duration-300" />
-                    
-                    {/* Vertical Text (Collapsed state) */}
-                    <div className="absolute inset-0 flex items-center justify-center opacity-100 group-hover:opacity-0 transition-opacity duration-300 pointer-events-none">
-                        <span className="rotate-90 text-white font-bold tracking-widest text-sm whitespace-nowrap uppercase opacity-80">{img.shortTitle}</span>
-                    </div>
-
-                    {/* Content (Expanded state) */}
-                    <div className="absolute bottom-0 left-0 p-6 opacity-0 group-hover:opacity-100 transition-all duration-500 delay-100 w-full transform translate-y-4 group-hover:translate-y-0">
-                        <div className="flex items-center gap-2 mb-2">
-                             <span className={`w-2 h-2 rounded-full ${img.status === 'active' ? 'bg-green-400' : 'bg-amber-400'}`} />
-                             <span className="text-teal-100 text-xs font-bold uppercase tracking-wide">{img.status}</span>
-                        </div>
-                        <h4 className="text-white text-2xl font-bold leading-tight mb-2 drop-shadow-md">{img.title}</h4>
-                        <div className="flex items-center gap-3 text-white/80 text-xs font-medium">
-                            <span className="flex items-center gap-1"><Users size={12}/> {img.memberCount} Talents</span>
-                            <span className="w-1 h-1 bg-white/40 rounded-full" />
-                            <span>{img.progress}% Done</span>
-                        </div>
-                    </div>
-                </div>
-            ))}
-        </div>
-    );
-};
+// ThreeDHoverGallery is now imported from @/components/ui/ThreeDHoverGallery
 
 // --- 2.6 CardSwap (Notifications) ---
 const CardSwap = ({ children }: { children: React.ReactNode[] }) => {
@@ -312,10 +271,10 @@ const CardSwap = ({ children }: { children: React.ReactNode[] }) => {
                     <motion.div
                         key={child.key}
                         initial={{ scale: 0.9, y: 40, opacity: 0 }}
-                        animate={{ 
-                            scale: index === 0 ? 1 : 1 - index * 0.05, 
-                            y: index * 12, 
-                            opacity: 1 - index * 0.3, 
+                        animate={{
+                            scale: index === 0 ? 1 : 1 - index * 0.05,
+                            y: index * 12,
+                            opacity: 1 - index * 0.3,
                             zIndex: 3 - index,
                             filter: index === 0 ? 'blur(0px)' : 'blur(2px)'
                         }}
@@ -339,13 +298,13 @@ export default function RecruiterDashboard() {
     const { user, userProfile } = useAuth();
     const router = useRouter();
     const [loading, setLoading] = useState(true);
-    
+
     // Data State
     const [pendingProjects, setPendingProjects] = useState<Project[]>([]);
     const [potsToReview, setPotsToReview] = useState<ProofOfTask[]>([]);
     const [storageQuota, setStorageQuota] = useState<any>(null);
     const [hoveredProject, setHoveredProject] = useState<Project | null>(null);
-    
+
     // Stats
     const [totalProjects, setTotalProjects] = useState(0);
     const [totalTasks, setTotalTasks] = useState(0);
@@ -415,7 +374,7 @@ export default function RecruiterDashboard() {
     const reviewSlides = potsToReview.map(pot => ({
         id: pot.taskId,
         type: 'pot',
-        title: `Task Verification: ${pot.taskId.substring(0,6)}...`,
+        title: `Task Verification: ${pot.taskId.substring(0, 6)}...`,
         description: pot.notes || "Please review the attached screenshots and videos for task completion.",
         submittedBy: pot.submittedByUsername,
         date: new Date(pot.submittedAt).toLocaleDateString(),
@@ -429,17 +388,17 @@ export default function RecruiterDashboard() {
 
     return (
         <div className="relative min-h-screen font-sans text-slate-800 selection:bg-teal-200">
-            
+
             {/* --- BACKGROUND --- */}
             <AnimatedWave />
 
             {/* --- MAIN CONTAINER --- */}
             <div className="relative z-10 max-w-[1700px] mx-auto p-6 md:p-8 space-y-10">
-                
+
                 {/* --- HEADER --- */}
                 <div className="flex flex-col md:flex-row justify-between items-end backdrop-blur-xl p-8 rounded-[2rem] border border-white/40 bg-white/40 shadow-xl shadow-teal-900/5">
                     <div>
-                        <motion.h1 
+                        <motion.h1
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-900 to-emerald-600 mb-2 tracking-tight"
@@ -513,15 +472,15 @@ export default function RecruiterDashboard() {
 
                 {/* --- MAIN CONTENT GRID --- */}
                 <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 pb-10">
-                    
+
                     {/* LEFT COLUMN (Projects & Talents) - Span 8 */}
                     <div className="xl:col-span-8 space-y-8">
-                        
+
                         {/* 1. Project Gallery Container */}
                         <div className="bg-white/30 backdrop-blur-xl border border-white/50 rounded-[2.5rem] p-8 relative overflow-hidden shadow-xl shadow-teal-900/5">
                             <div className="flex justify-between items-center mb-8 px-2">
                                 <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
-                                    <div className="p-2 bg-teal-100 rounded-xl text-teal-700"><Database size={20}/></div>
+                                    <div className="p-2 bg-teal-100 rounded-xl text-teal-700"><Database size={20} /></div>
                                     Active Projects
                                 </h2>
                                 <button onClick={() => router.push('/dashboard/projects')} className="text-sm font-bold text-teal-700 hover:text-teal-900 transition-colors bg-white/50 px-4 py-2 rounded-xl">View All</button>
@@ -530,8 +489,8 @@ export default function RecruiterDashboard() {
                             <div className="flex flex-col lg:flex-row gap-8">
                                 {/* 3D Gallery */}
                                 <div className="w-full lg:w-3/5">
-                                    <ThreeDHoverGallery 
-                                        images={projectImages} 
+                                    <ThreeDHoverGallery
+                                        images={projectImages}
                                         onImageHover={(idx: number) => setHoveredProject(pendingProjects[idx])}
                                     />
                                 </div>
@@ -539,7 +498,7 @@ export default function RecruiterDashboard() {
                                 {/* Dynamic Detail Panel (Shows Talents) */}
                                 <div className="w-full lg:w-2/5 min-h-[380px] bg-white/60 backdrop-blur-xl rounded-[2rem] p-8 border border-white/60 shadow-inner flex flex-col transition-all duration-300 relative group">
                                     {hoveredProject ? (
-                                        <motion.div 
+                                        <motion.div
                                             key={hoveredProject.id}
                                             initial={{ opacity: 0, x: 10 }}
                                             animate={{ opacity: 1, x: 0 }}
@@ -548,9 +507,8 @@ export default function RecruiterDashboard() {
                                         >
                                             {/* Project Info */}
                                             <div className="mb-6">
-                                                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider mb-4 ${
-                                                    hoveredProject.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
-                                                }`}>
+                                                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider mb-4 ${hoveredProject.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                                                    }`}>
                                                     <span className={`w-1.5 h-1.5 rounded-full ${hoveredProject.status === 'active' ? 'bg-green-500' : 'bg-amber-500'}`} />
                                                     {hoveredProject.status}
                                                 </span>
@@ -561,7 +519,7 @@ export default function RecruiterDashboard() {
                                             {/* Talents List (The "Recruiter" part) */}
                                             <div className="flex-1 overflow-hidden flex flex-col">
                                                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Assigned Talents</h4>
-                                                
+
                                                 <div className="flex-1 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
                                                     {hoveredProject.members.length > 0 ? hoveredProject.members.map((member, i) => (
                                                         <div key={i} className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/60 transition-colors group/member">
@@ -579,7 +537,7 @@ export default function RecruiterDashboard() {
                                                 </div>
                                             </div>
 
-                                            <button 
+                                            <button
                                                 onClick={() => router.push(`/dashboard/projects/${hoveredProject.id}`)}
                                                 className="w-full mt-4 py-3 bg-slate-900 text-white rounded-xl text-sm font-bold transition-all hover:bg-teal-600 hover:shadow-lg hover:shadow-teal-500/20"
                                             >
@@ -589,7 +547,7 @@ export default function RecruiterDashboard() {
                                     ) : (
                                         <div className="h-full flex flex-col items-center justify-center text-center text-slate-400">
                                             <Database size={48} className="mb-4 opacity-20" />
-                                            <p className="font-bold">Hover over a project<br/>to see talents & details</p>
+                                            <p className="font-bold">Hover over a project<br />to see talents & details</p>
                                         </div>
                                     )}
                                 </div>
@@ -598,10 +556,10 @@ export default function RecruiterDashboard() {
 
                         {/* 2. Bottom Row (Activity & Storage) */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                             {/* Team Activity */}
-                             <SpotlightCard className="h-[280px]">
+                            {/* Team Activity */}
+                            <SpotlightCard className="h-[280px]">
                                 <h3 className="text-lg font-bold mb-6 text-slate-800 flex items-center gap-2">
-                                    <Users size={18} className="text-teal-600"/> Latest Activity
+                                    <Users size={18} className="text-teal-600" /> Latest Activity
                                 </h3>
                                 <CardSwap>
                                     {[
@@ -618,12 +576,12 @@ export default function RecruiterDashboard() {
                                         </div>
                                     ))}
                                 </CardSwap>
-                             </SpotlightCard>
+                            </SpotlightCard>
 
-                             {/* Storage */}
-                             <SpotlightCard className="h-[280px]">
+                            {/* Storage */}
+                            <SpotlightCard className="h-[280px]">
                                 <h3 className="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2">
-                                    <Database size={18} className="text-teal-600"/> Storage Quota
+                                    <Database size={18} className="text-teal-600" /> Storage Quota
                                 </h3>
                                 {storageQuota && (
                                     <div className="flex items-center gap-8 h-full pb-8">
@@ -652,20 +610,20 @@ export default function RecruiterDashboard() {
                                         </div>
                                     </div>
                                 )}
-                             </SpotlightCard>
+                            </SpotlightCard>
                         </div>
                     </div>
 
                     {/* RIGHT COLUMN (Tasks & Approvals) - Span 4 */}
                     <div className="xl:col-span-4 space-y-8">
                         <div className="bg-white/30 backdrop-blur-xl border border-white/50 rounded-[2.5rem] p-8 h-full min-h-[600px] flex flex-col shadow-xl shadow-teal-900/5 relative overflow-hidden">
-                            
+
                             {/* Decorative blur */}
                             <div className="absolute top-0 right-0 w-64 h-64 bg-teal-400/20 rounded-full blur-[80px] -z-10 pointer-events-none" />
 
                             <div className="flex justify-between items-center mb-10">
                                 <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
-                                    <div className="p-2 bg-rose-100 rounded-xl text-rose-600"><CheckCircle size={20}/></div>
+                                    <div className="p-2 bg-rose-100 rounded-xl text-rose-600"><CheckCircle size={20} /></div>
                                     Pending Review
                                 </h2>
                                 <span className="bg-rose-500 text-white text-xs px-2.5 py-1 rounded-lg font-bold shadow-md shadow-rose-500/30">
@@ -675,8 +633,8 @@ export default function RecruiterDashboard() {
 
                             {/* 3D Carousel for POTs */}
                             <div className="flex-1 flex items-center justify-center -mt-4">
-                                <ThreeDImageCarousel 
-                                    slides={displaySlides} 
+                                <ThreeDImageCarousel
+                                    slides={displaySlides}
                                     onReview={(id: string) => router.push(`/dashboard/tasks/${id}`)}
                                 />
                             </div>
@@ -687,17 +645,17 @@ export default function RecruiterDashboard() {
                                 <div className="space-y-3">
                                     <button className="w-full flex items-center justify-between p-4 bg-white/40 hover:bg-white/80 rounded-2xl border border-white/50 transition-all group">
                                         <div className="flex items-center gap-3">
-                                            <div className="p-2 bg-blue-100 rounded-lg text-blue-600"><Users size={16}/></div>
+                                            <div className="p-2 bg-blue-100 rounded-lg text-blue-600"><Users size={16} /></div>
                                             <span className="font-bold text-slate-700 text-sm">Find new Talent</span>
                                         </div>
-                                        <ChevronRight size={16} className="text-slate-400 group-hover:text-blue-600 transition-colors"/>
+                                        <ChevronRight size={16} className="text-slate-400 group-hover:text-blue-600 transition-colors" />
                                     </button>
                                     <button className="w-full flex items-center justify-between p-4 bg-white/40 hover:bg-white/80 rounded-2xl border border-white/50 transition-all group">
                                         <div className="flex items-center gap-3">
-                                            <div className="p-2 bg-purple-100 rounded-lg text-purple-600"><Briefcase size={16}/></div>
+                                            <div className="p-2 bg-purple-100 rounded-lg text-purple-600"><Briefcase size={16} /></div>
                                             <span className="font-bold text-slate-700 text-sm">Archived Projects</span>
                                         </div>
-                                        <ChevronRight size={16} className="text-slate-400 group-hover:text-purple-600 transition-colors"/>
+                                        <ChevronRight size={16} className="text-slate-400 group-hover:text-purple-600 transition-colors" />
                                     </button>
                                 </div>
                             </div>
