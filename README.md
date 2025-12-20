@@ -4,7 +4,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ### Environment variables
 
-- `OPENAI_API_KEY` (required for AI project cover generation via `POST /api/projects/generate-cover`)
+- `NEXT_PUBLIC_GEMINI_API_KEY` (required for AI features including project cover generation via Imagen 3)
 
 First, run the development server:
 
