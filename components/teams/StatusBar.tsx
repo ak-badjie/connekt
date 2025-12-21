@@ -2,19 +2,19 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Plus, X, Image as ImageIcon, Type, Send, ChevronLeft, ChevronRight, 
-  MoreVertical, Trash2, Eye 
+import {
+  Plus, X, Image as ImageIcon, Type, Send, ChevronLeft, ChevronRight,
+  MoreVertical, Trash2, Eye
 } from 'lucide-react';
-import { useAuth } from '@/lib/auth-store';
+import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/toast/toast';
-import { 
-  listenToStatuses, 
-  addStatus, 
-  viewStatus, 
-  UserStatus 
-} from '@/lib/realtime-service';
-import { uploadImage } from '@/lib/storage-service'; // Assuming you have this helper
+import {
+  listenToStatuses,
+  addStatus,
+  viewStatus,
+  UserStatus,
+  uploadImage
+} from '@/lib/services/realtime-service';
 
 // --- TYPES ---
 interface GroupedStatus {
@@ -72,7 +72,7 @@ const CreateStatusModal = ({ onClose }: { onClose: () => void }) => {
         // Upload logic here
         const isVideo = mediaFile.type.startsWith('video');
         type = isVideo ? 'video' : 'image';
-        content = await uploadImage(mediaFile, `statuses/${user.id}`);
+        content = await uploadImage(mediaFile, `statuses/${user.uid}`);
       } else if (mode === 'text') {
         if (!text.trim()) return;
         // For text, we save the gradient class as background
@@ -81,7 +81,7 @@ const CreateStatusModal = ({ onClose }: { onClose: () => void }) => {
       }
 
       await addStatus(
-        user.id,
+        user.uid,
         user.displayName || 'User',
         user.photoURL || '',
         content,
@@ -100,7 +100,7 @@ const CreateStatusModal = ({ onClose }: { onClose: () => void }) => {
   };
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, scale: 0.9, rotateX: 20 }}
       animate={{ opacity: 1, scale: 1, rotateX: 0 }}
       exit={{ opacity: 0, scale: 0.9, rotateX: -20 }}
@@ -111,18 +111,18 @@ const CreateStatusModal = ({ onClose }: { onClose: () => void }) => {
         <div className="p-4 flex justify-between items-center z-10">
           <button onClick={onClose} className="text-white/70 hover:text-white"><X /></button>
           <h3 className="text-white font-bold">New Status</h3>
-          <button 
-            onClick={handleSubmit} 
+          <button
+            onClick={handleSubmit}
             disabled={isSubmitting || (!text && !mediaFile)}
             className="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center text-white disabled:opacity-50 disabled:scale-90 transition-all hover:bg-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.4)]"
           >
-            {isSubmitting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/> : <Send size={18} className="ml-0.5" />}
+            {isSubmitting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={18} className="ml-0.5" />}
           </button>
         </div>
 
         {/* Content Area */}
         <div className={`flex-1 relative flex items-center justify-center transition-colors duration-500 bg-gradient-to-br ${mode === 'text' ? GRADIENTS[selectedGradient] : 'from-black to-zinc-900'}`}>
-          
+
           {mode === 'text' ? (
             <textarea
               value={text}
@@ -133,9 +133,9 @@ const CreateStatusModal = ({ onClose }: { onClose: () => void }) => {
             />
           ) : (
             mediaPreview && (
-               mediaFile?.type.startsWith('video') 
-               ? <video src={mediaPreview} controls className="max-h-full max-w-full" />
-               : <img src={mediaPreview} alt="Preview" className="max-h-full max-w-full object-contain" />
+              mediaFile?.type.startsWith('video')
+                ? <video src={mediaPreview} controls className="max-h-full max-w-full" />
+                : <img src={mediaPreview} alt="Preview" className="max-h-full max-w-full object-contain" />
             )
           )}
         </div>
@@ -143,23 +143,23 @@ const CreateStatusModal = ({ onClose }: { onClose: () => void }) => {
         {/* Tools */}
         <div className="p-6 bg-zinc-900/90 backdrop-blur-xl border-t border-white/10 flex flex-col gap-4">
           <div className="flex gap-4 justify-center">
-            <button 
+            <button
               onClick={() => { setMode('text'); setMediaFile(null); }}
               className={`p-3 rounded-xl transition-all ${mode === 'text' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-white'}`}
             >
               <Type size={20} />
             </button>
-            <button 
+            <button
               onClick={() => fileInputRef.current?.click()}
               className={`p-3 rounded-xl transition-all ${mode === 'media' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-white'}`}
             >
               <ImageIcon size={20} />
             </button>
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              accept="image/*,video/*" 
-              className="hidden" 
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept="image/*,video/*"
+              className="hidden"
               onChange={handleFileSelect}
             />
           </div>
@@ -184,13 +184,13 @@ const CreateStatusModal = ({ onClose }: { onClose: () => void }) => {
 /**
  * 2. STATUS VIEWER (Instagram/WhatsApp Style)
  */
-const StatusViewer = ({ 
-  groupedStatus, 
-  onClose, 
-  onNextUser, 
-  onPrevUser 
-}: { 
-  groupedStatus: GroupedStatus; 
+const StatusViewer = ({
+  groupedStatus,
+  onClose,
+  onNextUser,
+  onPrevUser
+}: {
+  groupedStatus: GroupedStatus;
   onClose: () => void;
   onNextUser?: () => void;
   onPrevUser?: () => void;
@@ -200,18 +200,18 @@ const StatusViewer = ({
   const [progress, setProgress] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const currentStatus = groupedStatus.statuses[currentIndex];
-  
+
   // Mark as viewed
   useEffect(() => {
-    if (user && currentStatus && !currentStatus.viewers.includes(user.id)) {
-      viewStatus(currentStatus.id, user.id);
+    if (user && currentStatus && !currentStatus.viewers.includes(user.uid)) {
+      viewStatus(currentStatus.id, user.uid);
     }
   }, [currentStatus, user]);
 
   // Auto Advance Timer
   useEffect(() => {
     if (isPaused) return;
-    
+
     const duration = currentStatus.type === 'video' ? 10000 : 5000; // 5s for img/text, 10s video (simplified)
     const step = 50; // Update every 50ms
     const increment = (step / duration) * 100;
@@ -256,7 +256,7 @@ const StatusViewer = ({
       exit={{ opacity: 0, scale: 1.05 }}
       className="fixed inset-0 z-[60] bg-black flex items-center justify-center"
     >
-      <div 
+      <div
         className="w-full h-full md:max-w-md md:h-[90vh] md:rounded-3xl relative bg-zinc-900 overflow-hidden flex flex-col"
         onMouseDown={() => setIsPaused(true)}
         onMouseUp={() => setIsPaused(false)}
@@ -267,30 +267,30 @@ const StatusViewer = ({
         <div className="absolute top-0 left-0 right-0 z-20 p-2 flex gap-1">
           {groupedStatus.statuses.map((_, idx) => (
             <div key={idx} className="h-1 bg-white/30 flex-1 rounded-full overflow-hidden">
-               <motion.div 
-                 className="h-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)]"
-                 initial={{ width: idx < currentIndex ? '100%' : '0%' }}
-                 animate={{ width: idx < currentIndex ? '100%' : idx === currentIndex ? `${progress}%` : '0%' }}
-                 transition={{ duration: 0 }} // Instant updates controlled by state
-               />
+              <motion.div
+                className="h-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)]"
+                initial={{ width: idx < currentIndex ? '100%' : '0%' }}
+                animate={{ width: idx < currentIndex ? '100%' : idx === currentIndex ? `${progress}%` : '0%' }}
+                transition={{ duration: 0 }} // Instant updates controlled by state
+              />
             </div>
           ))}
         </div>
 
         {/* Header */}
         <div className="absolute top-4 left-0 right-0 z-20 px-4 py-2 flex justify-between items-center text-white drop-shadow-md">
-           <div className="flex items-center gap-3">
-             <img src={groupedStatus.userPhoto || '/default-avatar.png'} className="w-10 h-10 rounded-full border-2 border-white/50" />
-             <div>
-               <p className="font-bold text-sm">{groupedStatus.userName}</p>
-               <p className="text-xs opacity-70">
-                 {new Date(currentStatus.createdAt?.toDate()).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
-               </p>
-             </div>
-           </div>
-           <div className="flex gap-4">
-              <button onClick={onClose}><X size={24} /></button>
-           </div>
+          <div className="flex items-center gap-3">
+            <img src={groupedStatus.userPhoto || '/default-avatar.png'} className="w-10 h-10 rounded-full border-2 border-white/50" />
+            <div>
+              <p className="font-bold text-sm">{groupedStatus.userName}</p>
+              <p className="text-xs opacity-70">
+                {new Date(currentStatus.createdAt?.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-4">
+            <button onClick={onClose}><X size={24} /></button>
+          </div>
         </div>
 
         {/* Content */}
@@ -300,7 +300,7 @@ const StatusViewer = ({
               {currentStatus.content}
             </p>
           ) : currentStatus.type === 'image' ? (
-             <img src={currentStatus.content} className="w-full h-full object-cover" />
+            <img src={currentStatus.content} className="w-full h-full object-cover" />
           ) : (
             <video src={currentStatus.content} autoPlay muted={false} className="w-full h-full object-contain" />
           )}
@@ -308,17 +308,17 @@ const StatusViewer = ({
 
         {/* Touch Navigation Overlay */}
         <div className="absolute inset-0 z-10 flex">
-           <div className="w-1/3 h-full" onClick={(e) => { e.stopPropagation(); handlePrev(); }}></div>
-           <div className="w-1/3 h-full cursor-pointer" onClick={() => { /* Toggle pause handled by container */ }}></div>
-           <div className="w-1/3 h-full" onClick={(e) => { e.stopPropagation(); handleNext(); }}></div>
+          <div className="w-1/3 h-full" onClick={(e) => { e.stopPropagation(); handlePrev(); }}></div>
+          <div className="w-1/3 h-full cursor-pointer" onClick={() => { /* Toggle pause handled by container */ }}></div>
+          <div className="w-1/3 h-full" onClick={(e) => { e.stopPropagation(); handleNext(); }}></div>
         </div>
 
         {/* Footer (Views for owner) */}
-        {user?.id === groupedStatus.userId && (
+        {user?.uid === groupedStatus.userId && (
           <div className="absolute bottom-0 w-full p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex justify-center text-white/80">
-             <div className="flex items-center gap-2 text-sm font-medium">
-                <Eye size={16} /> {currentStatus.viewers.length} views
-             </div>
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Eye size={16} /> {currentStatus.viewers.length} views
+            </div>
           </div>
         )}
       </div>
@@ -346,7 +346,7 @@ export default function StatusBar() {
   // Group by User
   const groupedStatuses = useMemo(() => {
     const map = new Map<string, GroupedStatus>();
-    
+
     statuses.forEach(st => {
       if (!map.has(st.userId)) {
         map.set(st.userId, {
@@ -359,16 +359,16 @@ export default function StatusBar() {
       }
       const group = map.get(st.userId)!;
       group.statuses.push(st);
-      
+
       // Check seen
-      if (user && !st.viewers.includes(user.id)) {
+      if (user && !st.viewers.includes(user.uid)) {
         group.hasUnseen = true;
       }
     });
 
     // Move my status to front if exists, else add placeholder logic
     let arr = Array.from(map.values());
-    
+
     // Sort: Unseen first, then Recent
     arr.sort((a, b) => {
       if (a.hasUnseen === b.hasUnseen) return 0;
@@ -381,24 +381,24 @@ export default function StatusBar() {
   return (
     <div className="w-full mb-6">
       <div className="flex items-center gap-4 overflow-x-auto pb-4 scrollbar-hide px-2">
-        
+
         {/* 1. 'My Status' Button */}
-        <motion.div 
+        <motion.div
           className="flex flex-col items-center gap-2 cursor-pointer group min-w-[70px]"
           whileTap={{ scale: 0.95 }}
         >
           <div className="relative">
-            <div 
+            <div
               className="w-16 h-16 rounded-full p-[2px] border-2 border-dashed border-gray-300 group-hover:border-emerald-500 transition-colors"
               onClick={() => setIsCreating(true)}
             >
-              <img 
-                src={user?.photoURL || '/default-avatar.png'} 
+              <img
+                src={user?.photoURL || '/default-avatar.png'}
                 className="w-full h-full rounded-full object-cover"
                 alt="Me"
               />
             </div>
-            <button 
+            <button
               onClick={(e) => { e.stopPropagation(); setIsCreating(true); }}
               className="absolute bottom-0 right-0 bg-emerald-500 text-white rounded-full p-1 border-2 border-white shadow-sm"
             >
@@ -410,25 +410,25 @@ export default function StatusBar() {
 
         {/* 2. Other Users' Statuses */}
         {groupedStatuses.map((group, idx) => (
-           <motion.div 
-             key={group.userId}
-             initial={{ opacity: 0, scale: 0.8 }}
-             animate={{ opacity: 1, scale: 1 }}
-             className="flex flex-col items-center gap-2 cursor-pointer min-w-[70px] relative"
-             onClick={() => setViewingUserIdx(idx)}
-           >
-             <div className={`
+          <motion.div
+            key={group.userId}
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex flex-col items-center gap-2 cursor-pointer min-w-[70px] relative"
+            onClick={() => setViewingUserIdx(idx)}
+          >
+            <div className={`
                w-16 h-16 rounded-full p-[2px] bg-gradient-to-tr 
                ${group.hasUnseen ? 'from-emerald-500 via-amber-400 to-emerald-500 animate-gradient-spin' : 'from-gray-300 to-gray-200'}
              `}>
-               <div className="w-full h-full rounded-full border-2 border-white overflow-hidden">
-                 <img src={group.userPhoto || '/default-avatar.png'} className="w-full h-full object-cover transition-transform hover:scale-110" />
-               </div>
-             </div>
-             <span className={`text-xs text-center truncate w-20 ${group.hasUnseen ? 'font-bold text-gray-800' : 'text-gray-500'}`}>
-                {group.userId === user?.id ? 'Me' : group.userName.split(' ')[0]}
-             </span>
-           </motion.div>
+              <div className="w-full h-full rounded-full border-2 border-white overflow-hidden">
+                <img src={group.userPhoto || '/default-avatar.png'} className="w-full h-full object-cover transition-transform hover:scale-110" />
+              </div>
+            </div>
+            <span className={`text-xs text-center truncate w-20 ${group.hasUnseen ? 'font-bold text-gray-800' : 'text-gray-500'}`}>
+              {group.userId === user?.uid ? 'Me' : group.userName.split(' ')[0]}
+            </span>
+          </motion.div>
         ))}
       </div>
 
@@ -438,7 +438,7 @@ export default function StatusBar() {
           <CreateStatusModal onClose={() => setIsCreating(false)} />
         )}
         {viewingUserIdx !== null && viewingUserIdx < groupedStatuses.length && (
-          <StatusViewer 
+          <StatusViewer
             groupedStatus={groupedStatuses[viewingUserIdx]}
             onClose={() => setViewingUserIdx(null)}
             onNextUser={() => {

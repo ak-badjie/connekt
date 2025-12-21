@@ -2,15 +2,14 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  X, ArrowRight, Camera, Search, Check, Users, ArrowLeft 
+import {
+  X, ArrowRight, Camera, Search, Check, Users, ArrowLeft
 } from 'lucide-react';
-import { getFirestoreInstance } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { collection, query, limit, getDocs } from 'firebase/firestore';
-import { useAuth } from '@/lib/auth-store';
+import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/toast/toast';
-import { createGroupConversation } from '@/lib/realtime-service';
-import { uploadImage } from '@/lib/storage-service';
+import { createGroupConversation, uploadImage, searchUsers } from '@/lib/services/realtime-service';
 
 // --- TYPES ---
 interface UserResult {
@@ -28,10 +27,10 @@ interface CreateGroupModalProps {
 export default function CreateGroupModal({ onClose, onGroupCreated }: CreateGroupModalProps) {
   const { user } = useAuth();
   const toast = useToast();
-  
+
   // Steps: 1 = Select Members, 2 = Group Info
   const [step, setStep] = useState(1);
-  
+
   // Step 1 State
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<UserResult[]>([]);
@@ -54,29 +53,28 @@ export default function CreateGroupModal({ onClose, onGroupCreated }: CreateGrou
     const delay = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const db = getFirestoreInstance();
         // Simple client-side filter for demo. 
         // In Prod: Use Algolia or precise Firestore queries
         const q = query(collection(db, 'users'), limit(50));
         const snap = await getDocs(q);
-        
+
         const hits: UserResult[] = [];
         const lowerQ = searchQuery.toLowerCase();
-        
+
         snap.forEach(doc => {
           const d = doc.data();
-          if (doc.id !== user?.id) {
-             // Exclude if already selected
-             if (selectedUsers.some(sel => sel.uid === doc.id)) return;
+          if (doc.id !== user?.uid) {
+            // Exclude if already selected
+            if (selectedUsers.some(sel => sel.uid === doc.id)) return;
 
-             if (d.displayName?.toLowerCase().includes(lowerQ) || d.email?.toLowerCase().includes(lowerQ)) {
-               hits.push({ 
-                 uid: doc.id, 
-                 displayName: d.displayName || 'Unknown', 
-                 photoURL: d.photoURL || d.profileImage, 
-                 email: d.email 
-               });
-             }
+            if (d.displayName?.toLowerCase().includes(lowerQ) || d.email?.toLowerCase().includes(lowerQ)) {
+              hits.push({
+                uid: doc.id,
+                displayName: d.displayName || 'Unknown',
+                photoURL: d.photoURL || d.profileImage,
+                email: d.email
+              });
+            }
           }
         });
         setSearchResults(hits);
@@ -88,7 +86,7 @@ export default function CreateGroupModal({ onClose, onGroupCreated }: CreateGrou
     }, 400);
 
     return () => clearTimeout(delay);
-  }, [searchQuery, user?.id, selectedUsers]);
+  }, [searchQuery, user?.uid, selectedUsers]);
 
   // --- HANDLERS ---
 
@@ -112,33 +110,24 @@ export default function CreateGroupModal({ onClose, onGroupCreated }: CreateGrou
 
   const handleCreateGroup = async () => {
     if (!groupName.trim() || selectedUsers.length === 0 || !user) return;
-    
+
     setIsCreating(true);
     try {
-      let photoURL = '';
+      let photoUrl = '';
       if (groupImageFile) {
-        photoURL = await uploadImage(groupImageFile, `groups/icons`);
+        photoUrl = await uploadImage(groupImageFile, `groups/icons`);
       }
 
-      // Prepare Maps
-      const userIds = selectedUsers.map(u => u.uid);
-      
-      const userNames: {[id:string]: string} = { [user.id]: user.displayName || 'Admin' };
-      const userPhotos: {[id:string]: string} = { [user.id]: user.photoURL || '' };
+      // Include current user in memberIds
+      const memberIds = [user.uid, ...selectedUsers.map(u => u.uid)];
 
-      selectedUsers.forEach(u => {
-        userNames[u.uid] = u.displayName;
-        userPhotos[u.uid] = u.photoURL || '';
+      const convId = await createGroupConversation({
+        name: groupName,
+        memberIds,
+        createdBy: user.uid,
+        photoUrl: photoUrl || undefined,
+        description: ''
       });
-
-      const convId = await createGroupConversation(
-        user.id,
-        userIds,
-        userNames,
-        userPhotos,
-        groupName,
-        photoURL
-      );
 
       toast.success('Success', `Group "${groupName}" created!`);
       onGroupCreated(convId);
@@ -156,7 +145,7 @@ export default function CreateGroupModal({ onClose, onGroupCreated }: CreateGrou
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
@@ -182,10 +171,10 @@ export default function CreateGroupModal({ onClose, onGroupCreated }: CreateGrou
         {/* Content Area with Slide Animation */}
         <div className="flex-1 relative overflow-hidden bg-[#f0f2f5]">
           <AnimatePresence initial={false} mode="popLayout" custom={step}>
-            
+
             {/* STEP 1: SELECT USERS */}
             {step === 1 && (
-              <motion.div 
+              <motion.div
                 key="step1"
                 className="absolute inset-0 flex flex-col"
                 initial={{ x: '-100%', opacity: 0 }}
@@ -204,9 +193,9 @@ export default function CreateGroupModal({ onClose, onGroupCreated }: CreateGrou
                     ))}
                   </div>
                   <div className="relative">
-                    <input 
+                    <input
                       autoFocus
-                      type="text" 
+                      type="text"
                       placeholder="Type contact name..."
                       className="w-full pl-3 pr-10 py-2 border-b border-gray-200 focus:border-emerald-500 outline-none bg-transparent transition-colors"
                       value={searchQuery}
@@ -219,8 +208,8 @@ export default function CreateGroupModal({ onClose, onGroupCreated }: CreateGrou
                 {/* List */}
                 <div className="flex-1 overflow-y-auto p-2">
                   {searchResults.map(u => (
-                    <div 
-                      key={u.uid} 
+                    <div
+                      key={u.uid}
                       onClick={() => toggleUser(u)}
                       className="flex items-center gap-3 p-3 hover:bg-white rounded-xl cursor-pointer transition-colors"
                     >
@@ -242,11 +231,11 @@ export default function CreateGroupModal({ onClose, onGroupCreated }: CreateGrou
                     <div className="text-center py-8 text-gray-400">No contacts found</div>
                   )}
                 </div>
-                
+
                 {/* FAB Next */}
                 {selectedUsers.length > 0 && (
                   <div className="absolute bottom-6 right-6">
-                    <button 
+                    <button
                       onClick={() => setStep(2)}
                       className="w-14 h-14 bg-emerald-600 text-white rounded-full shadow-lg hover:bg-emerald-700 hover:scale-105 transition-all flex items-center justify-center"
                     >
@@ -259,7 +248,7 @@ export default function CreateGroupModal({ onClose, onGroupCreated }: CreateGrou
 
             {/* STEP 2: GROUP INFO */}
             {step === 2 && (
-              <motion.div 
+              <motion.div
                 key="step2"
                 className="absolute inset-0 flex flex-col bg-white"
                 initial={{ x: '100%', opacity: 0 }}
@@ -268,10 +257,10 @@ export default function CreateGroupModal({ onClose, onGroupCreated }: CreateGrou
                 transition={{ type: 'spring', bounce: 0, duration: 0.4 }}
               >
                 <div className="flex-1 flex flex-col items-center p-8 pt-12">
-                  
+
                   {/* Image Upload */}
                   <div className="relative group mb-8">
-                    <div 
+                    <div
                       onClick={() => fileInputRef.current?.click()}
                       className="w-32 h-32 rounded-full bg-gray-200 cursor-pointer flex items-center justify-center overflow-hidden border-4 border-gray-100 shadow-inner group-hover:border-emerald-200 transition-colors"
                     >
@@ -289,8 +278,8 @@ export default function CreateGroupModal({ onClose, onGroupCreated }: CreateGrou
 
                   {/* Name Input */}
                   <div className="w-full max-w-xs space-y-2">
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       placeholder="Group Subject (Required)"
                       value={groupName}
                       onChange={e => setGroupName(e.target.value)}
@@ -310,10 +299,10 @@ export default function CreateGroupModal({ onClose, onGroupCreated }: CreateGrou
                     </h5>
                     <div className="grid grid-cols-4 gap-4">
                       {selectedUsers.map(u => (
-                         <div key={u.uid} className="flex flex-col items-center gap-1">
-                           <img src={u.photoURL || '/default-avatar.png'} className="w-10 h-10 rounded-full object-cover bg-gray-100" />
-                           <span className="text-[10px] text-gray-600 truncate w-full text-center">{u.displayName.split(' ')[0]}</span>
-                         </div>
+                        <div key={u.uid} className="flex flex-col items-center gap-1">
+                          <img src={u.photoURL || '/default-avatar.png'} className="w-10 h-10 rounded-full object-cover bg-gray-100" />
+                          <span className="text-[10px] text-gray-600 truncate w-full text-center">{u.displayName.split(' ')[0]}</span>
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -322,15 +311,15 @@ export default function CreateGroupModal({ onClose, onGroupCreated }: CreateGrou
 
                 {/* Create Button */}
                 <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-center">
-                  <button 
+                  <button
                     onClick={handleCreateGroup}
                     disabled={!groupName.trim() || isCreating}
                     className="flex items-center gap-2 px-8 py-3 bg-emerald-600 text-white rounded-full font-bold shadow-lg hover:bg-emerald-700 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:shadow-none transition-all"
                   >
                     {isCreating ? (
                       <>
-                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                         Creating...
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Creating...
                       </>
                     ) : (
                       <>

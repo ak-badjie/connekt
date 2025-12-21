@@ -8,19 +8,23 @@ import {
     Trash2, Phone, Video, Image as ImageIcon, FileText, Link as LinkIcon
 } from 'lucide-react';
 
-import { useAuth } from '@/lib/auth-store';
+import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/toast/toast';
 import {
     getConversations,
     getOrCreateConversation,
-    blockUserInConversation
-} from '@/lib/realtime-service';
-import { getFirestoreInstance } from '@/lib/firebase';
-import { collection, query, limit, getDocs } from 'firebase/firestore';
+    blockUserInConversation,
+    searchUsers,
+    ParticipantInfo,
+    EnrichedConversation
+} from '@/lib/services/realtime-service';
 
 // Sub-components
-import SidebarList from '@/components/messaging/SidebarList';
-import ActiveChat from '@/components/messaging/ActiveChat';
+import SidebarList from '@/components/teams/SidebarList';
+import ActiveChat from '@/components/teams/ActiveChat';
+import GroupDetailScreen from '@/components/teams/GroupDetailScreen';
+import UserDetailScreen from '@/components/teams/UserDetailScreen';
+
 
 // --- TYPES ---
 interface UserSearchResult {
@@ -46,13 +50,13 @@ const ContactInfoPanel = ({
     const [activeTab, setActiveTab] = useState<'media' | 'files' | 'links'>('media');
 
     // Extract "Other" User
-    const otherId = Object.keys(participants).find(id => id !== user?.id) || '';
+    const otherId = Object.keys(participants).find(id => id !== user?.uid) || '';
     const name = participants[otherId]?.name || 'User';
     const photo = participants[otherId]?.photo || '/default-avatar.png';
 
     const handleBlock = async () => {
         if (confirm(`Block ${name}? They won't be able to message you.`)) {
-            await blockUserInConversation(conversationId, user!.id);
+            await blockUserInConversation(conversationId, user!.uid);
             toast.success('Blocked', `${name} has been blocked.`);
             onClose();
         }
@@ -187,27 +191,26 @@ const NewChatModal = ({ onClose, onStartChat }: { onClose: () => void; onStartCh
         const delay = setTimeout(async () => {
             setLoading(true);
             try {
-                const db = getFirestoreInstance();
-                // Simplified Client-side filtering for demo (production needs Algolia/Typesense)
-                const q = query(collection(db, 'users'), limit(50));
-                const snap = await getDocs(q);
-
-                const hits: UserSearchResult[] = [];
-                const lowerQ = queryText.toLowerCase();
-
-                snap.forEach(doc => {
-                    const d = doc.data();
-                    if (doc.id !== user?.id && (d.displayName?.toLowerCase().includes(lowerQ) || d.email?.toLowerCase().includes(lowerQ))) {
-                        hits.push({ uid: doc.id, displayName: d.displayName, email: d.email, photoURL: d.photoURL || d.profileImage, role: d.role });
-                    }
-                });
-                setResults(hits);
-            } catch (err) { console.error(err); }
-            finally { setLoading(false); }
+                // Use the searchUsers function from realtime-service
+                const hits = await searchUsers(queryText, user?.uid || '');
+                const searchResults: UserSearchResult[] = hits.map(h => ({
+                    uid: h.id,
+                    displayName: h.displayName,
+                    email: h.connectMail || '',
+                    photoURL: h.photoURL,
+                    role: 'user' as const
+                }));
+                setResults(searchResults);
+            } catch (err) {
+                console.error(err);
+            } finally {
+                setLoading(false);
+            }
         }, 500);
 
         return () => clearTimeout(delay);
-    }, [queryText, user?.id]);
+    }, [queryText, user?.uid]);
+
 
     return (
         <motion.div
@@ -303,7 +306,7 @@ function MessagingContent() {
             // but we need specific conv data for ActiveChat props if not passed directly.
             // Ideally, ActiveChat fetches its own messages, but needs basic info (participants)
 
-            const convs = await getConversations(user.id); // This is cached usually or fast
+            const convs = await getConversations(user.uid); // This is cached usually or fast
             const found = convs.find(c => c.id === activeConvId);
             if (found) setActiveConversation(found);
         };
@@ -315,7 +318,7 @@ function MessagingContent() {
         if (!user) return;
         try {
             const convId = await getOrCreateConversation(
-                user.id,
+                user.uid,
                 target.uid,
                 user.displayName || 'User',
                 target.displayName,
@@ -324,7 +327,7 @@ function MessagingContent() {
             );
             setShowNewChat(false);
             setActiveConvId(convId);
-            router.push(`/messaging?id=${convId}`);
+            // Chat opens via state, no redirect needed
         } catch (err) {
             console.error(err);
         }
@@ -355,7 +358,7 @@ function MessagingContent() {
                     activeConvId={activeConvId}
                     onSelectConversation={(id) => {
                         setActiveConvId(id);
-                        router.push(`/messaging?id=${id}`);
+                        // Chat opens via state, no redirect needed
                     }}
                     onNewChat={() => setShowNewChat(true)}
                 />
@@ -366,10 +369,10 @@ function MessagingContent() {
                 {activeConvId && activeConversation ? (
                     <ActiveChat
                         conversation={activeConversation}
-                        currentUserId={user.id}
+                        currentUserId={user.uid}
                         onBack={() => {
                             setActiveConvId(null);
-                            router.push('/messaging');
+                            // Stay on teams page, chat closes via state
                         }}
                         onViewProfile={() => setShowProfilePanel(true)}
                     />
@@ -413,20 +416,35 @@ function MessagingContent() {
                             onClick={() => setShowProfilePanel(false)}
                             className="fixed inset-0 bg-black/20 backdrop-blur-sm md:hidden"
                         />
-                        <ContactInfoPanel
-                            conversationId={activeConversation.id}
-                            participants={{
-                                [activeConversation.participants[0]]: {
-                                    name: activeConversation.participantNames[activeConversation.participants[0]],
-                                    photo: activeConversation.participantPhotos[activeConversation.participants[0]]
-                                },
-                                [activeConversation.participants[1]]: {
-                                    name: activeConversation.participantNames[activeConversation.participants[1]],
-                                    photo: activeConversation.participantPhotos[activeConversation.participants[1]]
-                                }
-                            }}
-                            onClose={() => setShowProfilePanel(false)}
-                        />
+                        {/* Render appropriate detail screen based on conversation type */}
+                        {activeConversation.type === 'direct' ? (
+                            <UserDetailScreen
+                                conversation={activeConversation}
+                                onClose={() => setShowProfilePanel(false)}
+                            />
+                        ) : (
+                            <GroupDetailScreen
+                                conversation={activeConversation}
+                                onClose={() => setShowProfilePanel(false)}
+                                onOpenDirectChat={async (userId) => {
+                                    if (!user) return;
+                                    try {
+                                        const convId = await getOrCreateConversation(
+                                            user.uid,
+                                            userId,
+                                            user.displayName || 'User',
+                                            activeConversation.enrichedParticipants?.[userId]?.displayName || 'User',
+                                            user.photoURL || '',
+                                            activeConversation.enrichedParticipants?.[userId]?.photoURL || ''
+                                        );
+                                        setShowProfilePanel(false);
+                                        setActiveConvId(convId);
+                                    } catch (err) {
+                                        console.error('Failed to open direct chat:', err);
+                                    }
+                                }}
+                            />
+                        )}
                     </div>
                 )}
             </AnimatePresence>

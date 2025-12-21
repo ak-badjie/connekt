@@ -2,41 +2,40 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Send, X, CheckCircle, Circle, User } from 'lucide-react';
-import { useAuth } from '@/lib/auth-store';
-import { 
-  getConversations, 
-  sendMessage, 
-  Conversation, 
-  Message 
-} from '@/lib/realtime-service';
+import { Search, Send, X, CheckCircle, Circle } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import {
+  getConversations,
+  forwardMessage,
+  EnrichedConversation
+} from '@/lib/services/realtime-service';
+import { Message } from '@/lib/types/chat.types';
 import { useToast } from '@/components/toast/toast';
 
 interface ForwardModalProps {
-  message: Message; // The message being forwarded
-  currentConvId: string; // To exclude current chat
+  message: Message;
+  currentConvId: string;
   onClose: () => void;
 }
 
 export default function ForwardModal({ message, currentConvId, onClose }: ForwardModalProps) {
   const { user } = useAuth();
   const toast = useToast();
-  
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+
+  const [conversations, setConversations] = useState<EnrichedConversation[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [isSending, setIsSending] = useState(false);
 
   // 1. Fetch Conversations
   useEffect(() => {
-    if (!user) return;
+    if (!user?.uid) return;
     const fetchChats = async () => {
-      const convs = await getConversations(user.id);
-      // Filter out the current conversation
+      const convs = await getConversations(user.uid);
       setConversations(convs.filter(c => c.id !== currentConvId));
     };
     fetchChats();
-  }, [user, currentConvId]);
+  }, [user?.uid, currentConvId]);
 
   // 2. Toggle Selection
   const toggleSelection = (convId: string) => {
@@ -48,34 +47,22 @@ export default function ForwardModal({ message, currentConvId, onClose }: Forwar
 
   // 3. Handle Forwarding
   const handleForward = async () => {
-    if (!user || selectedIds.size === 0) return;
-    
+    if (!user?.uid || selectedIds.size === 0) return;
+
     setIsSending(true);
     try {
       const promises = Array.from(selectedIds).map(async (targetConvId) => {
-        const targetConv = conversations.find(c => c.id === targetConvId);
-        if (!targetConv) return;
-
-        // Find receiver IDs for unread counts
-        const receiverIds = targetConv.participants.filter(p => p !== user.id);
-
-        // Send the message
-        // Note: We flag it as 'forwarded' in text or metadata if we had that field.
-        // For now, we just send the content.
-        await sendMessage(
+        await forwardMessage(
+          message,
           targetConvId,
-          user.id,
+          user.uid,
           user.displayName || 'User',
-          receiverIds,
-          message.text, // For media, this might be caption
-          message.type,
-          message.mediaUrl,
-          message.mediaDuration
+          user.photoURL ?? ''
         );
       });
 
       await Promise.all(promises);
-      
+
       toast.success('Forwarded', `Message sent to ${selectedIds.size} chat(s).`);
       onClose();
     } catch (error) {
@@ -86,16 +73,34 @@ export default function ForwardModal({ message, currentConvId, onClose }: Forwar
     }
   };
 
+  // Helper to get display info
+  const getConvDisplayInfo = (conv: EnrichedConversation) => {
+    if (!user?.uid) return { name: 'Unknown', photo: '/default-avatar.png' };
+
+    if (conv.type === 'direct') {
+      const otherId = conv.members.find(id => id !== user.uid) || '';
+      const enriched = conv.enrichedParticipants?.[otherId];
+      const member = conv.memberDetails?.[otherId];
+      return {
+        name: enriched?.displayName || member?.username || 'User',
+        photo: enriched?.photoURL || member?.avatarUrl || '/default-avatar.png'
+      };
+    }
+    return {
+      name: conv.title || 'Group Chat',
+      photo: conv.photoUrl || '/default-group.png'
+    };
+  };
+
   // 4. Filter for Search
   const filteredConvs = conversations.filter(c => {
-    const otherId = c.participants.find(p => p !== user?.id) || '';
-    const name = c.participantNames[otherId] || 'Unknown';
+    const { name } = getConvDisplayInfo(c);
     return name.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -113,7 +118,7 @@ export default function ForwardModal({ message, currentConvId, onClose }: Forwar
         <div className="p-3 bg-gray-100 text-sm text-gray-600 border-b border-white mx-4 mt-4 rounded-lg flex gap-3 items-center">
           <div className="w-1 bg-emerald-500 h-8 rounded-full" />
           <div className="flex-1 truncate">
-             {message.type === 'text' ? message.text : `📷 ${message.type} attachment`}
+            {message.type === 'text' ? message.content : `📷 ${message.type} attachment`}
           </div>
         </div>
 
@@ -121,9 +126,9 @@ export default function ForwardModal({ message, currentConvId, onClose }: Forwar
         <div className="p-4 pb-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input 
-              type="text" 
-              placeholder="Search chats..." 
+            <input
+              type="text"
+              placeholder="Search chats..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/50 text-sm transition-all"
@@ -137,23 +142,20 @@ export default function ForwardModal({ message, currentConvId, onClose }: Forwar
             <p className="text-center text-gray-400 py-8 text-sm">No chats found.</p>
           ) : (
             filteredConvs.map(conv => {
-              if (!user) return null;
-              const otherId = conv.participants.find(p => p !== user.id) || '';
-              const name = conv.participantNames[otherId] || 'User';
-              const photo = conv.participantPhotos?.[otherId];
+              const { name, photo } = getConvDisplayInfo(conv);
               const isSelected = selectedIds.has(conv.id);
 
               return (
-                <div 
-                  key={conv.id} 
+                <div
+                  key={conv.id}
                   onClick={() => toggleSelection(conv.id)}
                   className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors ${isSelected ? 'bg-emerald-50' : 'hover:bg-gray-50'}`}
                 >
                   {/* Avatar */}
                   <div className="relative">
-                    <img src={photo || '/default-avatar.png'} className="w-10 h-10 rounded-full object-cover bg-gray-200" />
+                    <img src={photo} className="w-10 h-10 rounded-full object-cover bg-gray-200" />
                     {isSelected && (
-                      <motion.div 
+                      <motion.div
                         initial={{ scale: 0 }} animate={{ scale: 1 }}
                         className="absolute -bottom-1 -right-1 bg-emerald-500 text-white rounded-full border-2 border-white"
                       >
@@ -180,14 +182,14 @@ export default function ForwardModal({ message, currentConvId, onClose }: Forwar
         {/* Footer */}
         <AnimatePresence>
           {selectedIds.size > 0 && (
-            <motion.div 
+            <motion.div
               initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }}
               className="p-4 border-t border-gray-100 bg-white flex justify-between items-center"
             >
               <span className="text-sm font-semibold text-gray-600">
                 {selectedIds.size} selected
               </span>
-              <button 
+              <button
                 onClick={handleForward}
                 disabled={isSending}
                 className="flex items-center gap-2 px-6 py-2 bg-emerald-600 text-white rounded-full shadow-lg shadow-emerald-500/30 hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50"
