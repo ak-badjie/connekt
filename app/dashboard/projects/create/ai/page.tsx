@@ -14,7 +14,8 @@ import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
 import { storage } from '@/lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-import { DollarSign, ArrowLeft } from 'lucide-react';
+import { DollarSign, ArrowLeft, AlertCircle } from 'lucide-react';
+import ConnektWalletLogo from '@/components/wallet/ConnektWalletLogo';
 import { toast } from 'react-hot-toast';
 import {
     motion,
@@ -478,28 +479,100 @@ export default function AIProjectCreatorPage() {
                         />
                     </div>
 
-                    <div className="rounded-3xl border border-gray-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-900/40 p-6">
-                        <div className="flex items-center justify-between gap-4 mb-4">
-                            <p className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                <DollarSign size={16} className="text-[#008080]" /> Budget
-                            </p>
-                            {walletBalance !== null && (
-                                <p className="text-xs font-bold text-gray-500 dark:text-gray-400">
-                                    Wallet: {projectData.currency}
-                                    {walletBalance.toFixed(2)}
-                                </p>
-                            )}
+                    {/* Wallet & Budget Section - Matching standard project create page */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Interactive Wallet Card */}
+                        <div className="bg-gradient-to-br from-[#008080] to-teal-700 rounded-3xl p-6 text-white shadow-2xl shadow-teal-500/20 relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-32 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+
+                            <div className="flex items-center justify-between mb-6 relative z-10">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center">
+                                        <ConnektWalletLogo size="small" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-white text-lg">My Wallet</h3>
+                                        <p className="text-teal-100 text-xs opacity-80">Available for Allocation</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="mb-6 relative z-10">
+                                <p className="text-teal-100 text-sm mb-1">Current Balance</p>
+                                <div className="text-4xl font-black tracking-tight flex items-baseline gap-1">
+                                    <span className="text-xl opacity-70">{projectData.currency}</span>
+                                    <CountUp
+                                        to={walletBalance || 0}
+                                        duration={0.35}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Mini Stat Grid */}
+                            <div className="grid grid-cols-2 gap-3 relative z-10">
+                                <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/10">
+                                    <p className="text-xs text-teal-100 mb-1">Allocated</p>
+                                    <p className="font-bold text-lg flex items-center gap-1">
+                                        {projectData.currency} <CountUp to={projectData.totalBudget} duration={0.35} />
+                                    </p>
+                                </div>
+                                <div className={`bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/10 transition-colors ${(walletBalance !== null && projectData.totalBudget > walletBalance) ? 'bg-red-500/20 border-red-400/50' : ''
+                                    }`}>
+                                    <p className="text-xs text-teal-100 mb-1">Remaining</p>
+                                    <p className={`font-bold text-lg flex items-center gap-1 ${(walletBalance !== null && projectData.totalBudget > walletBalance) ? 'text-red-200' : ''
+                                        }`}>
+                                        {projectData.currency} <CountUp
+                                            to={(walletBalance || 0) - projectData.totalBudget}
+                                            duration={0.35}
+                                        />
+                                    </p>
+                                </div>
+                            </div>
                         </div>
 
-                        <ElasticSlider
-                            defaultValue={projectData.totalBudget}
-                            startingValue={0}
-                            maxValue={walletBalance !== null ? Math.max(1, Math.floor(walletBalance)) : 5000}
-                            stepSize={1}
-                            leftIcon={<span className="text-xl font-bold text-gray-400">-</span>}
-                            rightIcon={<span className="text-xl font-bold text-gray-400">+</span>}
-                            onChange={(v: number) => setProjectData(prev => ({ ...prev, totalBudget: Math.round(v) }))}
-                        />
+                        {/* Budget Control Panel */}
+                        <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-gray-200 dark:border-zinc-800 p-6 shadow-lg">
+                            <h3 className="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                <DollarSign className="text-[#008080]" size={20} />
+                                Set Budget
+                            </h3>
+
+                            {/* The Elastic Slider */}
+                            <div className="mb-6 py-2">
+                                <ElasticSlider
+                                    startingValue={0}
+                                    maxValue={walletBalance !== null ? Math.max(1, Math.floor(walletBalance)) : 5000}
+                                    defaultValue={projectData.totalBudget}
+                                    onChange={(v: number) => setProjectData(prev => ({ ...prev, totalBudget: Math.round(v) }))}
+                                    stepSize={50}
+                                    leftIcon={<span className="text-xl font-bold text-gray-400 select-none">-</span>}
+                                    rightIcon={<span className="text-xl font-bold text-gray-400 select-none">+</span>}
+                                />
+                            </div>
+
+                            {/* Manual Override Input */}
+                            <div className="relative">
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Manual Entry</label>
+                                <div className="relative">
+                                    <input
+                                        type="number"
+                                        value={projectData.totalBudget}
+                                        onChange={e => setProjectData({ ...projectData, totalBudget: Math.max(0, Number(e.target.value)) })}
+                                        className="w-full px-5 py-3 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#008080] font-mono font-bold text-gray-900 dark:text-white pl-16"
+                                        placeholder="0.00"
+                                    />
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                                        <span className="font-bold">{projectData.currency}</span>
+                                    </div>
+                                </div>
+                                {walletBalance !== null && projectData.totalBudget > walletBalance && (
+                                    <p className="mt-2 text-sm text-red-500 flex items-center gap-1">
+                                        <AlertCircle size={14} />
+                                        Insufficient funds. Available: {projectData.currency}{walletBalance.toFixed(2)}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
                     </div>
 
                     <button
@@ -516,4 +589,3 @@ export default function AIProjectCreatorPage() {
         </div>
     );
 }
-  

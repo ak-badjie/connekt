@@ -155,7 +155,7 @@ export default function AITeamMatcherModal({
 
     return (
         <Transition appear show={isOpen} as={Fragment}>
-            <Dialog as="div" className="relative z-50" onClose={loading ? () => { } : onClose}>
+            <Dialog as="div" className="relative z-[9999]" onClose={loading ? () => { } : onClose}>
                 <Transition.Child
                     as={Fragment}
                     enter="ease-out duration-300"
@@ -165,10 +165,10 @@ export default function AITeamMatcherModal({
                     leaveFrom="opacity-100"
                     leaveTo="opacity-0"
                 >
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[9999]" />
                 </Transition.Child>
 
-                <div className="fixed inset-0 overflow-y-auto">
+                <div className="fixed inset-0 overflow-y-auto z-[9999]">
                     <div className="flex min-h-full items-center justify-center p-4">
                         <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 p-6 text-left align-middle shadow-xl transition-all">
                             <Dialog.Title as="h3" className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">

@@ -308,7 +308,7 @@ export const TIER_FEATURES: Record<SubscriptionTier, TierFeatures> = {
         priorityCandidateSearch: true,
 
         // Quotas
-        aiRequestsPerMonth: 0,
+        aiRequestsPerMonth: 250, // 25 AI tool types quota for Pro Plus users
         storageGB: 200,
         workspaceMembers: 100,
         projectsPerWorkspace: 200,
@@ -385,9 +385,9 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
         id: 'pro-monthly',
         tier: SubscriptionTier.PRO,
         name: 'Connect Pro',
-        description: 'Advanced analytics and priority support',
-        priceMonthly: 2500, // GMD ~$35 USD
-        priceYearly: 25000, // GMD ~$350 USD (save 2 months)
+        description: '15 AI tools + Advanced analytics and priority support',
+        priceMonthly: 500, // GMD
+        priceYearly: 5000, // GMD (2 months free)
         currency: 'GMD',
         features: TIER_FEATURES[SubscriptionTier.PRO],
         popular: true,
@@ -396,9 +396,9 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
         id: 'pro-plus-monthly',
         tier: SubscriptionTier.PRO_PLUS,
         name: 'Connect Pro Plus',
-        description: 'Pro + Agency tools and white-label',
-        priceMonthly: 7500, // GMD ~$105 USD
-        priceYearly: 75000, // GMD ~$1,050 USD
+        description: '25 AI tools + Pro features + Agency tools and white-label',
+        priceMonthly: 1500, // GMD
+        priceYearly: 15000, // GMD (2 months free)
         currency: 'GMD',
         features: TIER_FEATURES[SubscriptionTier.PRO_PLUS],
     },
@@ -406,9 +406,9 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
         id: 'connect-ai-monthly',
         tier: SubscriptionTier.CONNECT_AI,
         name: 'Connect AI',
-        description: 'Full AI-powered automation + all features',
-        priceMonthly: 15000, // GMD ~$210 USD
-        priceYearly: 150000, // GMD ~$2,100 USD
+        description: '100+ AI tools for full automation across the entire platform',
+        priceMonthly: 750, // GMD
+        priceYearly: 7500, // GMD (2 months free)
         currency: 'GMD',
         features: TIER_FEATURES[SubscriptionTier.CONNECT_AI],
         popular: false,
