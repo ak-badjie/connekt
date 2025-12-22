@@ -1,4 +1,4 @@
-import { db } from '@/lib/firebase';
+import { db, realtimeDb } from '@/lib/firebase';
 import {
     collection,
     doc,
@@ -16,6 +16,7 @@ import {
     runTransaction,
     Timestamp
 } from 'firebase/firestore';
+import { ref, set, onValue, off } from 'firebase/database';
 import { NotificationService } from './notification-service';
 import type { Wallet, WalletTransaction, EscrowHold, PaymentRequest, WalletStats } from '@/lib/types/wallet.types';
 
@@ -66,6 +67,49 @@ export const WalletService = {
             id: walletSnap.id,
             ...walletSnap.data()
         } as Wallet;
+    },
+
+    /**
+     * Listen to wallet changes in real-time using Firebase Realtime Database
+     * Returns unsubscribe function
+     */
+    listenToWallet(
+        ownerId: string,
+        ownerType: 'user' | 'agency',
+        callback: (wallet: { balance: number; currency: string; lastTransaction?: any } | null) => void
+    ): () => void {
+        const walletId = `${ownerType}_${ownerId}`;
+        const walletRef = ref(realtimeDb, `wallets/${walletId}`);
+
+        const listener = onValue(walletRef, (snapshot) => {
+            if (!snapshot.exists()) {
+                callback(null);
+                return;
+            }
+            callback(snapshot.val());
+        });
+
+        // Return unsubscribe function
+        return () => {
+            off(walletRef, 'value', listener);
+        };
+    },
+
+    /**
+     * Sync wallet to Realtime Database for instant UI updates
+     */
+    async syncWalletToRTDB(walletId: string, balance: number, currency: string, lastTransaction?: any): Promise<void> {
+        try {
+            const walletRef = ref(realtimeDb, `wallets/${walletId}`);
+            await set(walletRef, {
+                balance,
+                currency,
+                lastTransaction: lastTransaction || null,
+                updatedAt: Date.now()
+            });
+        } catch (error) {
+            console.error('Error syncing wallet to RTDB:', error);
+        }
     },
 
     /**
@@ -259,7 +303,23 @@ export const WalletService = {
                 console.error('Failed to send notification for top-up', e);
             }
 
-            return { success: true, message: 'Top-up successful' };
+            // Sync to Realtime Database for instant UI updates
+            try {
+                const updatedWallet = await getDoc(walletRef);
+                if (updatedWallet.exists()) {
+                    const walletData = updatedWallet.data();
+                    await this.syncWalletToRTDB(
+                        walletId,
+                        walletData.balance,
+                        walletData.currency || 'GMD',
+                        newTransaction
+                    );
+                }
+            } catch (e) {
+                console.error('Failed to sync wallet to RTDB', e);
+            }
+
+            return { success: true, message: 'Top-up successful', amount };
         });
     },
 

@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
-import { toast } from 'react-hot-toast';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { WalletService } from '@/lib/services/wallet-service';
 import { Wallet as WalletType, WalletTransaction, EscrowHold } from '@/lib/types/wallet.types';
@@ -17,95 +16,78 @@ import { useMinimumLoading } from '@/hooks/useMinimumLoading';
 export default function WalletPage() {
     const { user } = useAuth();
     const [wallet, setWallet] = useState<WalletType | null>(null);
+    const [realtimeBalance, setRealtimeBalance] = useState<number | null>(null);
     const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
     const [escrowHoldings, setEscrowHoldings] = useState<EscrowHold[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isTopUpModalOpen, setIsTopUpModalOpen] = useState(false);
 
-    const verificationAttempted = useRef(false);
+    // Load initial wallet data
+    const loadWalletData = useCallback(async () => {
+        if (!user?.uid) return;
 
+        try {
+            setIsLoading(true);
+            const walletId = `user_${user.uid}`;
+
+            // Load wallet
+            let walletData = await WalletService.getWallet(user.uid, 'user');
+
+            // Create wallet if it doesn't exist
+            if (!walletData) {
+                await WalletService.createWallet(user.uid, 'user');
+                walletData = await WalletService.getWallet(user.uid, 'user');
+            }
+
+            setWallet(walletData);
+
+            // Load transaction history
+            if (walletData) {
+                const txHistory = await WalletService.getTransactionHistory(walletId, 50);
+                setTransactions(txHistory);
+
+                // Load active escrow holdings
+                const activeHolds = await WalletService.getEscrowHoldings(walletId);
+                setEscrowHoldings(activeHolds);
+            }
+        } catch (error) {
+            console.error('Error loading wallet:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [user?.uid]);
+
+    // Initial load
     useEffect(() => {
-        const loadWalletData = async () => {
-            if (!user?.uid) return;
+        loadWalletData();
+    }, [loadWalletData]);
 
-            try {
-                setIsLoading(true);
-                const walletId = `user_${user.uid}`;
+    // Set up real-time listener for wallet balance updates
+    useEffect(() => {
+        if (!user?.uid) return;
 
-                // Check for payment return parameters
-                const urlParams = new URLSearchParams(window.location.search);
-                const transactionId = urlParams.get('transaction_id') || urlParams.get('reference');
-                const paymentStatus = urlParams.get('status');
+        const unsubscribe = WalletService.listenToWallet(
+            user.uid,
+            'user',
+            (rtWallet) => {
+                if (rtWallet) {
+                    setRealtimeBalance(rtWallet.balance);
 
-                if (transactionId && !verificationAttempted.current) {
-                    verificationAttempted.current = true; // Mark as attempted immediately
-
-                    // If status=completed is in URL, we have a successful payment redirect
-                    if (paymentStatus === 'completed') {
-                        try {
-                            // Verify payment on server and credit wallet
-                            const verifyRes = await fetch('/api/wallet/verify-payment', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ transactionId, walletId, status: paymentStatus })
-                            });
-
-                            const verifyData = await verifyRes.json();
-
-                            // Clear URL params first
-                            window.history.replaceState({}, '', window.location.pathname);
-
-                            if (verifyRes.ok && verifyData.success) {
-                                toast.success('Payment verified successfully! Your wallet has been credited.');
-                            } else if (verifyData.message === 'Transaction already processed') {
-                                toast.success('Payment was already processed. Wallet is up to date.');
-                            } else {
-                                console.error('Verification response:', verifyData);
-                                toast.error(verifyData.error || 'Payment verification issue. Please check your balance.');
-                            }
-                        } catch (err) {
-                            console.error('Verification check failed', err);
-                            window.history.replaceState({}, '', window.location.pathname);
-                            toast.error('Could not verify payment. Please contact support if funds are missing.');
-                        }
-                    } else {
-                        // Non-completed status, just clear URL
-                        window.history.replaceState({}, '', window.location.pathname);
-                        if (paymentStatus) {
-                            toast.error(`Payment ${paymentStatus}. Please try again.`);
-                        }
+                    // If there's a new transaction, reload full data
+                    if (rtWallet.lastTransaction) {
+                        loadWalletData();
                     }
                 }
-
-                // Load wallet
-                let walletData = await WalletService.getWallet(user.uid, 'user');
-
-                // Create wallet if it doesn't exist
-                if (!walletData) {
-                    await WalletService.createWallet(user.uid, 'user');
-                    walletData = await WalletService.getWallet(user.uid, 'user');
-                }
-
-                setWallet(walletData);
-
-                // Load transaction history
-                if (walletData) {
-                    const txHistory = await WalletService.getTransactionHistory(walletId, 50);
-                    setTransactions(txHistory);
-
-                    // Load active escrow holdings directly from collection
-                    const activeHolds = await WalletService.getEscrowHoldings(walletId);
-                    setEscrowHoldings(activeHolds);
-                }
-            } catch (error) {
-                console.error('Error loading wallet:', error);
-            } finally {
-                setIsLoading(false);
             }
-        };
+        );
 
-        loadWalletData();
-    }, [user]);
+        return () => {
+            unsubscribe();
+        };
+    }, [user?.uid, loadWalletData]);
+
+    // Use realtime balance if available, otherwise use Firestore balance
+    const displayBalance = realtimeBalance !== null ? realtimeBalance : (wallet?.balance || 0);
 
     const pendingIn = escrowHoldings
         .filter(h => h.status === 'held' && h.toUserId === user?.uid)
@@ -115,7 +97,12 @@ export default function WalletPage() {
         .filter(h => h.status === 'held' && h.fromUserId === user?.uid)
         .reduce((sum, h) => sum + h.amount, 0);
 
-    const shouldShowLoading = useMinimumLoading(isLoading, 6000); // Ensure ConnektWalletLogo animations complete
+    const handlePaymentComplete = useCallback(() => {
+        // Refresh wallet data after successful payment
+        loadWalletData();
+    }, [loadWalletData]);
+
+    const shouldShowLoading = useMinimumLoading(isLoading, 6000);
 
     if (shouldShowLoading) {
         return <LoadingScreen variant="wallet" />;
@@ -138,9 +125,9 @@ export default function WalletPage() {
                     </p>
                 </motion.div>
 
-                {/* Balance Card */}
+                {/* Balance Card - uses realtime balance */}
                 <WalletBalanceCard
-                    balance={wallet?.balance || 0}
+                    balance={displayBalance}
                     currency={wallet?.currency}
                     pendingIn={pendingIn}
                     pendingOut={pendingOut}
@@ -213,6 +200,7 @@ export default function WalletPage() {
                 isOpen={isTopUpModalOpen}
                 onClose={() => setIsTopUpModalOpen(false)}
                 walletId={wallet?.id || ''}
+                onPaymentComplete={handlePaymentComplete}
             />
         </div>
     );
