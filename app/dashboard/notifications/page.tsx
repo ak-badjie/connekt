@@ -63,7 +63,7 @@ export default function NotificationsPage() {
     const unreadCount = notifications.filter(n => !n.read).length;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-zinc-900 dark:via-black dark:to-zinc-900 p-6">
+        <div className="h-full overflow-y-auto bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-zinc-900 dark:via-black dark:to-zinc-900 p-6">
             <div className="max-w-6xl mx-auto">
                 {/* Header */}
                 <div className="mb-8">

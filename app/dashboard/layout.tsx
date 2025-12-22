@@ -18,7 +18,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
     const { user, loading } = useAuth();
     const pathname = usePathname();
     const { hasGlobalAnimationRun, setHasGlobalAnimationRun, hasTeamsAnimationRun, setHasTeamsAnimationRun } = useAnimation();
-    
+
     // Access Sidebar State
     const { isCollapsed } = useSidebar();
 
@@ -94,7 +94,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
             <Navbar />
 
             {/* Main Content Area */}
-            <motion.main 
+            <motion.main
                 initial="expanded"
                 animate={isCollapsed ? "collapsed" : "expanded"}
                 variants={mainVariants}
@@ -104,10 +104,10 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
                     {children}
                 </div>
             </motion.main>
-            
+
             {/* Mobile Fallback (No padding animation needed) */}
             <main className="lg:hidden pt-20 px-4 pb-6 min-h-screen">
-                 <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-white/20 dark:border-white/5 rounded-3xl shadow-xl p-0 min-h-[calc(100vh-8rem)] overflow-hidden">
+                <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-white/20 dark:border-white/5 rounded-3xl shadow-xl p-0 min-h-[calc(100vh-8rem)] overflow-hidden">
                     {children}
                 </div>
             </main>

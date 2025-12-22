@@ -12,7 +12,7 @@ import {
     Timestamp,
 } from 'firebase/firestore';
 import { WalletService } from './wallet-service';
-import { ModemPayService } from './modem-pay-service';
+// import { ModemPayService } from './modem-pay-service'; // Removed after migration
 import { NotificationService } from './notification-service';
 import { SubscriptionNotificationMetadata } from '@/lib/types/notification.types';
 import {
@@ -249,13 +249,31 @@ export const SubscriptionService = {
 
             const amount = billingCycle === 'monthly' ? plan.priceMonthly : plan.priceYearly;
 
-            // Initiate payment with Modem Pay
-            const { paymentUrl, transactionId, reference } = await ModemPayService.initiatePayment(
-                amount,
-                'GMD',
-                `subscription_${userId}`,
-                returnUrl
-            );
+            // Initiate payment via Cloud Function
+            // Use initiateTopUp endpoint which is generic enough for payments
+            const functionsUrl = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL;
+            const endpoint = functionsUrl
+                ? `${functionsUrl}/initiateTopUp`
+                : '/api/wallet/topup'; // Fallback if still needed, but we want to move away
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    amount,
+                    walletId: `subscription_${userId}`, // Virtual wallet ID for subscription
+                    returnUrl
+                    // We might need to pass metadata to link it to subscription, 
+                    // but initiateTopUp currently handles generic payments.
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to initiate payment');
+            }
+
+            const { paymentUrl, transactionId, reference } = await response.json();
 
             // Store pending payment record
             const payment: SubscriptionPayment = {

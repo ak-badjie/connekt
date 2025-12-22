@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 
-export default function PaymentVerifyPage() {
+function VerifyContent() {
     const searchParams = useSearchParams();
     const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying');
     const [message, setMessage] = useState('Verifying payment...');
@@ -13,59 +13,123 @@ export default function PaymentVerifyPage() {
         const verifyPayment = async () => {
             try {
                 const transactionId = searchParams.get('transaction_id') || searchParams.get('reference');
-                const walletId = searchParams.get('walletId');
+                const walletIdParam = searchParams.get('walletId');
                 const amount = searchParams.get('amount');
-                const paymentStatus = searchParams.get('status');
+                const reference = searchParams.get('reference');
+                // Modem Pay sends status in the return URL!
+                const paymentStatus = searchParams.get('status')?.toLowerCase();
 
-                if (!transactionId || !walletId) {
-                    throw new Error('Missing payment information');
+                if (!walletIdParam) {
+                    throw new Error('Missing wallet information');
                 }
 
-                // Call verification API
-                const response = await fetch('/api/wallet/verify-payment', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        transactionId,
-                        walletId,
-                        amount: amount ? Number(amount) : undefined,
-                        status: paymentStatus
-                    })
+                // Extract raw userId from walletId (e.g., "user_abc123" -> "abc123")
+                const userId = walletIdParam.startsWith('user_')
+                    ? walletIdParam.substring(5)
+                    : walletIdParam;
+
+                console.log('[VerifyPage] Payment return data:', { transactionId, userId, amount, paymentStatus, reference });
+
+                // Dynamic imports to avoid SSR issues
+                const { realtimeDb } = await import('@/lib/firebase');
+                const { ref, set } = await import('firebase/database');
+                const paymentStatusRef = ref(realtimeDb, `payment_status/${userId}`);
+
+                // Step 1: Write "verifying" status to RTDB to trigger Dynamic Island
+                await set(paymentStatusRef, {
+                    status: 'verifying',
+                    amount: Number(amount) || 0,
+                    transactionId: transactionId || 'unknown',
+                    timestamp: Date.now()
                 });
 
-                const data = await response.json();
+                console.log('[VerifyPage] RTDB verifying status set');
 
-                if (response.ok && data.success) {
-                    setStatus('success');
-                    setMessage('Payment successful! Your wallet has been credited.');
+                // Step 2: Check if Modem Pay sent a completed status
+                if (paymentStatus === 'completed' || paymentStatus === 'success' || paymentStatus === 'successful' || paymentStatus === 'paid') {
+                    console.log('[VerifyPage] Payment completed! Processing wallet update...');
 
-                    // Post message to parent window
-                    if (window.opener) {
-                        window.opener.postMessage({
-                            type: 'PAYMENT_COMPLETE',
-                            amount: data.amount || amount
-                        }, window.location.origin);
+                    // Call our API to process the payment (update wallet balance)
+                    const response = await fetch('/api/wallet/process-payment', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            walletId: walletIdParam,
+                            amount: Number(amount),
+                            transactionId: transactionId,
+                            reference: reference
+                        })
+                    });
 
-                        // Auto-close after short delay
-                        setTimeout(() => {
-                            window.close();
-                        }, 2000);
+                    const result = await response.json();
+
+                    if (result.success) {
+                        // Write success to RTDB
+                        await set(paymentStatusRef, {
+                            status: 'success',
+                            amount: Number(amount) || 0,
+                            transactionId: transactionId || 'unknown',
+                            message: `Wallet credited with GMD ${Number(amount).toFixed(2)}`,
+                            timestamp: Date.now()
+                        });
+
+                        console.log('[VerifyPage] Payment processed successfully!');
+                        setStatus('success');
+                        setMessage(`Your wallet has been credited with GMD ${Number(amount).toFixed(2)}`);
+                    } else {
+                        throw new Error(result.error || 'Failed to process payment');
                     }
                 } else {
-                    throw new Error(data.error || 'Verification failed');
+                    // Payment not completed - show error
+                    await set(paymentStatusRef, {
+                        status: 'failed',
+                        amount: Number(amount) || 0,
+                        transactionId: transactionId || 'unknown',
+                        message: `Payment status: ${paymentStatus || 'unknown'}`,
+                        timestamp: Date.now()
+                    });
+
+                    setStatus('error');
+                    setMessage(`Payment was not completed. Status: ${paymentStatus || 'unknown'}`);
                 }
+
+                // Close popup after brief delay
+                setTimeout(() => {
+                    window.close();
+                }, 2500);
             } catch (error: any) {
-                console.error('Verification error:', error);
+                console.error('[VerifyPage] Verification error:', error);
+
+                // Try to write error to RTDB
+                try {
+                    const walletIdParam = searchParams.get('walletId');
+                    if (walletIdParam) {
+                        const userId = walletIdParam.startsWith('user_')
+                            ? walletIdParam.substring(5)
+                            : walletIdParam;
+
+                        const { realtimeDb } = await import('@/lib/firebase');
+                        const { ref, set } = await import('firebase/database');
+                        const paymentStatusRef = ref(realtimeDb, `payment_status/${userId}`);
+
+                        await set(paymentStatusRef, {
+                            status: 'error',
+                            amount: 0,
+                            message: error.message || 'Verification failed',
+                            timestamp: Date.now()
+                        });
+                    }
+                } catch (rtdbError) {
+                    console.error('[VerifyPage] Failed to write error to RTDB:', rtdbError);
+                }
+
                 setStatus('error');
                 setMessage(error.message || 'Payment verification failed');
 
-                // Post error to parent window
-                if (window.opener) {
-                    window.opener.postMessage({
-                        type: 'PAYMENT_ERROR',
-                        error: error.message
-                    }, window.location.origin);
-                }
+                // Close popup after delay
+                setTimeout(() => {
+                    window.close();
+                }, 3000);
             }
         };
 
@@ -82,7 +146,10 @@ export default function PaymentVerifyPage() {
                             Verifying Payment
                         </h1>
                         <p className="text-gray-600 dark:text-gray-400">
-                            Please wait while we confirm your payment...
+                            {message}
+                        </p>
+                        <p className="text-sm text-gray-500 mt-4">
+                            This window will close automatically...
                         </p>
                     </>
                 )}
@@ -127,3 +194,16 @@ export default function PaymentVerifyPage() {
         </div>
     );
 }
+
+export default function PaymentVerifyPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center">
+                <Loader2 className="w-16 h-16 text-[#008080] animate-spin" />
+            </div>
+        }>
+            <VerifyContent />
+        </Suspense>
+    );
+}
+

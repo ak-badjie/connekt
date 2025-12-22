@@ -7,8 +7,9 @@ const MODEM_PAY_SECRET_KEY = process.env.MODEM_PAY_SECRET_KEY;
 export const ModemPayService = {
     /**
      * Initiate a payment request to Modem Pay using the SDK
+     * After payment, Modem Pay redirects to return_url which triggers verification
      */
-    async initiatePayment(amount: number, currency: string = 'GMD', walletId: string, returnUrl: string) {
+    async initiatePayment(amount: number, currency: string = 'GMD', walletId: string, returnUrl?: string) {
         if (!MODEM_PAY_SECRET_KEY) {
             throw new Error('Modem Pay credentials not configured');
         }
@@ -17,18 +18,24 @@ export const ModemPayService = {
         const reference = `topup_${walletId}_${Date.now()}`;
 
         try {
+            // Build return URL for redirect after payment
+            // This will redirect to our verify page which triggers the verification flow
+            const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+            const verifyReturnUrl = `${baseUrl}/payment/verify?walletId=${encodeURIComponent(walletId)}&amount=${amount}&reference=${encodeURIComponent(reference)}`;
+
             // Create payment intent using the SDK
-            const intent = await modempay.paymentIntents.create({
+            const intentParams: any = {
                 amount,
                 currency,
-                return_url: returnUrl,
-                cancel_url: returnUrl, // Using same URL for now, or could be different
                 reference,
+                return_url: verifyReturnUrl,
                 metadata: {
                     walletId,
                     source: 'connekt-wallet-topup'
                 }
-            });
+            };
+
+            const intent = await modempay.paymentIntents.create(intentParams);
 
             console.log('Modem Pay Intent Created:', JSON.stringify(intent, null, 2));
 

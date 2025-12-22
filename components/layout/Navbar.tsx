@@ -283,58 +283,22 @@ export function Navbar() {
     // Physics
     const mouseX = useMotionValue(Infinity);
 
-    // Notifications
-    const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+    // Notifications - using context's Dynamic Island state
+    const {
+        notifications,
+        unreadCount,
+        markAsRead,
+        markAllAsRead,
+        createTestNotification
+    } = useNotifications();
     const [isNotificationOpen, setIsNotificationOpen] = useState(false);
     const notificationRef = useRef<HTMLDivElement>(null);
 
-    // Dynamic Island state - triggered by new notifications
-    const [dynamicIslandActive, setDynamicIslandActive] = useState(false);
-    const [dynamicIslandNotification, setDynamicIslandNotification] = useState<typeof notifications[0] | null>(null);
-    const lastNotificationIdRef = useRef<string | null>(null);
-    const dynamicIslandTimerRef = useRef<NodeJS.Timeout | null>(null);
+    // Debug logging
+    // Debug logging
+    console.log('[Navbar] notifications:', notifications.length, 'unread:', unreadCount);
 
-    // Watch for new notifications and trigger Dynamic Island
-    useEffect(() => {
-        if (notifications.length > 0) {
-            const latestNotif = notifications[0];
-            // Only trigger if this is a NEW notification we haven't seen
-            if (latestNotif.id !== lastNotificationIdRef.current && !latestNotif.read) {
-                lastNotificationIdRef.current = latestNotif.id;
-                setDynamicIslandNotification(latestNotif);
-                setDynamicIslandActive(true);
 
-                // Clear any existing timer
-                if (dynamicIslandTimerRef.current) {
-                    clearTimeout(dynamicIslandTimerRef.current);
-                }
-
-                // Auto-collapse after 5 seconds
-                dynamicIslandTimerRef.current = setTimeout(() => {
-                    setDynamicIslandActive(false);
-                }, 5000);
-            }
-        }
-
-        return () => {
-            if (dynamicIslandTimerRef.current) {
-                clearTimeout(dynamicIslandTimerRef.current);
-            }
-        };
-    }, [notifications]);
-
-    // Handle Dynamic Island click
-    const handleDynamicIslandClick = () => {
-        if (dynamicIslandNotification) {
-            if (!dynamicIslandNotification.read) {
-                markAsRead(dynamicIslandNotification.id);
-            }
-            if (dynamicIslandNotification.actionUrl) {
-                router.push(dynamicIslandNotification.actionUrl);
-            }
-        }
-        setDynamicIslandActive(false);
-    };
 
     // --- LOGIC: Mail Stats ---
     useEffect(() => {
@@ -450,87 +414,7 @@ export function Navbar() {
                     backgroundOpacity={0.03}
                 >
                     {/* Dynamic Island Notification Overlay */}
-                    <AnimatePresence>
-                        {dynamicIslandActive && dynamicIslandNotification && (
-                            <motion.div
-                                initial={{
-                                    opacity: 0,
-                                    scaleX: 0.3,
-                                    scaleY: 0.8,
-                                    height: 56
-                                }}
-                                animate={{
-                                    opacity: 1,
-                                    scaleX: 1,
-                                    scaleY: 1,
-                                    height: 100
-                                }}
-                                exit={{
-                                    opacity: 0,
-                                    scaleX: 0.3,
-                                    scaleY: 0.8,
-                                    height: 56
-                                }}
-                                transition={{
-                                    type: 'spring',
-                                    damping: 20,
-                                    stiffness: 300,
-                                    mass: 0.8
-                                }}
-                                onClick={handleDynamicIslandClick}
-                                className="absolute inset-0 z-50 cursor-pointer origin-center overflow-hidden rounded-3xl"
-                                style={{
-                                    background: 'linear-gradient(135deg, rgba(0,128,128,0.95) 0%, rgba(0,100,100,0.95) 100%)',
-                                    boxShadow: '0 8px 32px rgba(0,128,128,0.4), 0 0 0 1px rgba(255,255,255,0.1) inset'
-                                }}
-                            >
-                                <div className="flex items-center h-full px-6 gap-4">
-                                    {/* Notification Icon */}
-                                    <motion.div
-                                        initial={{ scale: 0, rotate: -180 }}
-                                        animate={{ scale: 1, rotate: 0 }}
-                                        transition={{ delay: 0.1, type: 'spring', damping: 15 }}
-                                        className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0"
-                                    >
-                                        <Bell className="w-6 h-6 text-white" />
-                                    </motion.div>
 
-                                    {/* Notification Content */}
-                                    <motion.div
-                                        initial={{ opacity: 0, x: 20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: 0.15 }}
-                                        className="flex-1 min-w-0"
-                                    >
-                                        <p className="text-white font-bold text-sm truncate">
-                                            {dynamicIslandNotification.title}
-                                        </p>
-                                        <p className="text-white/80 text-xs line-clamp-2 mt-0.5">
-                                            {dynamicIslandNotification.message}
-                                        </p>
-                                    </motion.div>
-
-                                    {/* Tap indicator */}
-                                    <motion.div
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        transition={{ delay: 0.3 }}
-                                        className="text-white/60 text-xs font-medium flex-shrink-0"
-                                    >
-                                        Tap to view →
-                                    </motion.div>
-                                </div>
-
-                                {/* Progress bar for auto-dismiss */}
-                                <motion.div
-                                    initial={{ scaleX: 1 }}
-                                    animate={{ scaleX: 0 }}
-                                    transition={{ duration: 5, ease: 'linear' }}
-                                    className="absolute bottom-0 left-0 right-0 h-1 bg-white/30 origin-left"
-                                />
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
 
                     <div className="flex items-center justify-between w-full h-full gap-4">
 
@@ -642,13 +526,22 @@ export function Navbar() {
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
                                 transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                                className="fixed w-80 max-h-96 overflow-hidden z-[200000]"
+                                className="fixed w-80 max-h-[420px] overflow-hidden z-[200000]"
                                 style={{
                                     top: notificationRef.current ? notificationRef.current.getBoundingClientRect().bottom + 8 : 72,
                                     right: 16
                                 }}
                             >
-                                <div className="rounded-2xl overflow-hidden backdrop-blur-xl bg-white/90 dark:bg-zinc-900/90 border border-gray-200/50 dark:border-white/10 shadow-2xl shadow-black/20">
+                                <GlassSurface
+                                    width="100%"
+                                    height="auto"
+                                    borderRadius={24}
+                                    opacity={0.95}
+                                    blur={30}
+                                    borderWidth={1}
+                                    backgroundOpacity={0.05}
+                                    style={{ minHeight: 'auto' }}
+                                >
                                     <div className="p-4">
                                         <div className="flex items-center justify-between mb-3">
                                             <h3 className="text-sm font-bold text-gray-900 dark:text-white">
@@ -664,20 +557,31 @@ export function Navbar() {
                                             )}
                                         </div>
 
-                                        <div className="space-y-2 max-h-72 overflow-y-auto">
+                                        <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                                             {notifications.length === 0 ? (
-                                                <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
-                                                    No notifications yet
-                                                </p>
+                                                <div className="text-center py-4">
+                                                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                                                        No notifications yet
+                                                    </p>
+                                                    <button
+                                                        onClick={() => {
+                                                            console.log('[Navbar] Creating test notification...');
+                                                            createTestNotification();
+                                                        }}
+                                                        className="px-3 py-1.5 bg-[#008080] hover:bg-teal-600 text-white text-xs font-medium rounded-lg transition-colors"
+                                                    >
+                                                        🧪 Create Test Notification
+                                                    </button>
+                                                </div>
                                             ) : (
                                                 notifications.slice(0, 10).map((notif) => (
                                                     <motion.div
                                                         key={notif.id}
                                                         initial={{ opacity: 0 }}
                                                         animate={{ opacity: 1 }}
-                                                        className={`p-3 rounded-xl cursor-pointer transition-colors ${!notif.read
-                                                            ? 'bg-[#008080]/10 border border-[#008080]/20'
-                                                            : 'bg-gray-50/50 dark:bg-zinc-800/50 hover:bg-gray-100/50 dark:hover:bg-zinc-700/50'
+                                                        className={`p-3 rounded-xl cursor-pointer transition-all duration-200 ${!notif.read
+                                                            ? 'bg-[#008080]/15 border border-[#008080]/30 shadow-sm shadow-teal-500/10'
+                                                            : 'bg-white/30 dark:bg-zinc-800/30 hover:bg-white/50 dark:hover:bg-zinc-700/50 border border-transparent'
                                                             }`}
                                                         onClick={() => {
                                                             if (!notif.read) markAsRead(notif.id);
@@ -686,13 +590,15 @@ export function Navbar() {
                                                         }}
                                                     >
                                                         <div className="flex items-start gap-3">
-                                                            <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${!notif.read ? 'bg-[#008080]' : 'bg-gray-300 dark:bg-zinc-600'
+                                                            <div className={`w-2.5 h-2.5 rounded-full mt-1 flex-shrink-0 ${!notif.read
+                                                                ? 'bg-[#008080] shadow-sm shadow-teal-500/50'
+                                                                : 'bg-gray-300 dark:bg-zinc-600'
                                                                 }`} />
                                                             <div className="flex-1 min-w-0">
                                                                 <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                                                                     {notif.title}
                                                                 </p>
-                                                                <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
+                                                                <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mt-0.5">
                                                                     {notif.message}
                                                                 </p>
                                                                 <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
@@ -709,13 +615,13 @@ export function Navbar() {
                                             <Link
                                                 href="/dashboard/notifications"
                                                 onClick={() => setIsNotificationOpen(false)}
-                                                className="block text-center text-xs text-[#008080] hover:text-teal-600 font-medium mt-3 pt-3 border-t border-gray-200 dark:border-white/10"
+                                                className="block text-center text-xs text-[#008080] hover:text-teal-600 font-medium mt-3 pt-3 border-t border-gray-200/30 dark:border-white/10"
                                             >
                                                 View all notifications
                                             </Link>
                                         )}
                                     </div>
-                                </div>
+                                </GlassSurface>
                             </motion.div>
                         )}
                     </AnimatePresence>,

@@ -1,65 +1,66 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ModemPayService } from '@/lib/services/modem-pay-service';
 import { WalletService } from '@/lib/services/wallet-service';
+import { ModemPayService } from '@/lib/services/modem-pay-service';
 
 export async function POST(req: NextRequest) {
     try {
-        const { transactionId, walletId, amount, status } = await req.json();
+        const body = await req.json();
+        const { transactionId, walletId, amount } = body;
 
         if (!transactionId || !walletId) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+            return NextResponse.json({ error: 'Missing transactionId or walletId' }, { status: 400 });
         }
 
-        let paymentAmount = amount;
-        let isVerified = false;
+        console.log('Verifying payment:', { transactionId, walletId, amount });
 
-        // Try to verify payment with Modem Pay
-        try {
-            const verification = await ModemPayService.verifyPayment(transactionId);
+        // Check payment status with Modem Pay
+        const verification = await ModemPayService.verifyPayment(transactionId);
+        const status = (verification?.status as string) || '';
 
-            // Check if payment was successful
-            if (verification.status === 'success' || verification.status === 'completed' || verification.status === 'paid') {
-                paymentAmount = Number(verification.amount);
-                isVerified = true;
-            }
-        } catch (verifyError) {
-            console.error('ModemPay verification failed, checking redirect status:', verifyError);
+        console.log('Verification result:', verification);
 
-            // If ModemPay SDK verification fails but we have a completed redirect status,
-            // we can still process - the redirect from ModemPay is trustworthy
-            // NOTE: In production, you might want webhook confirmation instead
-            if (status === 'completed' && amount) {
-                paymentAmount = Number(amount);
-                isVerified = true;
-                console.log('Using redirect status as verification fallback');
-            }
-        }
+        if (status === 'success' || status === 'completed' || status === 'successful' || status === 'paid') {
+            // Payment successful - update wallet
+            const finalAmount = amount || verification?.amount || 0;
 
-        if (isVerified && paymentAmount > 0) {
-            // Process transaction atomically
-            const result = await WalletService.processTopUpTransaction(
+            await WalletService.updateBalance(walletId, Number(finalAmount));
+            await WalletService.addTransaction(walletId, {
                 walletId,
-                paymentAmount,
-                transactionId,
-                'Wallet Top-up via Modem Pay',
-                {
-                    paymentMethod: 'modem_pay',
-                    source: 'modem_pay',
-                    verificationMethod: 'redirect_status'
-                }
-            );
+                type: 'deposit',
+                amount: Number(finalAmount),
+                currency: 'GMD',
+                description: 'Wallet Top-up via Modem Pay (Wave)',
+                status: 'completed',
+                referenceId: transactionId
+            });
 
-            if (result.success) {
-                return NextResponse.json({ success: true, status: 'completed', message: result.message });
-            } else {
-                return NextResponse.json({ success: false, error: 'Failed to process transaction' }, { status: 500 });
-            }
+            return NextResponse.json({
+                success: true,
+                status: 'completed',
+                amount: finalAmount,
+                message: `Wallet credited with GMD ${Number(finalAmount).toFixed(2)}`
+            });
+        } else if (status === 'pending' || status === 'requires_payment_method' || status === 'processing') {
+            // Still pending
+            return NextResponse.json({
+                success: false,
+                status: 'pending',
+                message: 'Payment still processing'
+            });
+        } else {
+            // Failed or unknown status
+            return NextResponse.json({
+                success: false,
+                status: 'failed',
+                message: `Payment status: ${status}`
+            });
         }
-
-        return NextResponse.json({ success: false, status: 'unverified', error: 'Payment could not be verified' });
-
     } catch (error: any) {
-        console.error('Payment verification error:', error);
-        return NextResponse.json({ error: error.message || 'Verification failed' }, { status: 500 });
+        console.error('Verification error:', error);
+        return NextResponse.json({
+            success: false,
+            status: 'error',
+            error: error.message || 'Verification failed'
+        }, { status: 500 });
     }
 }
