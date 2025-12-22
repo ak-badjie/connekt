@@ -302,6 +302,7 @@ export default function RecruiterDashboard() {
     // Data State
     const [pendingProjects, setPendingProjects] = useState<Project[]>([]);
     const [potsToReview, setPotsToReview] = useState<ProofOfTask[]>([]);
+    const [createdTasks, setCreatedTasks] = useState<Task[]>([]);
     const [storageQuota, setStorageQuota] = useState<any>(null);
     const [hoveredProject, setHoveredProject] = useState<Project | null>(null);
 
@@ -343,6 +344,7 @@ export default function RecruiterDashboard() {
                         TaskService.getCreatedTasks(user.uid)
                     ]);
                     setPotsToReview(pots);
+                    setCreatedTasks(createdTasks);
                     setTotalTasks(createdTasks.length);
 
                     // 4. Storage
@@ -380,11 +382,17 @@ export default function RecruiterDashboard() {
         date: new Date(pot.submittedAt).toLocaleDateString(),
     }));
 
-    // If no POTs, show Created Tasks (fallback for visual demo)
-    const displaySlides = reviewSlides.length > 0 ? reviewSlides : [
-        { id: '1', type: 'task', title: 'Frontend Refactor', description: 'Assigned to Dev Team', submittedBy: 'You', date: 'Today' },
-        { id: '2', type: 'task', title: 'Marketing Campaign', description: 'Q3 Strategy Planning', submittedBy: 'You', date: 'Yesterday' }
-    ];
+    // Use real created tasks as fallback when no POTs exist
+    const taskFallbackSlides = createdTasks.slice(0, 5).map(task => ({
+        id: task.id,
+        type: 'task' as const,
+        title: task.title,
+        description: task.description || 'No description',
+        submittedBy: 'You',
+        date: task.timeline?.dueDate || 'No deadline'
+    }));
+
+    const displaySlides = reviewSlides.length > 0 ? reviewSlides : taskFallbackSlides;
 
     return (
         <div className="relative min-h-screen font-sans text-slate-800 selection:bg-teal-200">

@@ -180,12 +180,12 @@ export const ConnectAIService = {
     /**
      * Check if user has AI quota remaining
      */
-    async checkQuota(userId: string): Promise<{ allowed: boolean; remaining: number; limit: number }> {
+    async checkQuota(userId: string): Promise<{ allowed: boolean; remaining: number; limit: number; isUnlimited: boolean }> {
         try {
             // Check if user has Connect AI subscription
             const hasAI = await SubscriptionService.hasFeature(userId, 'aiResumeParser');
             if (!hasAI) {
-                return { allowed: false, remaining: 0, limit: 0 };
+                return { allowed: false, remaining: 0, limit: 0, isUnlimited: false };
             }
 
             const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
@@ -197,6 +197,7 @@ export const ConnectAIService = {
                 const tier = await SubscriptionService.getUserTier(userId);
                 const features = SubscriptionService.getTierFeatures(tier);
                 const limit = features.aiRequestsPerMonth;
+                const isUnlimited = limit === -1;
 
                 const quota: AIUsageQuota = {
                     userId,
@@ -212,20 +213,22 @@ export const ConnectAIService = {
                 };
 
                 await setDoc(quotaRef, quota);
-                return { allowed: true, remaining: limit, limit };
+                return { allowed: true, remaining: isUnlimited ? Infinity : limit, limit: isUnlimited ? -1 : limit, isUnlimited };
             }
 
             const quota = quotaSnap.data() as AIUsageQuota;
-            const remaining = quota.requestsLimit - quota.requestsUsed;
+            const isUnlimited = quota.requestsLimit === -1;
+            const remaining = isUnlimited ? Infinity : quota.requestsLimit - quota.requestsUsed;
 
             return {
-                allowed: remaining > 0,
-                remaining,
+                allowed: isUnlimited || remaining > 0,
+                remaining: isUnlimited ? Infinity : remaining,
                 limit: quota.requestsLimit,
+                isUnlimited,
             };
         } catch (error) {
             console.error('Error checking AI quota:', error);
-            return { allowed: false, remaining: 0, limit: 0 };
+            return { allowed: false, remaining: 0, limit: 0, isUnlimited: false };
         }
     },
 
@@ -1012,12 +1015,12 @@ Project: "${projectDescription}"
 
 Candidates (with skills):
 ${JSON.stringify(potentialCandidates.map(c => ({
-                    id: c.uid,
-                    username: c.username,
-                    displayName: c.displayName,
-                    skills: c.skills || [],
-                    role: c.title
-                })), null, 2)}
+                id: c.uid,
+                username: c.username,
+                displayName: c.displayName,
+                skills: c.skills || [],
+                role: c.title
+            })), null, 2)}
 
 Task:
 1. Extract implied necessary skills from the project description.

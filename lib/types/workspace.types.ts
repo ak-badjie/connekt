@@ -162,3 +162,22 @@ export interface HelpRequest {
     createdAt: any; // Timestamp | Date | FieldValue
     resolvedAt?: any; // Timestamp | Date | FieldValue
 }
+
+export interface TaskCompletionRecord {
+    id?: string;
+    taskId: string;
+    projectId: string;
+    workspaceId: string;
+    assigneeId: string;
+    assigneeUsername: string;
+    assigneeType: 'employee' | 'freelancer';
+    taskTitle: string;
+    taskAmount: number;
+    taskCurrency: string;
+    completedAt: any; // Timestamp | Date | FieldValue
+    validatedBy: string;
+    validatedByUsername: string;
+    paymentReleased: boolean;
+    paymentTransactionId?: string;
+    proofOfTaskId?: string;
+}

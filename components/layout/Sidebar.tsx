@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutGrid, Briefcase, FolderKanban, CheckSquare, BarChart2,
   Users, Settings, LogOut, HardDrive, User as UserIcon,
-  Wallet, Calendar, Crown, ChevronLeft
+  Wallet, Calendar, Crown, ChevronLeft, Zap, Sparkles
 } from 'lucide-react';
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from 'framer-motion';
 
@@ -16,6 +16,7 @@ import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
 import { Agency } from '@/lib/services/agency-service';
 import { StorageQuotaService, StorageQuota } from '@/lib/services/storage-quota-service';
+import { SubscriptionService } from '@/lib/services/subscription.service';
 import ConnektIcon from '@/components/branding/ConnektIcon';
 import UpgradeOverlay from '@/components/subscription/UpgradeOverlay';
 
@@ -85,12 +86,70 @@ const GlassSurface = ({
 };
 
 // ==========================================
-// 3. COMPONENT: Spotlight Upgrade Card
+// 3. COMPONENT: Spotlight Upgrade Card (Dynamic based on tier)
 // ==========================================
-const SpotlightCard = ({ onOpen, isCollapsed }: { onOpen: (position: { x: number; y: number }) => void, isCollapsed: boolean }) => {
+
+// Upgrade CTA configuration based on current tier
+const UPGRADE_CTA = {
+  free: {
+    title: 'Upgrade to Pro',
+    subtitle: 'Unlock full potential',
+    show: true,
+    icon: 'zap',
+    gradient: 'from-[#008080] to-teal-400',
+    spotlightColor: 'rgba(0,128,128,0.15)',
+    borderColor: '#008080',
+    shadowColor: 'shadow-teal-500/20',
+  },
+  pro: {
+    title: 'Upgrade to Pro Plus',
+    subtitle: '1,000 AI requests & Agency tools',
+    show: true,
+    icon: 'crown',
+    gradient: 'from-amber-500 to-yellow-500',
+    spotlightColor: 'rgba(245,158,11,0.15)',
+    borderColor: '#f59e0b',
+    shadowColor: 'shadow-amber-500/20',
+  },
+  pro_plus: {
+    title: 'Get Connekt AI',
+    subtitle: 'Unlimited AI & 100+ tools',
+    show: true,
+    icon: 'sparkles',
+    gradient: 'from-purple-600 to-indigo-600',
+    spotlightColor: 'rgba(139,92,246,0.15)',
+    borderColor: '#8b5cf6',
+    shadowColor: 'shadow-purple-500/20',
+  },
+  connect_ai: {
+    title: 'You\'re on Connekt AI',
+    subtitle: 'Maximum power unlocked ⚡',
+    show: false, // Hide upgrade button for top tier
+    icon: 'sparkles',
+    gradient: 'from-purple-600 to-indigo-600',
+    spotlightColor: 'rgba(139,92,246,0.15)',
+    borderColor: '#8b5cf6',
+    shadowColor: 'shadow-purple-500/20',
+  },
+};
+
+const SpotlightCard = ({
+  onOpen,
+  isCollapsed,
+  currentTier = 'free'
+}: {
+  onOpen: (position: { x: number; y: number }) => void;
+  isCollapsed: boolean;
+  currentTier?: string;
+}) => {
   const divRef = useRef<HTMLButtonElement>(null);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [opacity, setOpacity] = useState(0);
+
+  const cta = UPGRADE_CTA[currentTier as keyof typeof UPGRADE_CTA] || UPGRADE_CTA.free;
+
+  // Don't render if at top tier
+  if (!cta.show) return null;
 
   const handleMouseMove = (e: React.MouseEvent<HTMLButtonElement>) => {
     if (!divRef.current) return;
@@ -117,37 +176,50 @@ const SpotlightCard = ({ onOpen, isCollapsed }: { onOpen: (position: { x: number
       onMouseMove={handleMouseMove}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`relative w-full group overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 transition-all duration-300 ${isCollapsed ? 'h-14' : 'h-32'}`}
+      className={`relative w-full group overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 transition-all duration-300 ${isCollapsed ? 'h-12' : 'h-20'}`}
     >
       {/* Spotlight Effect */}
       <div
         className="pointer-events-none absolute -inset-px opacity-0 transition duration-300 group-hover:opacity-100"
         style={{
           opacity,
-          background: `radial-gradient(600px circle at ${position.x}px ${position.y}px, rgba(0,128,128,0.15), transparent 40%)`,
+          background: `radial-gradient(600px circle at ${position.x}px ${position.y}px, ${cta.spotlightColor}, transparent 40%)`,
         }}
       />
 
       {/* Content */}
-      <div className="relative h-full flex flex-col items-center justify-center z-10 p-4">
+      <div className="relative h-full flex flex-col items-center justify-center z-10 p-2">
         {isCollapsed ? (
-          <Crown size={20} className="text-[#008080]" />
+          cta.icon === 'sparkles' ? (
+            <Sparkles size={18} style={{ color: cta.borderColor }} />
+          ) : cta.icon === 'crown' ? (
+            <Crown size={18} style={{ color: cta.borderColor }} />
+          ) : (
+            <Zap size={18} style={{ color: cta.borderColor }} />
+          )
         ) : (
-          <>
-            <div className="w-10 h-10 mb-3 rounded-full bg-gradient-to-tr from-[#008080] to-teal-400 flex items-center justify-center shadow-lg shadow-teal-500/20">
-              <Crown size={18} className="text-white" />
+          <div className="flex items-center gap-3">
+            <div className={`w-8 h-8 rounded-full bg-gradient-to-tr ${cta.gradient} flex items-center justify-center shadow-lg ${cta.shadowColor} flex-shrink-0`}>
+              {cta.icon === 'sparkles' ? (
+                <Sparkles size={14} className="text-white" />
+              ) : cta.icon === 'crown' ? (
+                <Crown size={14} className="text-white" />
+              ) : (
+                <Zap size={14} className="text-white" />
+              )}
             </div>
-            <div className="text-center">
-              <h4 className="text-sm font-bold text-gray-900 dark:text-white leading-none mb-1">Upgrade to Pro</h4>
-              <p className="text-[10px] text-gray-500 font-medium">Unlock full potential</p>
+            <div className="text-left">
+              <h4 className="text-sm font-bold text-gray-900 dark:text-white leading-none mb-1">{cta.title}</h4>
+              <p className="text-[10px] text-gray-500 font-medium">{cta.subtitle}</p>
             </div>
-          </>
+          </div>
         )}
       </div>
 
       {/* Border Highlight on Hover */}
       <div
-        className="absolute inset-0 rounded-2xl border-2 border-[#008080] opacity-0 transition-opacity duration-300 group-hover:opacity-10 pointer-events-none"
+        className="absolute inset-0 rounded-2xl border-2 opacity-0 transition-opacity duration-300 group-hover:opacity-10 pointer-events-none"
+        style={{ borderColor: cta.borderColor }}
       />
     </button>
   );
@@ -296,6 +368,7 @@ export function Sidebar({ agency = null }: SidebarProps) {
   const { isCollapsed, toggleSidebar } = useSidebar(); // Accessing context
 
   const [storageQuota, setStorageQuota] = useState<StorageQuota | null>(null);
+  const [currentTier, setCurrentTier] = useState<string>('free');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeButtonPosition, setUpgradeButtonPosition] = useState({ x: 150, y: 700 });
 
@@ -308,9 +381,13 @@ export function Sidebar({ agency = null }: SidebarProps) {
     const loadData = async () => {
       if (!userProfile?.username || !user) return;
       try {
+        // Fetch subscription tier
+        const tier = await SubscriptionService.getUserTier(user.uid);
+        setCurrentTier(tier);
+
         if (agency) {
           const agencyQuota = await StorageQuotaService.getAgencyStorageQuota(agency.id!);
-          if (agencyQuota) setStorageQuota({ userId: user?.uid || '', mailAddress: `@${agency.username}.com`, ...agencyQuota });
+          if (agencyQuota) setStorageQuota({ userId: user?.uid || '', mailAddress: `@${agency.username}.com`, mailAttachmentsSize: 0, otherFilesSize: 0, ...agencyQuota });
         } else {
           const personalMail = `${userProfile.username}@connekt.com`;
           const quota = await StorageQuotaService.getStorageQuota(personalMail);
@@ -351,7 +428,7 @@ export function Sidebar({ agency = null }: SidebarProps) {
           { id: 'calendar', label: 'Calendar', icon: Calendar, href: '/dashboard/calendar' },
         ]
       },
-      { id: 'analytics', label: 'Analytics', icon: BarChart2, href: '/analytics' },
+      { id: 'analytics', label: 'Analytics', icon: BarChart2, href: '/dashboard/analytics' },
       { id: 'wallet', label: 'Wallet', icon: Wallet, href: '/dashboard/wallet' },
       { id: 'storage', label: 'Storage', icon: HardDrive, href: '/dashboard/storage' },
       { id: 'profile', label: 'Profile', icon: UserIcon, href: userProfile?.username ? `/@${userProfile.username}` : '#' },
@@ -363,8 +440,8 @@ export function Sidebar({ agency = null }: SidebarProps) {
 
   // Elastic Animation Config
   const sidebarVariants = {
-    expanded: { width: 288, transition: { type: "spring", stiffness: 300, damping: 30 } },
-    collapsed: { width: 90, transition: { type: "spring", stiffness: 300, damping: 30 } }
+    expanded: { width: 288, transition: { type: "spring" as const, stiffness: 300, damping: 30 } },
+    collapsed: { width: 90, transition: { type: "spring" as const, stiffness: 300, damping: 30 } }
   };
 
   return (
@@ -509,6 +586,7 @@ export function Sidebar({ agency = null }: SidebarProps) {
                 setShowUpgradeModal(true);
               }}
               isCollapsed={isCollapsed}
+              currentTier={currentTier}
             />
           </div>
         </div>

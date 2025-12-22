@@ -76,6 +76,8 @@ export interface TierFeatures {
     projectsPerWorkspace: number;
     contractTemplates: number;
     teamSize: number;
+    maxProjects: number;      // -1 = unlimited
+    maxWorkspaces: number;    // -1 = unlimited
 }
 
 /**
@@ -209,11 +211,13 @@ export const TIER_FEATURES: Record<SubscriptionTier, TierFeatures> = {
 
         // Quotas
         aiRequestsPerMonth: 0,
-        storageGB: 5,
+        storageGB: 1, // Free tier: 1 GB
         workspaceMembers: 5,
         projectsPerWorkspace: 10,
         contractTemplates: 3,
         teamSize: 5,
+        maxProjects: 10,      // Free: 10 projects total
+        maxWorkspaces: 3,     // Free: 3 workspaces total
     },
 
     [SubscriptionTier.PRO]: {
@@ -258,12 +262,14 @@ export const TIER_FEATURES: Record<SubscriptionTier, TierFeatures> = {
         priorityCandidateSearch: false,
 
         // Quotas
-        aiRequestsPerMonth: 100, // Basic AI quota for Pro users
-        storageGB: 50,
+        aiRequestsPerMonth: 100, // Pro: 100 AI requests/month
+        storageGB: 5, // Pro tier: 5 GB
         workspaceMembers: 25,
         projectsPerWorkspace: 50,
         contractTemplates: 20,
         teamSize: 25,
+        maxProjects: 50,      // Pro: 50 projects total
+        maxWorkspaces: 10,    // Pro: 10 workspaces total
     },
 
     [SubscriptionTier.PRO_PLUS]: {
@@ -308,12 +314,14 @@ export const TIER_FEATURES: Record<SubscriptionTier, TierFeatures> = {
         priorityCandidateSearch: true,
 
         // Quotas
-        aiRequestsPerMonth: 250, // 25 AI tool types quota for Pro Plus users
-        storageGB: 200,
+        aiRequestsPerMonth: 1000, // Pro Plus: 1,000 AI requests/month
+        storageGB: 50, // Pro Plus tier: 50 GB
         workspaceMembers: 100,
         projectsPerWorkspace: 200,
         contractTemplates: 100,
         teamSize: 100,
+        maxProjects: -1,      // Pro Plus: Unlimited
+        maxWorkspaces: -1,    // Pro Plus: Unlimited
     },
 
     [SubscriptionTier.CONNECT_AI]: {
@@ -358,12 +366,14 @@ export const TIER_FEATURES: Record<SubscriptionTier, TierFeatures> = {
         priorityCandidateSearch: true,
 
         // Quotas
-        aiRequestsPerMonth: 1000, // Premium quota
-        storageGB: 500,
+        aiRequestsPerMonth: -1, // Connect AI: Unlimited AI requests (-1 = unlimited)
+        storageGB: 50, // Connect AI tier: 50 GB (same as Pro Plus)
         workspaceMembers: 500,
         projectsPerWorkspace: 1000,
         contractTemplates: 500,
         teamSize: 500,
+        maxProjects: -1,      // Connect AI: Unlimited
+        maxWorkspaces: -1,    // Connect AI: Unlimited
     },
 };
 

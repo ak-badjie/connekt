@@ -173,6 +173,89 @@ export const TaskService = {
     },
 
     /**
+     * Submit Proof of Task with file uploads
+     * Handles uploading screenshots and videos to Firebase Storage,
+     * tracks storage usage, and calls submitProof
+     */
+    async submitProofOfTask(
+        taskId: string,
+        userId: string,
+        username: string,
+        data: {
+            screenshots: File[];
+            videos: File[];
+            links: string[];
+            notes?: string;
+        }
+    ): Promise<void> {
+        const screenshotUrls: string[] = [];
+        const videoUrls: string[] = [];
+        let totalUploadSize = 0;
+
+        // Upload screenshots
+        for (const file of data.screenshots) {
+            const filePath = `tasks/${taskId}/proofs/screenshots/${Date.now()}_${file.name}`;
+            const storageRef = ref(storage, filePath);
+            await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(storageRef);
+            screenshotUrls.push(downloadURL);
+            totalUploadSize += file.size;
+        }
+
+        // Upload videos
+        for (const file of data.videos) {
+            const filePath = `tasks/${taskId}/proofs/videos/${Date.now()}_${file.name}`;
+            const storageRef = ref(storage, filePath);
+            await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(storageRef);
+            videoUrls.push(downloadURL);
+            totalUploadSize += file.size;
+        }
+
+        // Track storage usage for proof of task files
+        if (totalUploadSize > 0) {
+            try {
+                const { ProfileService } = await import('./profile-service');
+                const profile = await ProfileService.getUserProfile(userId);
+                if (profile?.username) {
+                    const { StorageQuotaService } = await import('./storage-quota-service');
+                    const mailAddress = `${profile.username}@connekt.com`;
+                    await StorageQuotaService.updateProofOfTaskUsage(
+                        mailAddress,
+                        totalUploadSize,
+                        data.screenshots.length + data.videos.length
+                    );
+                }
+            } catch (error) {
+                console.error('Failed to update storage quota for POT:', error);
+            }
+        }
+
+        // Call the existing submitProof method
+        await this.submitProof(taskId, {
+            submittedBy: userId,
+            submittedByUsername: username,
+            screenshots: screenshotUrls,
+            videos: videoUrls,
+            links: data.links,
+            notes: data.notes
+        });
+    },
+
+    /**
+     * Validate Proof of Task (wrapper for reviewProof)
+     */
+    async validateProofOfTask(
+        taskId: string,
+        validatorId: string,
+        validatorUsername: string,
+        decision: 'approved' | 'rejected' | 'revision-requested',
+        notes?: string
+    ): Promise<void> {
+        await this.reviewProof(taskId, decision, notes, validatorId, validatorUsername);
+    },
+
+    /**
      * Submit Proof of Task
      */
     async submitProof(taskId: string, proofData: Omit<ProofOfTask, 'taskId' | 'submittedAt' | 'status'>) {

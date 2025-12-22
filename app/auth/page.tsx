@@ -11,6 +11,7 @@ import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
 import ConnektWalletIcon from '@/components/branding/ConnektWalletIcon';
 import ConnektTeamsIcon from '@/components/branding/ConnektTeamsIcon';
 import { AuthService } from '@/lib/services/auth-service';
+import { FirestoreService } from '@/lib/services/firestore-service';
 import { useTypewriterPhrases } from '@/hooks/useTypewriterPhrases';
 
 // ==========================================
@@ -57,7 +58,7 @@ const getAttr = (distance: number, maxDist: number, minVal: number, maxVal: numb
 
 const LightRays = ({
     raysOrigin = 'top-center',
-    raysColor = '#2dd4bf', 
+    raysColor = '#2dd4bf',
     raysSpeed = 0.5,
     lightSpread = 1,
     rayLength = 1.5,
@@ -88,11 +89,11 @@ const LightRays = ({
             const renderer = new Renderer({ dpr: Math.min(window.devicePixelRatio, 2), alpha: true });
             rendererRef.current = renderer;
             const gl = renderer.gl;
-            
+
             gl.canvas.style.width = '100%';
             gl.canvas.style.height = '100%';
             gl.canvas.style.display = 'block';
-            
+
             while (containerRef.current?.firstChild) {
                 containerRef.current.removeChild(containerRef.current.firstChild);
             }
@@ -301,7 +302,7 @@ const GlassSurface = ({
     intensity?: 'low' | 'medium' | 'high';
     style?: React.CSSProperties;
 }) => {
-    
+
     const intensities: Record<'low' | 'medium' | 'high', string> = {
         low: 'backdrop-blur-md bg-white/5 border-white/10',
         medium: 'backdrop-blur-xl bg-white/10 border-white/20',
@@ -309,7 +310,7 @@ const GlassSurface = ({
     };
 
     return (
-        <div 
+        <div
             className={`
                 relative overflow-hidden
                 ${intensities[intensity] || intensities.medium}
@@ -325,7 +326,7 @@ const GlassSurface = ({
                 `,
             }}
         >
-            <div 
+            <div
                 className="absolute inset-0 opacity-[0.03] pointer-events-none mix-blend-overlay"
                 style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}
             />
@@ -370,7 +371,7 @@ const TextPressure = ({
         let newFontSize = containerW / (chars.length / 0.9);
         newFontSize = Math.max(newFontSize, minFontSize);
         setFontSize(newFontSize);
-        
+
         requestAnimationFrame(() => {
             if (!titleRef.current) return;
             const textRect = titleRef.current.getBoundingClientRect();
@@ -391,10 +392,10 @@ const TextPressure = ({
         let rafId: number;
         const animate = () => {
             if (!containerRef.current || !titleRef.current) return;
-            autoAnimRef.current += 0.02; 
+            autoAnimRef.current += 0.02;
             const rect = containerRef.current.getBoundingClientRect();
-            
-            const normX = (Math.sin(autoAnimRef.current) + 1) / 2; 
+
+            const normX = (Math.sin(autoAnimRef.current) + 1) / 2;
             const virtualX = rect.left + (rect.width * normX);
             const virtualY = rect.top + (rect.height / 2);
 
@@ -521,9 +522,20 @@ export default function AuthPage() {
         setError('');
         setLoading(true);
         try {
-            if (mode === 'login') await AuthService.loginWithEmail(formData.email, formData.password);
-            else await AuthService.registerWithEmail(formData.email, formData.password);
-            router.push('/onboarding');
+            let user;
+            if (mode === 'login') {
+                user = await AuthService.loginWithEmail(formData.email, formData.password);
+            } else {
+                user = await AuthService.registerWithEmail(formData.email, formData.password);
+            }
+
+            // Check if user has completed onboarding
+            const profile = await FirestoreService.getUserProfile(user.uid);
+            if (profile?.onboardingCompleted) {
+                router.push('/dashboard');
+            } else {
+                router.push('/onboarding');
+            }
         } catch (err: any) {
             setError(err?.message || 'Authentication failed');
         } finally {
@@ -535,8 +547,15 @@ export default function AuthPage() {
         setError('');
         setLoading(true);
         try {
-            await AuthService.loginWithGoogle();
-            router.push('/onboarding');
+            const user = await AuthService.loginWithGoogle();
+
+            // Check if user has completed onboarding
+            const profile = await FirestoreService.getUserProfile(user.uid);
+            if (profile?.onboardingCompleted) {
+                router.push('/dashboard');
+            } else {
+                router.push('/onboarding');
+            }
         } catch (err: any) {
             setError('Google sign in failed');
         } finally {
@@ -561,22 +580,22 @@ export default function AuthPage() {
                     display: none;
                 }
             `}</style>
-            
+
             {/* BACKGROUND: Light Rays */}
             <LightRays
                 raysColor="#14b8a6"
                 raysOrigin="top-center"
                 raysSpeed={0.5}
-                lightSpread={0.5}     
-                rayLength={10}       
-                mouseInfluence={1}    
-                distortion={0.01}      
+                lightSpread={0.5}
+                rayLength={10}
+                mouseInfluence={1}
+                distortion={0.01}
             />
 
             {/* LEFT CONTENT AREA */}
             {/* Flex-1 ensures it takes available space. min-h-0 prevents overflow. */}
             <div className="flex-1 min-h-0 flex flex-col justify-center items-center lg:items-start lg:pl-[8vw] p-[2vh] pb-[6vh] overflow-y-auto connekt-hide-scrollbar relative z-10">
-                
+
                 {/* Branding Section - Scales with viewport */}
                 <div className="w-full max-w-2xl flex flex-col items-center gap-[1.56vh] transform hover:scale-105 transition-transform duration-500 shrink-0">
                     <div className="w-full h-[18.72vh] lg:h-[28.08vh]">
@@ -621,7 +640,7 @@ export default function AuthPage() {
 
             {/* RIGHT AUTH AREA */}
             <div className="flex-1 min-h-0 flex items-center justify-center p-[2.6vmin] relative z-10">
-                
+
                 <motion.div
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -642,11 +661,11 @@ export default function AuthPage() {
                         >
                             {/* Content wrapper to handle small screens logic */}
                             <div className="flex flex-col justify-between h-full max-h-[85vh]">
-                                
+
                                 {/* Switcher */}
                                 <div className="flex items-center justify-center mb-[2.6vh] shrink-0">
                                     <div className="relative flex p-[0.65vh] rounded-full bg-black/20 backdrop-blur-md border border-white/5 shadow-inner">
-                                        <div 
+                                        <div
                                             className="absolute inset-y-[0.65vh] rounded-full bg-teal-500/20 border border-teal-500/30 transition-all duration-300 ease-out"
                                             style={{
                                                 width: 'calc(50% - 0.65vh)',
@@ -741,7 +760,7 @@ export default function AuthPage() {
                                     <FcGoogle className="w-[3.25vh] h-[3.25vh] filter drop-shadow-md group-hover:scale-110 transition-transform" />
                                     <span className="text-white/80 font-medium text-[clamp(14.3px,1.69vh,18.2px)]">Google Account</span>
                                 </button>
-                                
+
                             </div>
                         </GlassSurface>
                     </motion.div>

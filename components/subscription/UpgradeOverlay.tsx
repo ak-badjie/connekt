@@ -14,6 +14,7 @@ import {
     SubscriptionTier,
     SubscriptionPlan,
     SUBSCRIPTION_PLANS,
+    TIER_FEATURES,
 } from '@/lib/types/subscription-tiers.types';
 import Lightning from '@/components/ui/Lightning';
 import { ElectroBorder } from '@/components/ui/ElectricBorder';
@@ -185,22 +186,27 @@ export default function UpgradeOverlay({ isOpen, onClose, onSuccess, originPosit
 
     const highlightedFeatures: Record<string, string[]> = {
         [SubscriptionTier.PRO]: [
+            '100 AI Requests/month',
             '15 AI Tools Access',
+            `${TIER_FEATURES[SubscriptionTier.PRO].maxProjects} Projects`,
+            `${TIER_FEATURES[SubscriptionTier.PRO].maxWorkspaces} Workspaces`,
+            `${TIER_FEATURES[SubscriptionTier.PRO].storageGB}GB Storage`,
             'Advanced analytics',
-            'Custom branding',
             'Priority support',
         ],
         [SubscriptionTier.PRO_PLUS]: [
+            '1,000 AI Requests/month',
             '25 AI Tools Access',
-            'All Pro features',
+            'Unlimited Projects',
+            'Unlimited Workspaces',
+            `${TIER_FEATURES[SubscriptionTier.PRO_PLUS].storageGB}GB Storage`,
             'Verification Badge',
             'White-label branding',
         ],
         [SubscriptionTier.CONNECT_AI]: [
-            '100+ AI Tools',
+            'Unlimited AI Requests',
+            '100+ AI Tools Access',
             'Full AI Automation',
-            'AI Contract Drafting',
-            'AI Candidate Matching',
         ],
     };
 
@@ -267,8 +273,8 @@ export default function UpgradeOverlay({ isOpen, onClose, onSuccess, originPosit
                                     <button
                                         onClick={() => setBillingCycle('monthly')}
                                         className={`px-5 py-2 rounded-lg transition-all text-sm font-bold ${billingCycle === 'monthly'
-                                                ? 'bg-teal-600 text-white shadow-lg'
-                                                : 'text-gray-400 hover:text-white'
+                                            ? 'bg-teal-600 text-white shadow-lg'
+                                            : 'text-gray-400 hover:text-white'
                                             }`}
                                     >
                                         Monthly
@@ -276,8 +282,8 @@ export default function UpgradeOverlay({ isOpen, onClose, onSuccess, originPosit
                                     <button
                                         onClick={() => setBillingCycle('yearly')}
                                         className={`px-5 py-2 rounded-lg transition-all text-sm font-bold flex items-center gap-2 ${billingCycle === 'yearly'
-                                                ? 'bg-teal-600 text-white shadow-lg'
-                                                : 'text-gray-400 hover:text-white'
+                                            ? 'bg-teal-600 text-white shadow-lg'
+                                            : 'text-gray-400 hover:text-white'
                                             }`}
                                     >
                                         Yearly
@@ -426,14 +432,14 @@ export default function UpgradeOverlay({ isOpen, onClose, onSuccess, originPosit
                                                                         onClick={() => handleUpgrade(plan)}
                                                                         disabled={subscribing || !canAfford}
                                                                         className={`w-full py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 text-base ${subscribing
-                                                                                ? 'bg-gray-600 text-gray-300 cursor-wait'
-                                                                                : !canAfford
-                                                                                    ? 'bg-red-900/40 text-red-400 cursor-not-allowed'
-                                                                                    : isConnectAI
-                                                                                        ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white'
-                                                                                        : plan.popular
-                                                                                            ? 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black'
-                                                                                            : 'bg-teal-600 hover:bg-teal-500 text-white'
+                                                                            ? 'bg-gray-600 text-gray-300 cursor-wait'
+                                                                            : !canAfford
+                                                                                ? 'bg-red-900/40 text-red-400 cursor-not-allowed'
+                                                                                : isConnectAI
+                                                                                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white'
+                                                                                    : plan.popular
+                                                                                        ? 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black'
+                                                                                        : 'bg-teal-600 hover:bg-teal-500 text-white'
                                                                             }`}
                                                                     >
                                                                         {subscribing ? (

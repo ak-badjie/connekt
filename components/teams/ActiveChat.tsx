@@ -24,6 +24,7 @@ import AudioRecorder from './AudioRecorder';
 import MediaLightbox from './MediaLightbox';
 import SwipeableMessage from './SwipeableMessage';
 import ForwardModal from './ForwardModal';
+import InlineAudioPlayer from './InlineAudioPlayer';
 import { AIConversationSummarizerModal } from '@/components/chat/ai/AIConversationSummarizerModal';
 
 // --- TYPES ---
@@ -87,6 +88,7 @@ const MessageBubble = ({
   const firstAttachment = msg.attachments?.[0];
   const hasImage = firstAttachment?.type === 'image';
   const hasVideo = firstAttachment?.type === 'video';
+  const hasAudio = firstAttachment?.type === 'audio' || msg.type === 'audio';
 
   // Role badge styling
   const getRoleBadgeStyle = (role?: string) => {
@@ -184,6 +186,14 @@ const MessageBubble = ({
                   onClick={() => onMediaClick(firstAttachment.url, 'video')}
                   controls
                   className="rounded-lg mb-2 max-h-64 w-full bg-black cursor-pointer"
+                />
+              )}
+
+              {/* Audio Message - Inline Player */}
+              {hasAudio && firstAttachment && (
+                <InlineAudioPlayer
+                  audioUrl={firstAttachment.url}
+                  isMe={isMe}
                 />
               )}
 

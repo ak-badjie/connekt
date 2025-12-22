@@ -1,6 +1,7 @@
 import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc, increment, serverTimestamp, setDoc } from 'firebase/firestore';
 import { NotificationService } from './notification-service';
+import { SubscriptionService } from './subscription.service';
 
 export interface StorageQuota {
     userId: string;
@@ -10,6 +11,13 @@ export interface StorageQuota {
     filesCount: number;
     mailAttachmentsSize: number; // in bytes
     otherFilesSize: number; // in bytes
+    messagesSize?: number; // in bytes - Firestore messages
+    contractsSize?: number; // in bytes - contracts and proposals
+    mediaSize?: number; // in bytes - videos and media
+    profileMediaSize?: number; // in bytes - profile pictures, cover images
+    chatAttachmentsSize?: number; // in bytes - images, videos, audio in team chats
+    proofOfTaskSize?: number; // in bytes - task completion proof files
+    proposalsSize?: number; // in bytes - proposal documents sent
     lastUpdated: any;
 }
 
@@ -23,6 +31,20 @@ export interface AgencyStorageQuota {
 }
 
 const ONE_GB_IN_BYTES = 1073741824; // 1GB = 1,073,741,824 bytes
+
+/**
+ * Get storage quota in bytes based on user's subscription tier
+ * Free: 1 GB, Pro: 5 GB, Pro Plus: 50 GB, Connect AI: 50 GB
+ */
+async function getStorageQuotaByTier(userId: string): Promise<number> {
+    try {
+        const tier = await SubscriptionService.getUserTier(userId);
+        const features = SubscriptionService.getTierFeatures(tier);
+        return features.storageGB * ONE_GB_IN_BYTES;
+    } catch {
+        return ONE_GB_IN_BYTES; // Default to 1 GB on error
+    }
+}
 
 async function ensureStorageQuotaDoc(mailAddress: string): Promise<void> {
     const storageRef = doc(db, 'storage_quotas', mailAddress);
@@ -342,5 +364,95 @@ export const StorageQuotaService = {
         }
 
         return addresses;
+    },
+
+    /**
+     * Update storage for profile media (profile pictures, cover images)
+     */
+    async updateProfileMediaUsage(mailAddress: string, fileSize: number, fileCount: number = 1): Promise<void> {
+        await ensureStorageQuotaDoc(mailAddress);
+        const storageRef = doc(db, 'storage_quotas', mailAddress);
+
+        await updateDoc(storageRef, {
+            usedSpace: increment(fileSize),
+            filesCount: increment(fileCount),
+            profileMediaSize: increment(fileSize),
+            lastUpdated: serverTimestamp()
+        });
+    },
+
+    /**
+     * Update storage for chat attachments (images, videos, audio recordings)
+     */
+    async updateChatAttachmentUsage(mailAddress: string, fileSize: number, fileCount: number = 1): Promise<void> {
+        await ensureStorageQuotaDoc(mailAddress);
+        const storageRef = doc(db, 'storage_quotas', mailAddress);
+
+        await updateDoc(storageRef, {
+            usedSpace: increment(fileSize),
+            filesCount: increment(fileCount),
+            chatAttachmentsSize: increment(fileSize),
+            lastUpdated: serverTimestamp()
+        });
+    },
+
+    /**
+     * Update storage for proof of task files (screenshots, videos)
+     */
+    async updateProofOfTaskUsage(mailAddress: string, fileSize: number, fileCount: number = 1): Promise<void> {
+        await ensureStorageQuotaDoc(mailAddress);
+        const storageRef = doc(db, 'storage_quotas', mailAddress);
+
+        await updateDoc(storageRef, {
+            usedSpace: increment(fileSize),
+            filesCount: increment(fileCount),
+            proofOfTaskSize: increment(fileSize),
+            lastUpdated: serverTimestamp()
+        });
+    },
+
+    /**
+     * Update storage for proposals and contracts
+     */
+    async updateProposalUsage(mailAddress: string, fileSize: number, fileCount: number = 1): Promise<void> {
+        await ensureStorageQuotaDoc(mailAddress);
+        const storageRef = doc(db, 'storage_quotas', mailAddress);
+
+        await updateDoc(storageRef, {
+            usedSpace: increment(fileSize),
+            filesCount: increment(fileCount),
+            proposalsSize: increment(fileSize),
+            lastUpdated: serverTimestamp()
+        });
+    },
+
+    /**
+     * Get detailed storage breakdown by category
+     */
+    async getDetailedStorageBreakdown(mailAddress: string): Promise<{
+        mailAttachments: number;
+        chatAttachments: number;
+        profileMedia: number;
+        proofOfTask: number;
+        proposals: number;
+        contracts: number;
+        otherFiles: number;
+        total: number;
+        quota: number;
+    } | null> {
+        const quota = await this.getStorageQuota(mailAddress);
+        if (!quota) return null;
+
+        return {
+            mailAttachments: quota.mailAttachmentsSize || 0,
+            chatAttachments: quota.chatAttachmentsSize || 0,
+            profileMedia: quota.profileMediaSize || 0,
+            proofOfTask: quota.proofOfTaskSize || 0,
+            proposals: quota.proposalsSize || 0,
+            contracts: quota.contractsSize || 0,
+            otherFiles: quota.otherFilesSize || 0,
+            total: quota.usedSpace,
+            quota: quota.totalQuota
+        };
     }
 };

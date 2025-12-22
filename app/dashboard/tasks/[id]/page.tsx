@@ -10,11 +10,11 @@ import {
     Loader2, ArrowLeft, Clock, DollarSign, Calendar, AlertCircle,
     CheckCircle2, XCircle, Upload, Link as LinkIcon, Image, Video,
     FileText, CheckCheck, X, Send, UserPlus, Circle, ChevronRight,
-    Briefcase
+    Briefcase, Play, MessageCircle, Layers, Settings, Edit
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from 'framer-motion';
 import AssignTaskModal from '@/components/AssignTaskModal';
-import SpotlightCard from '@/components/ui/SpotLightCard';
+import SpotlightCard from '@/components/ui/SpotlightCard';
 import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
 
 // ==========================================
@@ -22,6 +22,77 @@ import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
 // ==========================================
 
 const cn = (...classes: (string | undefined | null | false)[]) => classes.filter(Boolean).join(' ');
+const transitionSpring = { type: 'spring' as const, stiffness: 300, damping: 30 };
+
+// ==========================================
+// ELASTIC DOCK COMPONENT
+// ==========================================
+
+function DockItem({ children, className = '', onClick, mouseX, label, baseItemSize = 45, magnification = 70, distance = 150 }: any) {
+    const ref = useRef<HTMLDivElement>(null);
+    const isHovered = useMotionValue(0);
+    const mouseDistance = useTransform(mouseX, (val: number) => {
+        const rect = ref.current?.getBoundingClientRect() ?? { x: 0, width: baseItemSize };
+        return val - rect.x - baseItemSize / 2;
+    });
+    const targetSize = useTransform(mouseDistance, [-distance, 0, distance], [baseItemSize, magnification, baseItemSize]);
+    const size = useSpring(targetSize, { mass: 0.1, stiffness: 150, damping: 12 });
+    const [labelVisible, setLabelVisible] = useState(false);
+
+    return (
+        <motion.div
+            ref={ref}
+            style={{ width: size, height: size }}
+            onHoverStart={() => { isHovered.set(1); setLabelVisible(true); }}
+            onHoverEnd={() => { isHovered.set(0); setLabelVisible(false); }}
+            onClick={onClick}
+            className={cn(
+                "relative inline-flex items-center justify-center rounded-2xl",
+                "bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700",
+                "shadow-lg cursor-pointer hover:border-teal-500/50 transition-colors",
+                className
+            )}
+        >
+            <AnimatePresence>
+                {labelVisible && label && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 10, x: "-50%" }}
+                        animate={{ opacity: 1, y: -45, x: "-50%" }}
+                        exit={{ opacity: 0, y: 10, x: "-50%" }}
+                        className="absolute left-1/2 top-0 bg-gray-900 text-white text-[10px] px-2 py-1 rounded-md whitespace-nowrap z-50 pointer-events-none font-bold tracking-wide"
+                    >
+                        {label}
+                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45" />
+                    </motion.div>
+                )}
+            </AnimatePresence>
+            <div className="flex items-center justify-center w-full h-full text-gray-600 dark:text-gray-300">{children}</div>
+        </motion.div>
+    );
+}
+
+function Dock({ items, className = '' }: any) {
+    const mouseX = useMotionValue(Infinity);
+
+    return (
+        <motion.div
+            onMouseMove={(e) => mouseX.set(e.pageX)}
+            onMouseLeave={() => mouseX.set(Infinity)}
+            className={cn(
+                "flex items-end h-[65px] gap-3 px-4 pb-2.5 rounded-3xl",
+                "bg-gray-50/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-gray-200/50 dark:border-zinc-800/50",
+                "shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)]",
+                className
+            )}
+        >
+            {items.map((item: any, idx: number) => (
+                <DockItem key={idx} onClick={item.onClick} mouseX={mouseX} label={item.label} baseItemSize={40} magnification={65}>
+                    {item.icon}
+                </DockItem>
+            ))}
+        </motion.div>
+    );
+}
 
 // ==========================================
 // ANIMATED TEXT
@@ -34,7 +105,7 @@ const AnimatedText = ({ text, className, delay = 0 }: { text: string, className?
         visible: { opacity: 1, transition: { staggerChildren: 0.02, delayChildren: delay } }
     };
     const child = {
-        visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 30 } },
+        visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 300, damping: 30 } },
         hidden: { opacity: 0, y: 20 }
     };
 
@@ -308,34 +379,64 @@ export default function TaskDetailPage() {
                                 </motion.p>
                             </div>
                         </div>
-
-                        {/* Action Buttons */}
-                        <div className="flex gap-3">
-                            {canSubmitPot && (
-                                <motion.button
-                                    initial={{ opacity: 0, scale: 0.9 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    onClick={() => setShowPotSubmission(true)}
-                                    className="px-5 py-2.5 bg-[#008080] hover:bg-teal-600 text-white rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-teal-500/20 hover:shadow-teal-500/40 hover:-translate-y-0.5"
-                                >
-                                    <Upload size={16} />
-                                    Submit Proof
-                                </motion.button>
-                            )}
-
-                            {isSupervisor && !task.assigneeId && (
-                                <motion.button
-                                    initial={{ opacity: 0, scale: 0.9 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    onClick={() => setShowAssignModal(true)}
-                                    className="px-5 py-2.5 bg-[#008080] hover:bg-teal-600 text-white rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-teal-500/20 hover:shadow-teal-500/40 hover:-translate-y-0.5"
-                                >
-                                    <UserPlus size={16} />
-                                    Assign User
-                                </motion.button>
-                            )}
-                        </div>
                     </div>
+
+                    {/* --- FLOATING DOCK --- */}
+                    <motion.div
+                        initial={{ y: 30, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.5, ...transitionSpring }}
+                        className="flex justify-center mt-6"
+                    >
+                        <Dock items={[
+                            // Assignee actions
+                            ...(isAssignee && task.status === 'todo' ? [{
+                                icon: <Play strokeWidth={2.5} size={18} />,
+                                label: "Start Task",
+                                onClick: async () => {
+                                    try {
+                                        await TaskService.updateStatus(taskId, 'in-progress');
+                                        const updated = await TaskService.getTask(taskId);
+                                        setTask(updated);
+                                    } catch (e) {
+                                        console.error('Failed to start task:', e);
+                                    }
+                                }
+                            }] : []),
+                            ...(canSubmitPot ? [{
+                                icon: <Upload strokeWidth={2.5} size={18} />,
+                                label: "Submit Proof",
+                                onClick: () => setShowPotSubmission(true)
+                            }] : []),
+                            // Supervisor actions
+                            ...(canValidate ? [{
+                                icon: <CheckCheck strokeWidth={2.5} size={18} />,
+                                label: "Review Proof",
+                                onClick: () => setShowValidation(true)
+                            }] : []),
+                            ...(isSupervisor && !task.assigneeId ? [{
+                                icon: <UserPlus strokeWidth={2.5} size={18} />,
+                                label: "Assign User",
+                                onClick: () => setShowAssignModal(true)
+                            }] : []),
+                            ...(isSupervisor && task.assigneeId ? [{
+                                icon: <UserPlus strokeWidth={2.5} size={18} />,
+                                label: "Reassign",
+                                onClick: () => setShowAssignModal(true)
+                            }] : []),
+                            // Common actions
+                            {
+                                icon: <Layers strokeWidth={2.5} size={18} />,
+                                label: "View Project",
+                                onClick: () => router.push(`/dashboard/projects/${task.projectId}`)
+                            },
+                            {
+                                icon: <MessageCircle strokeWidth={2.5} size={18} />,
+                                label: "Team Chat",
+                                onClick: () => router.push(`/dashboard/teams?chatWith=${task.assigneeId || ''}`)
+                            }
+                        ]} />
+                    </motion.div>
                 </div>
 
                 {/* --- ASSIGNEE INFO --- */}
