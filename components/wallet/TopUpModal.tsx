@@ -124,7 +124,7 @@ export function TopUpModal({ isOpen, onClose, walletId, onPaymentComplete }: Top
 
             // Open Modem Pay in popup window (OAuth-style)
             const popupWidth = 500;
-            const popupHeight = 700;
+            const popupHeight = Math.round(window.innerHeight * 0.7);
             const left = window.screenX + (window.outerWidth - popupWidth) / 2;
             const top = window.screenY + (window.outerHeight - popupHeight) / 2;
 
@@ -137,6 +137,9 @@ export function TopUpModal({ isOpen, onClose, walletId, onPaymentComplete }: Top
             if (!popupRef.current) {
                 throw new Error('Popup blocked. Please allow popups for this site.');
             }
+
+            // Close the modal immediately so user can see real-time balance updates
+            onClose();
 
         } catch (err: any) {
             console.error('Top up error:', err);

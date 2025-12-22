@@ -2,17 +2,19 @@
 
 import React, { useState, useEffect, useRef, useId } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useNotifications } from '@/context/NotificationContext';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { 
-    Search, Mail, Bell, Settings, LogOut, 
-    Briefcase, User as UserIcon, Building2 
+import {
+    Search, Mail, Bell, Settings, LogOut,
+    Briefcase, User as UserIcon, Building2,
+    Check, Trash2, X
 } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { AgencyService, Agency } from '@/lib/services/agency-service';
 import { MailService } from '@/lib/services/mail-service';
-import { useSidebar } from '@/components/layout/Sidebar'; // Imported Context
+import { useSidebar } from '@/components/layout/Sidebar';
 import {
     motion,
     AnimatePresence,
@@ -189,8 +191,8 @@ function DockItem({ children, onClick, href, isActive, label, mouseX, badge }: D
     const ref = useRef<HTMLDivElement>(null);
     const isHovered = useMotionValue(0);
 
-    const baseItemSize = 45; 
-    const magnification = 65; 
+    const baseItemSize = 45;
+    const magnification = 65;
     const distance = 140;
 
     const mouseDistance = useTransform(mouseX, (val) => {
@@ -260,7 +262,7 @@ export function Navbar() {
     const { user, userProfile } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
-    
+
     // --- SIDEBAR CONTEXT ---
     // We try/catch this because this Navbar might be used on pages 
     // without the SidebarProvider (e.g. some public pages), though unlikely in this setup.
@@ -279,6 +281,59 @@ export function Navbar() {
 
     // Physics
     const mouseX = useMotionValue(Infinity);
+
+    // Notifications
+    const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+    const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+    const notificationRef = useRef<HTMLDivElement>(null);
+
+    // Dynamic Island state - triggered by new notifications
+    const [dynamicIslandActive, setDynamicIslandActive] = useState(false);
+    const [dynamicIslandNotification, setDynamicIslandNotification] = useState<typeof notifications[0] | null>(null);
+    const lastNotificationIdRef = useRef<string | null>(null);
+    const dynamicIslandTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Watch for new notifications and trigger Dynamic Island
+    useEffect(() => {
+        if (notifications.length > 0) {
+            const latestNotif = notifications[0];
+            // Only trigger if this is a NEW notification we haven't seen
+            if (latestNotif.id !== lastNotificationIdRef.current && !latestNotif.read) {
+                lastNotificationIdRef.current = latestNotif.id;
+                setDynamicIslandNotification(latestNotif);
+                setDynamicIslandActive(true);
+
+                // Clear any existing timer
+                if (dynamicIslandTimerRef.current) {
+                    clearTimeout(dynamicIslandTimerRef.current);
+                }
+
+                // Auto-collapse after 5 seconds
+                dynamicIslandTimerRef.current = setTimeout(() => {
+                    setDynamicIslandActive(false);
+                }, 5000);
+            }
+        }
+
+        return () => {
+            if (dynamicIslandTimerRef.current) {
+                clearTimeout(dynamicIslandTimerRef.current);
+            }
+        };
+    }, [notifications]);
+
+    // Handle Dynamic Island click
+    const handleDynamicIslandClick = () => {
+        if (dynamicIslandNotification) {
+            if (!dynamicIslandNotification.read) {
+                markAsRead(dynamicIslandNotification.id);
+            }
+            if (dynamicIslandNotification.actionUrl) {
+                router.push(dynamicIslandNotification.actionUrl);
+            }
+        }
+        setDynamicIslandActive(false);
+    };
 
     // --- LOGIC: Mail Stats ---
     useEffect(() => {
@@ -337,13 +392,24 @@ export function Navbar() {
         router.push('/auth');
     };
 
+    // Close notification dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+                setIsNotificationOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
     // --- ANIMATION VARIANTS ---
     // Matches DashboardLayout padding logic
     // Expanded: 21rem (approx 336px)
     // Collapsed: 8rem (approx 128px)
     const navVariants = {
-        expanded: { left: '21rem', transition: { type: "spring", stiffness: 300, damping: 30 } },
-        collapsed: { left: '8rem', transition: { type: "spring", stiffness: 300, damping: 30 } }
+        expanded: { left: '21rem', transition: { type: "spring" as const, stiffness: 300, damping: 30 } },
+        collapsed: { left: '8rem', transition: { type: "spring" as const, stiffness: 300, damping: 30 } }
     };
 
     return (
@@ -357,7 +423,7 @@ export function Navbar() {
             className={`fixed top-4 right-4 z-[100] transition-all duration-300
                 ${isPrivatePage ? 'left-4 lg:left-auto' : 'left-4 right-4 max-w-7xl mx-auto'}
             `}
-            style={{ 
+            style={{
                 // We force the motion value only on desktop by checking window width or simply relying on 
                 // the fact that Sidebar is hidden on mobile. 
                 // However, strictly, 'lg:left-auto' resets the class, and motion applies inline style 'left'.
@@ -374,18 +440,101 @@ export function Navbar() {
         >
             <GlassSurface
                 width="100%"
-                height={56} // Fixed height
+                height={56}
                 borderRadius={24}
                 opacity={0.9}
                 blur={30}
                 borderWidth={1}
                 backgroundOpacity={0.03}
             >
+                {/* Dynamic Island Notification Overlay */}
+                <AnimatePresence>
+                    {dynamicIslandActive && dynamicIslandNotification && (
+                        <motion.div
+                            initial={{
+                                opacity: 0,
+                                scaleX: 0.3,
+                                scaleY: 0.8,
+                                height: 56
+                            }}
+                            animate={{
+                                opacity: 1,
+                                scaleX: 1,
+                                scaleY: 1,
+                                height: 100
+                            }}
+                            exit={{
+                                opacity: 0,
+                                scaleX: 0.3,
+                                scaleY: 0.8,
+                                height: 56
+                            }}
+                            transition={{
+                                type: 'spring',
+                                damping: 20,
+                                stiffness: 300,
+                                mass: 0.8
+                            }}
+                            onClick={handleDynamicIslandClick}
+                            className="absolute inset-0 z-50 cursor-pointer origin-center overflow-hidden rounded-3xl"
+                            style={{
+                                background: 'linear-gradient(135deg, rgba(0,128,128,0.95) 0%, rgba(0,100,100,0.95) 100%)',
+                                boxShadow: '0 8px 32px rgba(0,128,128,0.4), 0 0 0 1px rgba(255,255,255,0.1) inset'
+                            }}
+                        >
+                            <div className="flex items-center h-full px-6 gap-4">
+                                {/* Notification Icon */}
+                                <motion.div
+                                    initial={{ scale: 0, rotate: -180 }}
+                                    animate={{ scale: 1, rotate: 0 }}
+                                    transition={{ delay: 0.1, type: 'spring', damping: 15 }}
+                                    className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0"
+                                >
+                                    <Bell className="w-6 h-6 text-white" />
+                                </motion.div>
+
+                                {/* Notification Content */}
+                                <motion.div
+                                    initial={{ opacity: 0, x: 20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: 0.15 }}
+                                    className="flex-1 min-w-0"
+                                >
+                                    <p className="text-white font-bold text-sm truncate">
+                                        {dynamicIslandNotification.title}
+                                    </p>
+                                    <p className="text-white/80 text-xs line-clamp-2 mt-0.5">
+                                        {dynamicIslandNotification.message}
+                                    </p>
+                                </motion.div>
+
+                                {/* Tap indicator */}
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    transition={{ delay: 0.3 }}
+                                    className="text-white/60 text-xs font-medium flex-shrink-0"
+                                >
+                                    Tap to view →
+                                </motion.div>
+                            </div>
+
+                            {/* Progress bar for auto-dismiss */}
+                            <motion.div
+                                initial={{ scaleX: 1 }}
+                                animate={{ scaleX: 0 }}
+                                transition={{ duration: 5, ease: 'linear' }}
+                                className="absolute bottom-0 left-0 right-0 h-1 bg-white/30 origin-left"
+                            />
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
                 <div className="flex items-center justify-between w-full h-full gap-4">
 
                     {/* --- LEFT SECTION: Agency Info or Search --- */}
                     <div className="flex items-center flex-1 gap-6">
-                        
+
                         {/* Agency Branding */}
                         {isAgencyRoute && agency && (
                             <div className="flex items-center gap-3 pr-6 border-r border-gray-200 dark:border-white/10">
@@ -427,7 +576,7 @@ export function Navbar() {
 
                     {/* --- RIGHT SECTION: User & Dock --- */}
                     <div className="flex items-center gap-4">
-                        
+
                         {/* User Info */}
                         {user && (
                             <Link href={`/@${userProfile?.username || user.uid}`} className="hidden md:flex items-center gap-3 px-3 py-1.5 rounded-2xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors group mr-2">
@@ -462,9 +611,100 @@ export function Navbar() {
                                 <Mail size={20} />
                             </DockItem>
 
-                            <DockItem mouseX={mouseX} label="Notifications" onClick={() => {}}>
-                                <Bell size={20} /> 
-                            </DockItem>
+                            <div ref={notificationRef} className="relative">
+                                <DockItem mouseX={mouseX} label="Notifications" onClick={() => setIsNotificationOpen(!isNotificationOpen)} badge={unreadCount}>
+                                    <Bell size={20} />
+                                </DockItem>
+
+                                {/* Notification Dropdown */}
+                                <AnimatePresence>
+                                    {isNotificationOpen && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                                            className="absolute right-0 top-14 w-80 max-h-96 overflow-hidden z-50"
+                                        >
+                                            <GlassSurface
+                                                width="100%"
+                                                height="auto"
+                                                borderRadius={20}
+                                                opacity={0.95}
+                                                blur={40}
+                                                backgroundOpacity={0.08}
+                                            >
+                                                <div className="p-4">
+                                                    <div className="flex items-center justify-between mb-3">
+                                                        <h3 className="text-sm font-bold text-gray-900 dark:text-white">
+                                                            Notifications
+                                                        </h3>
+                                                        {unreadCount > 0 && (
+                                                            <button
+                                                                onClick={() => markAllAsRead()}
+                                                                className="text-xs text-[#008080] hover:text-teal-600 font-medium"
+                                                            >
+                                                                Mark all read
+                                                            </button>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="space-y-2 max-h-72 overflow-y-auto">
+                                                        {notifications.length === 0 ? (
+                                                            <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                                                                No notifications yet
+                                                            </p>
+                                                        ) : (
+                                                            notifications.slice(0, 10).map((notif) => (
+                                                                <motion.div
+                                                                    key={notif.id}
+                                                                    initial={{ opacity: 0 }}
+                                                                    animate={{ opacity: 1 }}
+                                                                    className={`p-3 rounded-xl cursor-pointer transition-colors ${!notif.read
+                                                                        ? 'bg-[#008080]/10 border border-[#008080]/20'
+                                                                        : 'bg-gray-50/50 dark:bg-zinc-800/50 hover:bg-gray-100/50 dark:hover:bg-zinc-700/50'
+                                                                        }`}
+                                                                    onClick={() => {
+                                                                        if (!notif.read) markAsRead(notif.id);
+                                                                        if (notif.actionUrl) router.push(notif.actionUrl);
+                                                                        setIsNotificationOpen(false);
+                                                                    }}
+                                                                >
+                                                                    <div className="flex items-start gap-3">
+                                                                        <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${!notif.read ? 'bg-[#008080]' : 'bg-gray-300 dark:bg-zinc-600'
+                                                                            }`} />
+                                                                        <div className="flex-1 min-w-0">
+                                                                            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                                                                {notif.title}
+                                                                            </p>
+                                                                            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
+                                                                                {notif.message}
+                                                                            </p>
+                                                                            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
+                                                                                {new Date(notif.createdAt).toLocaleString()}
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+                                                                </motion.div>
+                                                            ))
+                                                        )}
+                                                    </div>
+
+                                                    {notifications.length > 0 && (
+                                                        <Link
+                                                            href="/dashboard/notifications"
+                                                            onClick={() => setIsNotificationOpen(false)}
+                                                            className="block text-center text-xs text-[#008080] hover:text-teal-600 font-medium mt-3 pt-3 border-t border-gray-200 dark:border-white/10"
+                                                        >
+                                                            View all notifications
+                                                        </Link>
+                                                    )}
+                                                </div>
+                                            </GlassSurface>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
 
                             <DockItem mouseX={mouseX} href="/settings" isActive={pathname.startsWith('/settings')} label="Settings">
                                 <Settings size={20} />
