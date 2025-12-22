@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useId } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useNotifications } from '@/context/NotificationContext';
 import { usePathname, useRouter } from 'next/navigation';
@@ -413,310 +414,314 @@ export function Navbar() {
     };
 
     return (
-        <motion.nav
-            // Layout: 
-            // - Mobile: Fixed left-4 right-4 (handled by CSS class overriding motion style if needed, but we rely on media query in JS or CSS)
-            // - Desktop: Dynamic Left based on Sidebar
-            initial={isPrivatePage ? "expanded" : undefined}
-            animate={isPrivatePage ? (isCollapsed ? "collapsed" : "expanded") : undefined}
-            variants={navVariants}
-            className={`fixed top-4 right-4 z-[100] transition-all duration-300
+        <>
+            <motion.nav
+                // Layout: 
+                // - Mobile: Fixed left-4 right-4 (handled by CSS class overriding motion style if needed, but we rely on media query in JS or CSS)
+                // - Desktop: Dynamic Left based on Sidebar
+                initial={isPrivatePage ? "expanded" : undefined}
+                animate={isPrivatePage ? (isCollapsed ? "collapsed" : "expanded") : undefined}
+                variants={navVariants}
+                className={`fixed top-4 right-4 z-[100] transition-all duration-300
                 ${isPrivatePage ? 'left-4 lg:left-auto' : 'left-4 right-4 max-w-7xl mx-auto'}
             `}
-            style={{
-                // We force the motion value only on desktop by checking window width or simply relying on 
-                // the fact that Sidebar is hidden on mobile. 
-                // However, strictly, 'lg:left-auto' resets the class, and motion applies inline style 'left'.
-                // To prevent Motion from breaking mobile layout, we can use a media query in the variant 
-                // or just accept that on Mobile the sidebar is hidden, so isCollapsed might behave differently?
-                // Actually, sidebar is hidden on mobile, so the user can't toggle it. isCollapsed defaults false.
-                // But on mobile we want left-4.
-                // 'left' inline style from motion will override 'left-4' class. 
-                // Simple fix: Only apply motion variants on large screens, or use useMediaQuery hook.
-                // For this code, we assume Sidebar controls are desktop only.
-            }}
-            onMouseMove={(e) => mouseX.set(e.pageX)}
-            onMouseLeave={() => mouseX.set(Infinity)}
-        >
-            <GlassSurface
-                width="100%"
-                height={56}
-                borderRadius={24}
-                opacity={0.9}
-                blur={30}
-                borderWidth={1}
-                backgroundOpacity={0.03}
+                style={{
+                    // We force the motion value only on desktop by checking window width or simply relying on 
+                    // the fact that Sidebar is hidden on mobile. 
+                    // However, strictly, 'lg:left-auto' resets the class, and motion applies inline style 'left'.
+                    // To prevent Motion from breaking mobile layout, we can use a media query in the variant 
+                    // or just accept that on Mobile the sidebar is hidden, so isCollapsed might behave differently?
+                    // Actually, sidebar is hidden on mobile, so the user can't toggle it. isCollapsed defaults false.
+                    // But on mobile we want left-4.
+                    // 'left' inline style from motion will override 'left-4' class. 
+                    // Simple fix: Only apply motion variants on large screens, or use useMediaQuery hook.
+                    // For this code, we assume Sidebar controls are desktop only.
+                }}
+                onMouseMove={(e) => mouseX.set(e.pageX)}
+                onMouseLeave={() => mouseX.set(Infinity)}
             >
-                {/* Dynamic Island Notification Overlay */}
-                <AnimatePresence>
-                    {dynamicIslandActive && dynamicIslandNotification && (
-                        <motion.div
-                            initial={{
-                                opacity: 0,
-                                scaleX: 0.3,
-                                scaleY: 0.8,
-                                height: 56
-                            }}
-                            animate={{
-                                opacity: 1,
-                                scaleX: 1,
-                                scaleY: 1,
-                                height: 100
-                            }}
-                            exit={{
-                                opacity: 0,
-                                scaleX: 0.3,
-                                scaleY: 0.8,
-                                height: 56
-                            }}
-                            transition={{
-                                type: 'spring',
-                                damping: 20,
-                                stiffness: 300,
-                                mass: 0.8
-                            }}
-                            onClick={handleDynamicIslandClick}
-                            className="absolute inset-0 z-50 cursor-pointer origin-center overflow-hidden rounded-3xl"
-                            style={{
-                                background: 'linear-gradient(135deg, rgba(0,128,128,0.95) 0%, rgba(0,100,100,0.95) 100%)',
-                                boxShadow: '0 8px 32px rgba(0,128,128,0.4), 0 0 0 1px rgba(255,255,255,0.1) inset'
-                            }}
-                        >
-                            <div className="flex items-center h-full px-6 gap-4">
-                                {/* Notification Icon */}
-                                <motion.div
-                                    initial={{ scale: 0, rotate: -180 }}
-                                    animate={{ scale: 1, rotate: 0 }}
-                                    transition={{ delay: 0.1, type: 'spring', damping: 15 }}
-                                    className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0"
-                                >
-                                    <Bell className="w-6 h-6 text-white" />
-                                </motion.div>
-
-                                {/* Notification Content */}
-                                <motion.div
-                                    initial={{ opacity: 0, x: 20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: 0.15 }}
-                                    className="flex-1 min-w-0"
-                                >
-                                    <p className="text-white font-bold text-sm truncate">
-                                        {dynamicIslandNotification.title}
-                                    </p>
-                                    <p className="text-white/80 text-xs line-clamp-2 mt-0.5">
-                                        {dynamicIslandNotification.message}
-                                    </p>
-                                </motion.div>
-
-                                {/* Tap indicator */}
-                                <motion.div
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    transition={{ delay: 0.3 }}
-                                    className="text-white/60 text-xs font-medium flex-shrink-0"
-                                >
-                                    Tap to view →
-                                </motion.div>
-                            </div>
-
-                            {/* Progress bar for auto-dismiss */}
+                <GlassSurface
+                    width="100%"
+                    height={56}
+                    borderRadius={24}
+                    opacity={0.9}
+                    blur={30}
+                    borderWidth={1}
+                    backgroundOpacity={0.03}
+                >
+                    {/* Dynamic Island Notification Overlay */}
+                    <AnimatePresence>
+                        {dynamicIslandActive && dynamicIslandNotification && (
                             <motion.div
-                                initial={{ scaleX: 1 }}
-                                animate={{ scaleX: 0 }}
-                                transition={{ duration: 5, ease: 'linear' }}
-                                className="absolute bottom-0 left-0 right-0 h-1 bg-white/30 origin-left"
-                            />
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                                initial={{
+                                    opacity: 0,
+                                    scaleX: 0.3,
+                                    scaleY: 0.8,
+                                    height: 56
+                                }}
+                                animate={{
+                                    opacity: 1,
+                                    scaleX: 1,
+                                    scaleY: 1,
+                                    height: 100
+                                }}
+                                exit={{
+                                    opacity: 0,
+                                    scaleX: 0.3,
+                                    scaleY: 0.8,
+                                    height: 56
+                                }}
+                                transition={{
+                                    type: 'spring',
+                                    damping: 20,
+                                    stiffness: 300,
+                                    mass: 0.8
+                                }}
+                                onClick={handleDynamicIslandClick}
+                                className="absolute inset-0 z-50 cursor-pointer origin-center overflow-hidden rounded-3xl"
+                                style={{
+                                    background: 'linear-gradient(135deg, rgba(0,128,128,0.95) 0%, rgba(0,100,100,0.95) 100%)',
+                                    boxShadow: '0 8px 32px rgba(0,128,128,0.4), 0 0 0 1px rgba(255,255,255,0.1) inset'
+                                }}
+                            >
+                                <div className="flex items-center h-full px-6 gap-4">
+                                    {/* Notification Icon */}
+                                    <motion.div
+                                        initial={{ scale: 0, rotate: -180 }}
+                                        animate={{ scale: 1, rotate: 0 }}
+                                        transition={{ delay: 0.1, type: 'spring', damping: 15 }}
+                                        className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0"
+                                    >
+                                        <Bell className="w-6 h-6 text-white" />
+                                    </motion.div>
 
-                <div className="flex items-center justify-between w-full h-full gap-4">
+                                    {/* Notification Content */}
+                                    <motion.div
+                                        initial={{ opacity: 0, x: 20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: 0.15 }}
+                                        className="flex-1 min-w-0"
+                                    >
+                                        <p className="text-white font-bold text-sm truncate">
+                                            {dynamicIslandNotification.title}
+                                        </p>
+                                        <p className="text-white/80 text-xs line-clamp-2 mt-0.5">
+                                            {dynamicIslandNotification.message}
+                                        </p>
+                                    </motion.div>
 
-                    {/* --- LEFT SECTION: Agency Info or Search --- */}
-                    <div className="flex items-center flex-1 gap-6">
+                                    {/* Tap indicator */}
+                                    <motion.div
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ delay: 0.3 }}
+                                        className="text-white/60 text-xs font-medium flex-shrink-0"
+                                    >
+                                        Tap to view →
+                                    </motion.div>
+                                </div>
 
-                        {/* Agency Branding */}
-                        {isAgencyRoute && agency && (
-                            <div className="flex items-center gap-3 pr-6 border-r border-gray-200 dark:border-white/10">
-                                {agency.logoUrl ? (
-                                    <img src={agency.logoUrl} alt={agency.name} className="w-10 h-10 rounded-xl object-cover shadow-sm" />
-                                ) : (
-                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#008080] to-teal-600 flex items-center justify-center text-white font-bold text-sm shadow-sm">
-                                        {agency.name[0].toUpperCase()}
+                                {/* Progress bar for auto-dismiss */}
+                                <motion.div
+                                    initial={{ scaleX: 1 }}
+                                    animate={{ scaleX: 0 }}
+                                    transition={{ duration: 5, ease: 'linear' }}
+                                    className="absolute bottom-0 left-0 right-0 h-1 bg-white/30 origin-left"
+                                />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    <div className="flex items-center justify-between w-full h-full gap-4">
+
+                        {/* --- LEFT SECTION: Agency Info or Search --- */}
+                        <div className="flex items-center flex-1 gap-6">
+
+                            {/* Agency Branding */}
+                            {isAgencyRoute && agency && (
+                                <div className="flex items-center gap-3 pr-6 border-r border-gray-200 dark:border-white/10">
+                                    {agency.logoUrl ? (
+                                        <img src={agency.logoUrl} alt={agency.name} className="w-10 h-10 rounded-xl object-cover shadow-sm" />
+                                    ) : (
+                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#008080] to-teal-600 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+                                            {agency.name[0].toUpperCase()}
+                                        </div>
+                                    )}
+                                    <div className="hidden sm:flex flex-col">
+                                        <span className="text-sm font-bold text-gray-900 dark:text-white leading-none">
+                                            {agency.name}
+                                        </span>
+                                        <span className="text-[10px] text-gray-500 dark:text-gray-400 leading-none mt-1">
+                                            @{agency.username}
+                                        </span>
                                     </div>
-                                )}
-                                <div className="hidden sm:flex flex-col">
-                                    <span className="text-sm font-bold text-gray-900 dark:text-white leading-none">
-                                        {agency.name}
-                                    </span>
-                                    <span className="text-[10px] text-gray-500 dark:text-gray-400 leading-none mt-1">
-                                        @{agency.username}
-                                    </span>
+                                </div>
+                            )}
+
+                            {/* Search Bar */}
+                            <div className="relative group max-w-md w-full">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#008080] transition-colors" size={18} />
+                                <input
+                                    ref={searchInputRef}
+                                    type="text"
+                                    placeholder={isAgencyRoute ? "Search agency..." : "Search tasks, projects..."}
+                                    className="w-full pl-10 pr-16 py-2.5 bg-gray-100/50 dark:bg-zinc-800/40 border border-transparent dark:border-white/5 rounded-xl focus:outline-none focus:bg-white dark:focus:bg-zinc-800 focus:ring-2 focus:ring-[#008080]/20 transition-all text-sm"
+                                />
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 pointer-events-none opacity-50">
+                                    <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-bold text-gray-500 bg-gray-200 dark:bg-zinc-700 rounded">
+                                        {typeof window !== 'undefined' && window.navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}
+                                    </kbd>
+                                    <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-bold text-gray-500 bg-gray-200 dark:bg-zinc-700 rounded">F</kbd>
                                 </div>
                             </div>
-                        )}
+                        </div>
 
-                        {/* Search Bar */}
-                        <div className="relative group max-w-md w-full">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#008080] transition-colors" size={18} />
-                            <input
-                                ref={searchInputRef}
-                                type="text"
-                                placeholder={isAgencyRoute ? "Search agency..." : "Search tasks, projects..."}
-                                className="w-full pl-10 pr-16 py-2.5 bg-gray-100/50 dark:bg-zinc-800/40 border border-transparent dark:border-white/5 rounded-xl focus:outline-none focus:bg-white dark:focus:bg-zinc-800 focus:ring-2 focus:ring-[#008080]/20 transition-all text-sm"
-                            />
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 pointer-events-none opacity-50">
-                                <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-bold text-gray-500 bg-gray-200 dark:bg-zinc-700 rounded">
-                                    {typeof window !== 'undefined' && window.navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}
-                                </kbd>
-                                <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-bold text-gray-500 bg-gray-200 dark:bg-zinc-700 rounded">F</kbd>
+                        {/* --- RIGHT SECTION: User & Dock --- */}
+                        <div className="flex items-center gap-4">
+
+                            {/* User Info */}
+                            {user && (
+                                <Link href={`/@${userProfile?.username || user.uid}`} className="hidden md:flex items-center gap-3 px-3 py-1.5 rounded-2xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors group mr-2">
+                                    <div className="text-right">
+                                        <p className="text-sm font-bold text-gray-800 dark:text-gray-100 leading-none mb-1 group-hover:text-[#008080] transition-colors">
+                                            {userProfile?.displayName || user.displayName || 'User'}
+                                        </p>
+                                        <p className="text-[10px] text-gray-500 dark:text-gray-400 font-mono leading-none">
+                                            {userProfile?.username ? `@${userProfile.username}` : user.email}
+                                        </p>
+                                    </div>
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#008080] to-teal-400 p-[2px] shadow-lg shadow-teal-900/10">
+                                        <div className="w-full h-full rounded-full bg-white dark:bg-zinc-900 overflow-hidden">
+                                            {user.photoURL ? (
+                                                <img src={user.photoURL} alt="User" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-[#008080] font-bold text-sm">
+                                                    {user.email?.[0]?.toUpperCase()}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </Link>
+                            )}
+
+                            {/* Divider */}
+                            <div className="h-8 w-px bg-gray-200 dark:bg-white/10 mx-1 hidden sm:block"></div>
+
+                            {/* The Dock */}
+                            <div className="flex items-end gap-1 pb-1">
+                                <DockItem mouseX={mouseX} href="/mail" isActive={pathname.startsWith('/mail')} label="Mail" badge={unreadMailCount}>
+                                    <Mail size={20} />
+                                </DockItem>
+
+                                <div ref={notificationRef} className="relative">
+                                    <DockItem mouseX={mouseX} label="Notifications" onClick={() => setIsNotificationOpen(!isNotificationOpen)} badge={unreadCount}>
+                                        <Bell size={20} />
+                                    </DockItem>
+                                </div>
+
+                                <DockItem mouseX={mouseX} href="/settings" isActive={pathname.startsWith('/settings')} label="Settings">
+                                    <Settings size={20} />
+                                </DockItem>
+
+                                <DockItem mouseX={mouseX} onClick={handleLogout} label="Logout">
+                                    <LogOut size={20} className="text-red-500" />
+                                </DockItem>
                             </div>
                         </div>
                     </div>
+                </GlassSurface>
+            </motion.nav>
 
-                    {/* --- RIGHT SECTION: User & Dock --- */}
-                    <div className="flex items-center gap-4">
+            {/* Notification Dropdown - rendered as portal to avoid overflow clipping */}
+            {
+                typeof document !== 'undefined' && createPortal(
+                    <AnimatePresence>
+                        {isNotificationOpen && (
+                            <motion.div
+                                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                                className="fixed w-80 max-h-96 overflow-hidden z-[200000]"
+                                style={{
+                                    top: notificationRef.current ? notificationRef.current.getBoundingClientRect().bottom + 8 : 72,
+                                    right: 16
+                                }}
+                            >
+                                <div className="rounded-2xl overflow-hidden backdrop-blur-xl bg-white/90 dark:bg-zinc-900/90 border border-gray-200/50 dark:border-white/10 shadow-2xl shadow-black/20">
+                                    <div className="p-4">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h3 className="text-sm font-bold text-gray-900 dark:text-white">
+                                                Notifications
+                                            </h3>
+                                            {unreadCount > 0 && (
+                                                <button
+                                                    onClick={() => markAllAsRead()}
+                                                    className="text-xs text-[#008080] hover:text-teal-600 font-medium"
+                                                >
+                                                    Mark all read
+                                                </button>
+                                            )}
+                                        </div>
 
-                        {/* User Info */}
-                        {user && (
-                            <Link href={`/@${userProfile?.username || user.uid}`} className="hidden md:flex items-center gap-3 px-3 py-1.5 rounded-2xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors group mr-2">
-                                <div className="text-right">
-                                    <p className="text-sm font-bold text-gray-800 dark:text-gray-100 leading-none mb-1 group-hover:text-[#008080] transition-colors">
-                                        {userProfile?.displayName || user.displayName || 'User'}
-                                    </p>
-                                    <p className="text-[10px] text-gray-500 dark:text-gray-400 font-mono leading-none">
-                                        {userProfile?.username ? `@${userProfile.username}` : user.email}
-                                    </p>
-                                </div>
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#008080] to-teal-400 p-[2px] shadow-lg shadow-teal-900/10">
-                                    <div className="w-full h-full rounded-full bg-white dark:bg-zinc-900 overflow-hidden">
-                                        {user.photoURL ? (
-                                            <img src={user.photoURL} alt="User" className="w-full h-full object-cover" />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-[#008080] font-bold text-sm">
-                                                {user.email?.[0]?.toUpperCase()}
-                                            </div>
+                                        <div className="space-y-2 max-h-72 overflow-y-auto">
+                                            {notifications.length === 0 ? (
+                                                <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                                                    No notifications yet
+                                                </p>
+                                            ) : (
+                                                notifications.slice(0, 10).map((notif) => (
+                                                    <motion.div
+                                                        key={notif.id}
+                                                        initial={{ opacity: 0 }}
+                                                        animate={{ opacity: 1 }}
+                                                        className={`p-3 rounded-xl cursor-pointer transition-colors ${!notif.read
+                                                            ? 'bg-[#008080]/10 border border-[#008080]/20'
+                                                            : 'bg-gray-50/50 dark:bg-zinc-800/50 hover:bg-gray-100/50 dark:hover:bg-zinc-700/50'
+                                                            }`}
+                                                        onClick={() => {
+                                                            if (!notif.read) markAsRead(notif.id);
+                                                            if (notif.actionUrl) router.push(notif.actionUrl);
+                                                            setIsNotificationOpen(false);
+                                                        }}
+                                                    >
+                                                        <div className="flex items-start gap-3">
+                                                            <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${!notif.read ? 'bg-[#008080]' : 'bg-gray-300 dark:bg-zinc-600'
+                                                                }`} />
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                                                    {notif.title}
+                                                                </p>
+                                                                <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
+                                                                    {notif.message}
+                                                                </p>
+                                                                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
+                                                                    {new Date(notif.createdAt).toLocaleString()}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </motion.div>
+                                                ))
+                                            )}
+                                        </div>
+
+                                        {notifications.length > 0 && (
+                                            <Link
+                                                href="/dashboard/notifications"
+                                                onClick={() => setIsNotificationOpen(false)}
+                                                className="block text-center text-xs text-[#008080] hover:text-teal-600 font-medium mt-3 pt-3 border-t border-gray-200 dark:border-white/10"
+                                            >
+                                                View all notifications
+                                            </Link>
                                         )}
                                     </div>
                                 </div>
-                            </Link>
+                            </motion.div>
                         )}
-
-                        {/* Divider */}
-                        <div className="h-8 w-px bg-gray-200 dark:bg-white/10 mx-1 hidden sm:block"></div>
-
-                        {/* The Dock */}
-                        <div className="flex items-end gap-1 pb-1">
-                            <DockItem mouseX={mouseX} href="/mail" isActive={pathname.startsWith('/mail')} label="Mail" badge={unreadMailCount}>
-                                <Mail size={20} />
-                            </DockItem>
-
-                            <div ref={notificationRef} className="relative">
-                                <DockItem mouseX={mouseX} label="Notifications" onClick={() => setIsNotificationOpen(!isNotificationOpen)} badge={unreadCount}>
-                                    <Bell size={20} />
-                                </DockItem>
-
-                                {/* Notification Dropdown */}
-                                <AnimatePresence>
-                                    {isNotificationOpen && (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                                            className="absolute right-0 top-14 w-80 max-h-96 overflow-hidden z-50"
-                                        >
-                                            <GlassSurface
-                                                width="100%"
-                                                height="auto"
-                                                borderRadius={20}
-                                                opacity={0.95}
-                                                blur={40}
-                                                backgroundOpacity={0.08}
-                                            >
-                                                <div className="p-4">
-                                                    <div className="flex items-center justify-between mb-3">
-                                                        <h3 className="text-sm font-bold text-gray-900 dark:text-white">
-                                                            Notifications
-                                                        </h3>
-                                                        {unreadCount > 0 && (
-                                                            <button
-                                                                onClick={() => markAllAsRead()}
-                                                                className="text-xs text-[#008080] hover:text-teal-600 font-medium"
-                                                            >
-                                                                Mark all read
-                                                            </button>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="space-y-2 max-h-72 overflow-y-auto">
-                                                        {notifications.length === 0 ? (
-                                                            <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
-                                                                No notifications yet
-                                                            </p>
-                                                        ) : (
-                                                            notifications.slice(0, 10).map((notif) => (
-                                                                <motion.div
-                                                                    key={notif.id}
-                                                                    initial={{ opacity: 0 }}
-                                                                    animate={{ opacity: 1 }}
-                                                                    className={`p-3 rounded-xl cursor-pointer transition-colors ${!notif.read
-                                                                        ? 'bg-[#008080]/10 border border-[#008080]/20'
-                                                                        : 'bg-gray-50/50 dark:bg-zinc-800/50 hover:bg-gray-100/50 dark:hover:bg-zinc-700/50'
-                                                                        }`}
-                                                                    onClick={() => {
-                                                                        if (!notif.read) markAsRead(notif.id);
-                                                                        if (notif.actionUrl) router.push(notif.actionUrl);
-                                                                        setIsNotificationOpen(false);
-                                                                    }}
-                                                                >
-                                                                    <div className="flex items-start gap-3">
-                                                                        <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${!notif.read ? 'bg-[#008080]' : 'bg-gray-300 dark:bg-zinc-600'
-                                                                            }`} />
-                                                                        <div className="flex-1 min-w-0">
-                                                                            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                                                                                {notif.title}
-                                                                            </p>
-                                                                            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
-                                                                                {notif.message}
-                                                                            </p>
-                                                                            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
-                                                                                {new Date(notif.createdAt).toLocaleString()}
-                                                                            </p>
-                                                                        </div>
-                                                                    </div>
-                                                                </motion.div>
-                                                            ))
-                                                        )}
-                                                    </div>
-
-                                                    {notifications.length > 0 && (
-                                                        <Link
-                                                            href="/dashboard/notifications"
-                                                            onClick={() => setIsNotificationOpen(false)}
-                                                            className="block text-center text-xs text-[#008080] hover:text-teal-600 font-medium mt-3 pt-3 border-t border-gray-200 dark:border-white/10"
-                                                        >
-                                                            View all notifications
-                                                        </Link>
-                                                    )}
-                                                </div>
-                                            </GlassSurface>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
-
-                            <DockItem mouseX={mouseX} href="/settings" isActive={pathname.startsWith('/settings')} label="Settings">
-                                <Settings size={20} />
-                            </DockItem>
-
-                            <DockItem mouseX={mouseX} onClick={handleLogout} label="Logout">
-                                <LogOut size={20} className="text-red-500" />
-                            </DockItem>
-                        </div>
-                    </div>
-                </div>
-            </GlassSurface>
-        </motion.nav>
+                    </AnimatePresence>,
+                    document.body
+                )
+            }
+        </>
     );
 }
