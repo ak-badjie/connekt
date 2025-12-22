@@ -273,22 +273,22 @@ export const TIER_FEATURES: Record<SubscriptionTier, TierFeatures> = {
     },
 
     [SubscriptionTier.PRO_PLUS]: {
-        // AI Features - None (Pro Plus is Pro + agency tools)
-        aiResumeParser: false,
-        aiCandidateMatching: false,
-        aiContractDrafting: false,
-        aiTaskGeneration: false,
-        aiMailComposer: false,
-        aiProfileEnhancer: false,
-        aiJobDescriptionGenerator: false,
-        aiTeamRecommender: false,
-        aiMailSummarizer: false,
-        aiTaskAutoAssignment: false,
-        aiProjectTimelineOptimizer: false,
-        aiMeetingScheduler: false,
-        aiContractRiskAnalyzer: false,
-        aiTranslation: false,
-        aiProofreader: false,
+        // AI Features - All enabled (Pro Plus includes AI + agency tools)
+        aiResumeParser: true,
+        aiCandidateMatching: true,
+        aiContractDrafting: true,
+        aiTaskGeneration: true,
+        aiMailComposer: true,
+        aiProfileEnhancer: true,
+        aiJobDescriptionGenerator: true,
+        aiTeamRecommender: true,
+        aiMailSummarizer: true,
+        aiTaskAutoAssignment: true,
+        aiProjectTimelineOptimizer: true,
+        aiMeetingScheduler: true,
+        aiContractRiskAnalyzer: true,
+        aiTranslation: true,
+        aiProofreader: true,
 
         // Pro Features - All enabled
         advancedAnalytics: true,
