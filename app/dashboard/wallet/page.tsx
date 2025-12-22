@@ -35,25 +35,45 @@ export default function WalletPage() {
                 // Check for payment return parameters
                 const urlParams = new URLSearchParams(window.location.search);
                 const transactionId = urlParams.get('transaction_id') || urlParams.get('reference');
+                const paymentStatus = urlParams.get('status');
 
                 if (transactionId && !verificationAttempted.current) {
                     verificationAttempted.current = true; // Mark as attempted immediately
-                    try {
-                        // Verify payment on server
-                        const verifyRes = await fetch('/api/wallet/verify-payment', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ transactionId, walletId })
-                        });
 
-                        if (verifyRes.ok) {
-                            // Clear URL params
+                    // If status=completed is in URL, we have a successful payment redirect
+                    if (paymentStatus === 'completed') {
+                        try {
+                            // Verify payment on server and credit wallet
+                            const verifyRes = await fetch('/api/wallet/verify-payment', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ transactionId, walletId, status: paymentStatus })
+                            });
+
+                            const verifyData = await verifyRes.json();
+
+                            // Clear URL params first
                             window.history.replaceState({}, '', window.location.pathname);
-                            // Show success toast
-                            toast.success('Payment verified successfully! Your wallet has been credited.');
+
+                            if (verifyRes.ok && verifyData.success) {
+                                toast.success('Payment verified successfully! Your wallet has been credited.');
+                            } else if (verifyData.message === 'Transaction already processed') {
+                                toast.success('Payment was already processed. Wallet is up to date.');
+                            } else {
+                                console.error('Verification response:', verifyData);
+                                toast.error(verifyData.error || 'Payment verification issue. Please check your balance.');
+                            }
+                        } catch (err) {
+                            console.error('Verification check failed', err);
+                            window.history.replaceState({}, '', window.location.pathname);
+                            toast.error('Could not verify payment. Please contact support if funds are missing.');
                         }
-                    } catch (err) {
-                        console.error('Verification check failed', err);
+                    } else {
+                        // Non-completed status, just clear URL
+                        window.history.replaceState({}, '', window.location.pathname);
+                        if (paymentStatus) {
+                            toast.error(`Payment ${paymentStatus}. Please try again.`);
+                        }
                     }
                 }
 
