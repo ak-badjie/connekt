@@ -241,6 +241,7 @@ export const NotificationService = {
                 unread: notifications.filter(n => !n.read).length,
                 byType: {
                     mail: 0,
+                    message: 0,
                     transaction: 0,
                     storage: 0,
                     subscription: 0,
@@ -249,6 +250,9 @@ export const NotificationService = {
                     workspace: 0,
                     agency: 0,
                     pot: 0,
+                    contract: 0,
+                    proposal: 0,
+                    ai_quota: 0,
                     job_update: 0,
                     system: 0
                 },
@@ -273,6 +277,7 @@ export const NotificationService = {
                 unread: 0,
                 byType: {
                     mail: 0,
+                    message: 0,
                     transaction: 0,
                     storage: 0,
                     subscription: 0,
@@ -281,6 +286,9 @@ export const NotificationService = {
                     workspace: 0,
                     agency: 0,
                     pot: 0,
+                    contract: 0,
+                    proposal: 0,
+                    ai_quota: 0,
                     job_update: 0,
                     system: 0
                 },

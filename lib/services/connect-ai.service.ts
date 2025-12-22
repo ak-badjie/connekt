@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
 import { SubscriptionService } from './subscription.service';
+import { AIQuotaNotificationHelper } from './notification-helpers';
 import { AIUsageQuota, AIRequestLog } from '@/lib/types/subscription-tiers.types';
 import { ExtendedUserProfile, Experience } from '@/lib/types/profile.types';
 import { Task, ProjectMember } from '@/lib/types/workspace.types';
@@ -272,6 +273,39 @@ export const ConnectAIService = {
             }
 
             await setDoc(doc(collection(db, 'ai_request_logs')), log);
+
+            // Check for quota threshold notifications
+            try {
+                const quotaSnap = await getDoc(quotaRef);
+                if (quotaSnap.exists()) {
+                    const quotaData = quotaSnap.data();
+                    const requestsUsed = quotaData.requestsUsed || 0;
+                    const requestsLimit = quotaData.requestsLimit || 0;
+
+                    // Only check if not unlimited
+                    if (requestsLimit > 0) {
+                        const usagePercentage = (requestsUsed / requestsLimit) * 100;
+                        const previousUsage = ((requestsUsed - 1) / requestsLimit) * 100;
+                        const thresholds: (50 | 75 | 90 | 100)[] = [100, 90, 75, 50];
+
+                        for (const threshold of thresholds) {
+                            if (usagePercentage >= threshold && previousUsage < threshold) {
+                                await AIQuotaNotificationHelper.notifyQuotaThreshold(
+                                    userId,
+                                    requestsUsed,
+                                    requestsLimit,
+                                    usagePercentage,
+                                    threshold,
+                                    currentMonth
+                                );
+                                break; // Only send one notification per update
+                            }
+                        }
+                    }
+                }
+            } catch (notifyError) {
+                console.error('Error checking AI quota thresholds:', notifyError);
+            }
         } catch (error) {
             console.error('Error tracking AI usage:', error);
         }

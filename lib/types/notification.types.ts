@@ -5,6 +5,7 @@ import { Timestamp } from 'firebase/firestore';
  */
 export type NotificationType =
     | 'mail'
+    | 'message'
     | 'transaction'
     | 'storage'
     | 'subscription'
@@ -14,6 +15,8 @@ export type NotificationType =
     | 'agency'
     | 'pot'
     | 'contract'
+    | 'proposal'
+    | 'ai_quota'
     | 'job_update'
     | 'system';
 
@@ -49,6 +52,7 @@ export interface Notification {
  */
 export type NotificationMetadata =
     | MailNotificationMetadata
+    | MessageNotificationMetadata
     | TransactionNotificationMetadata
     | StorageNotificationMetadata
     | SubscriptionNotificationMetadata
@@ -58,6 +62,8 @@ export type NotificationMetadata =
     | AgencyNotificationMetadata
     | PotNotificationMetadata
     | ContractNotificationMetadata
+    | ProposalNotificationMetadata
+    | AIQuotaNotificationMetadata
     | JobUpdateNotificationMetadata
     | SystemNotificationMetadata;
 
@@ -223,6 +229,48 @@ export interface SystemNotificationMetadata {
     content: string;
     targetAudience: 'all' | 'users' | 'recruiters' | 'agencies';
     imageUrl?: string;
+}
+
+/**
+ * Message Notification Metadata (Direct/Group Messages)
+ */
+export interface MessageNotificationMetadata {
+    type: 'message';
+    conversationId: string;
+    conversationType: 'direct' | 'group';
+    messageId: string;
+    senderId: string;
+    senderUsername: string;
+    senderName: string;
+    senderPhotoURL?: string;
+    contentPreview: string;
+    conversationTitle?: string;
+}
+
+/**
+ * Proposal Notification Metadata
+ */
+export interface ProposalNotificationMetadata {
+    type: 'proposal';
+    proposalId: string;
+    proposalTitle: string;
+    action: 'received' | 'accepted' | 'rejected' | 'negotiating';
+    senderId: string;
+    senderUsername: string;
+    senderName?: string;
+    rejectionReason?: string;
+}
+
+/**
+ * AI Quota Notification Metadata
+ */
+export interface AIQuotaNotificationMetadata {
+    type: 'ai_quota';
+    usagePercentage: number;
+    requestsUsed: number;
+    requestsLimit: number;
+    threshold: 50 | 75 | 90 | 100;
+    month: string;
 }
 
 /**

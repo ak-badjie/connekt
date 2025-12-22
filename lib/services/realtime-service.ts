@@ -25,6 +25,7 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { ProfileService } from '@/lib/services/profile-service';
+import { MessageNotificationHelper } from '@/lib/services/notification-helpers';
 
 // ============================================================================
 // TYPE EXPORTS - Re-export from chat.types for component compatibility
@@ -400,6 +401,39 @@ export async function sendMessage(data: {
         },
         updatedAt: serverTimestamp()
     });
+
+    // Send notifications to other participants
+    try {
+        const convRef = doc(db, 'conversations', conversationId);
+        const convSnap = await getDoc(convRef);
+
+        if (convSnap.exists()) {
+            const convData = convSnap.data() as Conversation;
+            const otherMembers = convData.members.filter(m => m !== data.senderId);
+
+            // Get sender display name from profile
+            const senderProfile = await ProfileService.getUserProfile(data.senderId);
+            const senderName = senderProfile?.displayName || data.senderUsername;
+
+            // Send notification to each other member
+            for (const memberId of otherMembers) {
+                await MessageNotificationHelper.notifyNewMessage(
+                    memberId,
+                    conversationId,
+                    convData.type === 'group' ? 'group' : 'direct',
+                    docRef.id,
+                    data.senderId,
+                    data.senderUsername,
+                    senderName,
+                    data.content,
+                    data.senderAvatarUrl,
+                    convData.title
+                );
+            }
+        }
+    } catch (error) {
+        console.error('Error sending message notifications:', error);
+    }
 
     return docRef.id;
 }

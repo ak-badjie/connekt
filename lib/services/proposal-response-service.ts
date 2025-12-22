@@ -8,6 +8,7 @@ import {
     Timestamp
 } from 'firebase/firestore';
 import { MailService } from './mail-service';
+import { ProposalNotificationHelper } from './notification-helpers';
 
 export const ProposalResponseService = {
     /**
@@ -42,7 +43,21 @@ export const ProposalResponseService = {
             })
         });
 
-        // Notify the sender
+        // Send notification to proposal sender
+        try {
+            await ProposalNotificationHelper.notifyProposalRejected(
+                proposal.fromUserId,
+                proposalId,
+                proposal.title,
+                userId,
+                username,
+                reason
+            );
+        } catch (error) {
+            console.error('Error sending proposal rejection notification:', error);
+        }
+
+        // Notify the sender via mail
         await MailService.sendMail(
             userId,
             username,
@@ -58,13 +73,30 @@ export const ProposalResponseService = {
      * Mark a proposal as "Accepted/In Negotiation".
      * This usually happens when the recipient decides to reply with a Contract.
      */
-    async acknowledgeProposal(proposalId: string, userId: string): Promise<void> {
+    async acknowledgeProposal(proposalId: string, userId: string, username?: string): Promise<void> {
         const proposalRef = doc(db, 'contracts', proposalId);
-        
+        const snap = await getDoc(proposalRef);
+
+        if (!snap.exists()) throw new Error('Proposal not found');
+        const proposal = snap.data();
+
         await updateDoc(proposalRef, {
             status: 'negotiating', // Intermediate status before a contract replaces it
             lastViewedAt: serverTimestamp(),
             lastViewedBy: userId
         });
+
+        // Send notification to proposal sender
+        try {
+            await ProposalNotificationHelper.notifyProposalAccepted(
+                proposal.fromUserId,
+                proposalId,
+                proposal.title,
+                userId,
+                username || 'User'
+            );
+        } catch (error) {
+            console.error('Error sending proposal accepted notification:', error);
+        }
     }
 };

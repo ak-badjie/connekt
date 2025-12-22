@@ -1,10 +1,11 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { NotificationService } from '@/lib/services/notification-service';
 import type { Notification } from '@/lib/types/notification.types';
 import toast from 'react-hot-toast';
+import { NotificationDynamicIsland } from '@/components/ui/NotificationDynamicIsland';
 
 interface NotificationContextType {
     notifications: Notification[];
@@ -25,12 +26,19 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(true);
     const [lastNotificationTime, setLastNotificationTime] = useState<number>(0);
+    const [hasShownInitialNotification, setHasShownInitialNotification] = useState(false);
+    const [dynamicIslandNotification, setDynamicIslandNotification] = useState<Notification | null>(null);
+
+    const dismissDynamicIsland = useCallback(() => {
+        setDynamicIslandNotification(null);
+    }, []);
 
     useEffect(() => {
         if (!user) {
             setNotifications([]);
             setUnreadCount(0);
             setLoading(false);
+            setHasShownInitialNotification(false);
             return;
         }
 
@@ -45,15 +53,25 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
                 setUnreadCount(unread);
                 setLoading(false);
 
-                // Show toast for new notifications
+                // Show toast for notifications
                 if (newNotifications.length > 0) {
                     const latestNotification = newNotifications[0];
 
-                    // Only show toast if this is a new notification (created after component mounted)
-                    if (latestNotification.createdAt > lastNotificationTime) {
+                    // On first load: show the most recent unread notification immediately
+                    if (!hasShownInitialNotification && !latestNotification.read) {
                         showNotificationToast(latestNotification);
+                        setDynamicIslandNotification(latestNotification);
+                        setLastNotificationTime(latestNotification.createdAt);
+                        setHasShownInitialNotification(true);
+                    }
+                    // For subsequent updates: only show toast if it's a new notification
+                    else if (hasShownInitialNotification && latestNotification.createdAt > lastNotificationTime) {
+                        showNotificationToast(latestNotification);
+                        setDynamicIslandNotification(latestNotification);
                         setLastNotificationTime(latestNotification.createdAt);
                     }
+                } else {
+                    setHasShownInitialNotification(true);
                 }
             },
             50 // Limit to 50 most recent notifications
@@ -186,6 +204,11 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
             }}
         >
             {children}
+            <NotificationDynamicIsland
+                notification={dynamicIslandNotification}
+                onDismiss={dismissDynamicIsland}
+                autoDismissMs={5000}
+            />
         </NotificationContext.Provider>
     );
 }
