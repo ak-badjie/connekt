@@ -42,27 +42,20 @@ export default function ProfileSection() {
     <section className="w-full py-16 md:py-24 px-6 md:px-12 lg:px-20 bg-white">
       <div className="max-w-7xl mx-auto">
 
-        {/* Main Dark Card Container */}
+        {/* Main Card Container with Ankara Background */}
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-100px' }}
           transition={{ duration: 0.7 }}
-          className="relative bg-zinc-900 rounded-[2rem] md:rounded-[3rem] overflow-hidden"
+          className="relative rounded-[2rem] md:rounded-[3rem] overflow-hidden"
+          style={{
+            backgroundImage: `url('/ankara.jpeg')`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
         >
-          {/* Subtle diagonal pattern overlay */}
-          <div
-            className="absolute inset-0 opacity-10"
-            style={{
-              backgroundImage: `repeating-linear-gradient(
-                -45deg,
-                transparent,
-                transparent 1px,
-                rgba(255,255,255,0.03) 1px,
-                rgba(255,255,255,0.03) 2px
-              )`
-            }}
-          />
+          {/* No overlay - ankara pattern visible */}
 
           <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-0">
 
@@ -88,7 +81,7 @@ export default function ProfileSection() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0.3 }}
-                className="text-gray-400 text-base md:text-lg mb-8 max-w-md"
+                className="text-white text-base md:text-lg mb-8 max-w-md"
               >
                 Static resumes are history. Showcase your personality with AI-powered tools that streamline your story.
               </motion.p>
@@ -118,7 +111,7 @@ export default function ProfileSection() {
                       </div>
                       <div>
                         <p className="text-white text-sm font-bold">{feature.label}</p>
-                        <p className="text-gray-500 text-xs">{feature.description}</p>
+                        <p className="text-white/80 text-xs">{feature.description}</p>
                       </div>
                     </motion.div>
                   );
@@ -149,7 +142,7 @@ export default function ProfileSection() {
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0.4, duration: 0.6 }}
-                className="relative w-full max-w-md"
+                className="relative w-full max-w-xl"
               >
                 {/* Video with curved borders */}
                 <video
