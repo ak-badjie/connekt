@@ -16,6 +16,7 @@ import ProfileSection from '@/components/landing/ProfileSection';
 import ConnketAISection from '@/components/landing/ConnketAISection';
 import ConnektMailSection from '@/components/landing/ConnektMailSection';
 import ConnektAnalyticsSection from '@/components/landing/ConnektAnalyticsSection';
+import ConnektContractSection from '@/components/landing/ConnektContractSection';
 import KAISection from '@/components/landing/KAISection';
 import ExploreSection from '@/components/landing/ExploreSection';
 
@@ -452,6 +453,9 @@ export default function LandingPage() {
 
       {/* CONNEKT ANALYTICS SECTION */}
       <ConnektAnalyticsSection />
+
+      {/* CONNEKT CONTRACT SECTION */}
+      <ConnektContractSection />
 
       {/* KAI SECTION */}
       <section className="min-h-screen w-full">
