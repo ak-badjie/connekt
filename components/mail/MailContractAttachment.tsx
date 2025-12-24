@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { FileSignature, Eye } from 'lucide-react';
 import { UnifiedContractViewer } from '@/components/contracts/UnifiedContractViewer';
-import { ContractSigningService } from '@/lib/services/contract-signing-service';
-import { ContractMailService } from '@/lib/services/contract-mail-service';
+import { getContract, signContract } from '@/lib/services/legal';
+import { ContractMailService } from '@/lib/services/contract-mail-service'; // Still need for milestone methods
 import { useAuth } from '@/context/AuthContext';
 
 interface MailContractAttachmentProps {
@@ -24,7 +24,7 @@ export function MailContractAttachment({ contractId, mailId }: MailContractAttac
 
     const loadContract = async () => {
         try {
-            const contractData = await ContractSigningService.getContract(contractId);
+            const contractData = await getContract(contractId);
             setContract(contractData);
         } catch (error) {
             console.error('Failed to load contract:', error);
@@ -42,7 +42,7 @@ export function MailContractAttachment({ contractId, mailId }: MailContractAttac
         const username = (userProfile?.username) || user.displayName || user.email || 'user';
 
         try {
-            await ContractSigningService.signContract(
+            await signContract(
                 contractId,
                 user.uid,
                 String(username),

@@ -601,5 +601,122 @@ export const EnhancedProjectService = {
         return data.members || [];
     },
 
+    /**
+     * Submit Proof of Project Completion (POP)
+     * Called by project admin when they complete all project requirements
+     */
+    async submitProofOfProject(
+        projectId: string,
+        userId: string,
+        username: string,
+        data: {
+            screenshots: string[];  // Already uploaded URLs
+            videos: string[];
+            links: string[];
+            notes?: string;
+        }
+    ): Promise<void> {
+        const projectRef = doc(db, 'projects', projectId);
+        const projectSnap = await getDoc(projectRef);
 
+        if (!projectSnap.exists()) {
+            throw new Error('Project not found');
+        }
+
+        const project = projectSnap.data() as Project;
+
+        // Verify submitter is the assigned owner (project admin)
+        if (project.assignedOwnerId !== userId) {
+            throw new Error('Only the project admin can submit proof of completion');
+        }
+
+        const proofOfProject = {
+            projectId,
+            submittedBy: userId,
+            submittedByUsername: username,
+            screenshots: data.screenshots,
+            videos: data.videos,
+            links: data.links,
+            notes: data.notes,
+            status: 'pending' as const,
+            submittedAt: new Date().toISOString()
+        };
+
+        await updateDoc(projectRef, {
+            proofOfProject,
+            status: 'pending-validation',
+            updatedAt: serverTimestamp()
+        });
+    },
+
+    /**
+     * Review Proof of Project Completion (POP)
+     * Called by the original project owner to approve/reject
+     */
+    async reviewProofOfProject(
+        projectId: string,
+        contractId: string,
+        validatorId: string,
+        validatorUsername: string,
+        decision: 'approved' | 'rejected' | 'revision-requested',
+        notes?: string
+    ): Promise<void> {
+        const projectRef = doc(db, 'projects', projectId);
+        const projectSnap = await getDoc(projectRef);
+
+        if (!projectSnap.exists()) {
+            throw new Error('Project not found');
+        }
+
+        const project = projectSnap.data() as Project;
+
+        // Verify validator is the original owner
+        if (project.ownerId !== validatorId) {
+            throw new Error('Only the project owner can review proof of completion');
+        }
+
+        const currentProof = project.proofOfProject;
+        if (!currentProof) {
+            throw new Error('No proof of project found to review');
+        }
+
+        const updatedProof = {
+            ...currentProof,
+            status: decision,
+            validatedBy: validatorId,
+            validatedByUsername: validatorUsername,
+            validatedAt: new Date().toISOString(),
+            validationNotes: notes
+        };
+
+        const updates: Record<string, any> = {
+            proofOfProject: updatedProof,
+            updatedAt: serverTimestamp()
+        };
+
+        if (decision === 'approved') {
+            updates.status = 'completed';
+        } else if (decision === 'rejected' || decision === 'revision-requested') {
+            updates.status = 'active'; // Send back to active for revisions
+        }
+
+        await updateDoc(projectRef, updates);
+    },
+
+    /**
+     * Get pending POP approvals for a user (projects they own that have pending POPs)
+     */
+    async getPendingPOPApprovals(userId: string): Promise<Project[]> {
+        const q = query(
+            collection(db, 'projects'),
+            where('ownerId', '==', userId),
+            where('status', '==', 'pending-validation')
+        );
+
+        const snapshot = await getDocs(q);
+        return snapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() } as Project))
+            .filter(p => p.proofOfProject?.status === 'pending');
+    }
 };
+

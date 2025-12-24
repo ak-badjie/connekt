@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Contract, ContractSignature } from '@/lib/types/mail.types';
 import GambianLegalHeader from './GambianLegalHeader';
-import { ContractMailService } from '@/lib/services/contract-mail-service';
+import { signContract, LegalLifecycle } from '@/lib/services/legal';
 import { EnhancedProjectService } from '@/lib/services/enhanced-project-service';
 import { WorkspaceService } from '@/lib/services/workspace-service';
 import { TaskService } from '@/lib/services/task-service';
@@ -48,12 +48,11 @@ export default function ContractViewer({ contract, onSign, onReject }: ContractV
 
         setSigning(true);
         try {
-            await ContractMailService.signContract(
+            await signContract(
                 contract.id!,
                 user.uid,
-                signatureName.trim(), // Use typed name
-                undefined, // IP address - would need server-side
-                navigator.userAgent
+                user.displayName || 'User',
+                signatureName.trim()
             );
 
             // Redirect to project if applicable
@@ -106,10 +105,11 @@ export default function ContractViewer({ contract, onSign, onReject }: ContractV
 
         setRejecting(true);
         try {
-            await ContractMailService.rejectContract(
+            await LegalLifecycle.reject(
                 contract.id!,
                 user.uid,
-                rejectReason || undefined
+                user.displayName || 'User',
+                rejectReason || 'No reason provided'
             );
             setShowRejectModal(false);
             toast.success('Contract rejected.');

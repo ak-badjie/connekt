@@ -60,17 +60,18 @@ export interface Project {
     coverImage?: string;
     budget: number;
     deadline?: string;
-    status: 'planning' | 'active' | 'completed' | 'on-hold' | 'cancelled';
+    status: 'planning' | 'active' | 'completed' | 'on-hold' | 'cancelled' | 'pending-validation';
     assignedOwnerId?: string; // For project reassignment
     assignedOwnerUsername?: string;
     supervisors: string[]; // Array of user IDs
     members: ProjectMember[];
     recurringType?: 'none' | 'daily' | 'weekly' | 'monthly';
     pricing?: ProjectPricing;
-    isPublic: boolean; // NEW: For Explore page visibility
-    publishedAt?: any; // NEW: When pushed to public (Timestamp | Date | FieldValue)
-    createdAt: any; // Timestamp | Date | FieldValue
-    updatedAt: any; // Timestamp | Date | FieldValue
+    proofOfProject?: ProofOfProject; // POP for project admin contracts
+    isPublic: boolean; // For Explore page visibility
+    publishedAt?: any; // When pushed to public
+    createdAt: any;
+    updatedAt: any;
 }
 
 export interface ProjectMember {
@@ -174,10 +175,30 @@ export interface TaskCompletionRecord {
     taskTitle: string;
     taskAmount: number;
     taskCurrency: string;
-    completedAt: any; // Timestamp | Date | FieldValue
+    completedAt: any;
     validatedBy: string;
     validatedByUsername: string;
     paymentReleased: boolean;
     paymentTransactionId?: string;
     proofOfTaskId?: string;
+}
+
+/**
+ * Proof of Project Completion (POP)
+ * Similar to ProofOfTask but for projects assigned via project_admin contracts
+ */
+export interface ProofOfProject {
+    projectId: string;
+    submittedBy: string;
+    submittedByUsername: string;
+    submittedAt: any;
+    status: 'pending' | 'approved' | 'rejected' | 'revision-requested';
+    screenshots: string[];
+    videos: string[];
+    links: string[];
+    notes?: string;
+    validatedBy?: string;
+    validatedByUsername?: string;
+    validatedAt?: any;
+    validationNotes?: string;
 }

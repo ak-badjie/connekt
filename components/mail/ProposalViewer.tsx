@@ -1,13 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, FileText, MessageSquarePlus, XCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '@/context/AuthContext';
 import GambianLegalHeader from '@/components/mail/GambianLegalHeader';
 import { ProposalResponseService } from '@/lib/services/proposal-response-service';
+import { ExploreService } from '@/lib/services/explore-service';
 import toast from 'react-hot-toast';
+import { JobTemplate } from '@/lib/types/workspace.types';
 
 interface ProposalViewerProps {
     proposalId?: string;
@@ -33,37 +35,94 @@ export function ProposalViewer({
     isOpen,
     onClose
 }: ProposalViewerProps) {
-    const { user, userProfile } = useAuth(); // Need userProfile for sender name
+    const { user, userProfile } = useAuth();
     const [rejecting, setRejecting] = useState(false);
     const [rejectionReason, setRejectionReason] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [jobData, setJobData] = useState<JobTemplate | null>(null);
 
     const isRecipient = user?.uid === proposal.toUserId;
+
+    // Fetch job data if proposal has jobId reference
+    useEffect(() => {
+        const fetchJobData = async () => {
+            const jobId = proposal.terms?.jobId || proposal.terms?.linkedJobId;
+            if (jobId && isOpen) {
+                try {
+                    const job = await ExploreService.getJobById(jobId);
+                    if (job) {
+                        setJobData(job);
+                        console.log('Fetched job data by ID:', job);
+                    }
+                } catch (err) {
+                    console.error('Failed to fetch job data:', err);
+                }
+            }
+        };
+        fetchJobData();
+    }, [proposal.terms?.jobId, proposal.terms?.linkedJobId, isOpen]);
+
+    // --- HELPER: Format work days array to readable text ---
+    const formatWorkDays = (days: number[] | undefined): string => {
+        if (!days || days.length === 0) return 'Mon, Tue, Wed, Thu, Fri';
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        return days.map(d => dayNames[d]).join(', ');
+    };
+
+    // --- HELPER: Format penalty for display ---
+    const formatPenalty = (amount: number | undefined, unit: string | undefined, currency: string | undefined): string => {
+        if (!amount || amount === 0) return 'None';
+        if (unit === 'percentage') return `${amount}% of payment per late task`;
+        return `${amount} ${currency || 'GMD'} per late task`;
+    };
+
+    // --- HELPER: Calculate hours per week ---
+    const calculateHoursPerWeek = (startTime: string | undefined, endTime: string | undefined, workDays: number[] | undefined): number => {
+        if (!startTime || !endTime || !workDays) return 40;
+        try {
+            const start = parseInt(startTime.split(':')[0]);
+            const end = parseInt(endTime.split(':')[0]);
+            const hoursPerDay = end - start;
+            return hoursPerDay * workDays.length;
+        } catch {
+            return 40;
+        }
+    };
 
     // --- THE FIX: URL Generation Logic ---
     const handleReplyWithContract = () => {
         const terms = proposal.terms || {};
 
-        // 1. Determine Template & Type
-        // Matches logic from AddWorkspaceMemberModal but adapted for Proposals
+        // PRIORITY: Use fetched job data from Firestore, fallback to URL params
+        const job = jobData;
+
+        // Extract IDs (job data has priority)
+        const jobId = job?.id || terms.jobId || terms.linkedJobId;
+        const workspaceId = job?.workspaceId || terms.workspaceId || terms.linkedWorkspaceId;
+        const projectId = terms.projectId || terms.linkedProjectId;
+        const taskId = terms.taskId || terms.linkedTaskId;
+
+        // 1. Determine Template & Type based on job type from proposal
         let templateId = 'Freelance Contract';
         let contractType = 'project';
 
-        if (terms.jobId || terms.employmentType === 'employee' || proposal.title.toLowerCase().includes('job')) {
+        if (jobId || terms.employmentType === 'employee' || proposal.title.toLowerCase().includes('job')) {
             templateId = 'Employment Contract';
             contractType = 'job';
-        } else if (terms.taskId) {
-            // If you have a specific Task template, use it, otherwise Freelance
+        } else if (taskId) {
             templateId = 'Freelance Contract';
             contractType = 'task';
+        } else if (projectId) {
+            templateId = 'Project Admin Contract (Temporal Owner)';
+            contractType = 'project_admin';
         }
 
         // 2. Prepare Sender/Recipient Info
         const recruiterName = userProfile?.displayName || userProfile?.username || 'Recruiter';
-        const recipientName = terms.applicantName || proposal.fromUsername || 'Recipient';
+        const recipientName = terms.applicantName || terms.contractorName || proposal.fromUsername || 'Recipient';
         const toAddress = `${proposal.fromUsername}@connekt.com`;
 
-        // 3. Date calculations (like AddMemberModal)
+        // 3. Date calculations
         const today = new Date();
         const todayStr = today.toISOString().slice(0, 10);
         let deadlineStr = terms.endDate || terms.taskDeadline || todayStr;
@@ -79,46 +138,108 @@ export function ProposalViewer({
             // Keep defaults
         }
 
-        // 4. Build Variables (EXACTLY like AddMemberModal)
+        // 4. Build Variables - First, extract the raw schedule/conditions data
+        const scheduleData = job?.schedule || terms.schedule || {};
+        const conditionsData = job?.conditions || terms.conditions || {};
+        const rawWorkDays = job?.schedule?.workDays || terms.workDays || terms.schedule?.workDays || [1, 2, 3, 4, 5];
+        const rawStartTime = job?.schedule?.startTime || terms.workStartTime || terms.schedule?.startTime || '09:00';
+        const rawEndTime = job?.schedule?.endTime || terms.workEndTime || terms.schedule?.endTime || '17:00';
+        const rawBreakDuration = job?.schedule?.breakDurationMinutes || terms.schedule?.breakDurationMinutes || 60;
+        const rawPenalty = job?.conditions?.penaltyPerLateTask || terms.penaltyPerLateTask || terms.conditions?.penaltyPerLateTask || 0;
+        const rawPenaltyUnit = job?.conditions?.penaltyUnit || terms.penaltyUnit || terms.conditions?.penaltyUnit || 'fixed';
+        const rawCurrency = job?.currency || terms.currency || terms.paymentCurrency || 'GMD';
+
         const variables = {
-            // Context IDs
+            // CRITICAL: Context IDs for escrow and enforcement
             proposalId: proposalId,
-            projectId: terms.projectId || terms.linkedProjectId,
-            workspaceId: terms.workspaceId || terms.linkedWorkspaceId,
-            taskId: terms.taskId || terms.linkedTaskId,
+            jobId: jobId,
+            projectId: projectId,
+            workspaceId: workspaceId,
+            taskId: taskId,
+            // Duplicate with linked prefix for backward compatibility
+            linkedJobId: jobId,
+            linkedProjectId: projectId,
+            linkedWorkspaceId: workspaceId,
+            linkedTaskId: taskId,
 
             // Names
-            clientName: recruiterName, // You
-            contractorName: recipientName, // Them
+            clientName: recruiterName,
+            contractorName: recipientName,
             employerName: recruiterName,
             employeeName: recipientName,
 
-            // Titles
-            projectTitle: proposal.title,
-            jobTitle: terms.jobTitle || proposal.title,
+            // Titles (job data has priority)
+            projectTitle: job?.title || terms.projectTitle || proposal.title,
+            jobTitle: job?.title || terms.jobTitle || proposal.title,
             taskTitle: terms.taskTitle || proposal.title,
 
             // Descriptions
-            projectDescription: `Engagement based on accepted proposal: "${proposal.title}"`,
-            deliverables: proposal.description, // Use proposal body as deliverables
-            jobDescription: proposal.description,
+            projectDescription: job?.description || `Engagement based on accepted proposal: "${proposal.title}"`,
+            jobDescription: job?.description || terms.jobDescription || proposal.description,
+            deliverables: proposal.description,
+            jobRequirements: terms.jobRequirements || 'As specified in job posting',
 
-            // Financials (CRITICAL for escrow)
-            paymentAmount: terms.bidAmount || terms.taskPayment || terms.salary || terms.budget || terms.paymentAmount || 0,
-            paymentCurrency: terms.currency || terms.paymentCurrency || 'GMD',
-            salary: terms.desiredSalary || terms.bidAmount || terms.salary || 0,
+            // ===== CRITICAL: Raw schedule data for enforcement =====
+            schedule: {
+                startTime: rawStartTime,
+                endTime: rawEndTime,
+                workDays: rawWorkDays,
+                isFlexible: scheduleData.isFlexible || false,
+                breakDurationMinutes: rawBreakDuration,
+                timezone: scheduleData.timezone || 'UTC'
+            },
+            // Raw values for enforcement
+            workStartTime: rawStartTime,
+            workEndTime: rawEndTime,
+            workDays: rawWorkDays,
+
+            // ===== FORMATTED VALUES for template display =====
+            scheduleType: scheduleData.isFlexible ? 'Flexible' : 'Fixed Schedule',
+            workDaysFormatted: formatWorkDays(rawWorkDays),
+            breakDuration: rawBreakDuration,
+            hoursPerWeek: calculateHoursPerWeek(rawStartTime, rawEndTime, rawWorkDays),
+            timezone: scheduleData.timezone || 'UTC',
+            workLocation: 'Remote',
+
+            // ===== CRITICAL: Raw conditions for enforcement =====
+            conditions: {
+                penaltyPerLateTask: rawPenalty,
+                penaltyUnit: rawPenaltyUnit,
+                overtimeRate: conditionsData.overtimeRate || 1.5
+            },
+            penaltyPerLateTask: rawPenalty,
+            penaltyUnit: rawPenaltyUnit,
+            overtimeRate: conditionsData.overtimeRate || 1.5,
+
+            // ===== FORMATTED penalty for template display =====
+            penaltyDisplay: formatPenalty(rawPenalty, rawPenaltyUnit, rawCurrency),
+
+            // CRITICAL: Financials for escrow (JOB DATA HAS PRIORITY)
+            paymentAmount: job?.salary || terms.bidAmount || terms.salary || terms.paymentAmount || terms.taskPayment || terms.budget || 0,
+            salary: job?.salary || terms.salary || terms.bidAmount || terms.paymentAmount || 0,
+            paymentCurrency: rawCurrency,
+            currency: rawCurrency,
             taskPayment: terms.taskPayment || terms.bidAmount || 0,
 
-            // Dates
+            // ===== CRITICAL: Escrow flags for LegalEscrow.holdSalary =====
+            requireSalaryEscrow: true, // ALWAYS require escrow for job contracts
+            salaryAmount: job?.salary || terms.salary || terms.bidAmount || terms.paymentAmount || 0,
+            salaryCurrency: rawCurrency,
+            requireEscrow: true, // Generic escrow flag
+            requireWalletFunding: true, // Alternative flag checked by enforcement
+            totalAmount: job?.salary || terms.salary || terms.bidAmount || terms.paymentAmount || 0,
+
+            // Dates (ISO format for proper date input handling)
             startDate: terms.startDate || todayStr,
+            contractDate: todayStr,
             endDate: deadlineStr,
             taskDeadline: deadlineStr,
             projectDeadline: deadlineStr,
             duration: durationDays,
             durationUnit: 'days',
 
-            // Defaults for fields likely missing in proposal
-            paymentSchedule: 'milestone',
+            // Defaults for fields likely missing in proposal (JOB DATA HAS PRIORITY)
+            paymentSchedule: job?.paymentSchedule || terms.paymentSchedule || 'milestone',
             paymentType: terms.paymentType || 'on-completion',
             noticePeriod: 30,
             terminationConditions: 'Standard terms apply.',
@@ -127,41 +248,39 @@ export function ProposalViewer({
             paymentMilestones: 'As outlined in deliverables',
 
             // Logic Flags
-            isProposalAcceptance: true,
-
-            // CRITICAL: Backward compatibility (keep both formats)
-            linkedProjectId: terms.projectId || terms.linkedProjectId,
-            linkedWorkspaceId: terms.workspaceId || terms.linkedWorkspaceId,
-            linkedTaskId: terms.taskId || terms.linkedTaskId
+            isProposalAcceptance: true
         };
 
-        // 4. Construct Email Body
+        // 5. Construct Email Body
         const subject = `Contract Offer: ${proposal.title}`;
         const body = `Hello ${recipientName},\n\nI have accepted your proposal regarding "${proposal.title}".\n\nPlease find the formal contract attached for your review and signature.\n\nBest regards,\n${recruiterName}`;
 
-        // 5. Build URL Params
-        const params = new URLSearchParams({
-            compose: '1', // Trigger modal open
+        // 6. Build URL Params - CRITICAL: Include auto-select IDs
+        const paramsObj: Record<string, string> = {
+            compose: '1',
             to: toAddress,
             subject: subject,
             body: body,
-
-            // Contract specific params
             templateId: templateId,
             contractType: contractType,
-
-            // The massive variables object
             variables: JSON.stringify(variables),
-
-            // Auto-select dropdowns in the composer
-            ...(terms.projectId && { autoSelectProjectId: terms.projectId }),
-            ...(terms.workspaceId && { autoSelectWorkspaceId: terms.workspaceId }),
-            ...(terms.taskId && { autoSelectTaskId: terms.taskId }),
-
             autoStart: '0' // 0 = Just fill fields (Manual), 1 = Run AI
-        });
+        };
 
-        // 6. Open in New Tab
+        // CRITICAL: Add auto-select params for workspace/project/task selection
+        if (terms.workspaceId || terms.linkedWorkspaceId) {
+            paramsObj.autoSelectWorkspaceId = terms.workspaceId || terms.linkedWorkspaceId;
+        }
+        if (terms.projectId || terms.linkedProjectId) {
+            paramsObj.autoSelectProjectId = terms.projectId || terms.linkedProjectId;
+        }
+        if (terms.taskId || terms.linkedTaskId) {
+            paramsObj.autoSelectTaskId = terms.taskId || terms.linkedTaskId;
+        }
+
+        const params = new URLSearchParams(paramsObj);
+
+        // 7. Open in New Tab
         const url = `/mail?${params.toString()}`;
         window.open(url, '_blank', 'noopener,noreferrer');
 

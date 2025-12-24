@@ -41,6 +41,15 @@ export default function WalletPage() {
 
             setWallet(walletData);
 
+            // IMPORTANT: Sync to RTDB on initial load so real-time listener has data
+            if (walletData) {
+                await WalletService.syncWalletToRTDB(
+                    walletId,
+                    walletData.balance || 0,
+                    walletData.currency || 'GMD'
+                );
+            }
+
             // Load transaction history
             if (walletData) {
                 const txHistory = await WalletService.getTransactionHistory(walletId, 50);

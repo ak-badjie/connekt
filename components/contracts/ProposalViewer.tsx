@@ -1,14 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, FileText, Download, MessageSquarePlus, XCircle, CheckCircle, Ban } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '@/context/AuthContext';
 import GambianLegalHeader from '@/components/mail/GambianLegalHeader';
 import { ProposalResponseService } from '@/lib/services/proposal-response-service';
+import { ExploreService } from '@/lib/services/explore-service';
 import toast from 'react-hot-toast';
 import { CONTRACT_TYPES, TEMPLATE_IDS } from '@/lib/constants/contracts';
+import { JobTemplate } from '@/lib/types/workspace.types';
 
 interface ProposalViewerProps {
     proposalId?: string;
@@ -38,9 +40,29 @@ export function ProposalViewer({
     const [rejecting, setRejecting] = useState(false);
     const [rejectionReason, setRejectionReason] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [jobData, setJobData] = useState<JobTemplate | null>(null);
 
     const isRecipient = user?.uid === proposal.toUserId;
     const isOwner = user?.uid === proposal.fromUserId;
+
+    // Fetch job data if proposal has jobId reference
+    useEffect(() => {
+        const fetchJobData = async () => {
+            const jobId = proposal.terms?.jobId || proposal.terms?.linkedJobId;
+            if (jobId && isOpen) {
+                try {
+                    const job = await ExploreService.getJobById(jobId);
+                    if (job) {
+                        setJobData(job);
+                        console.log('Fetched job data by ID:', job);
+                    }
+                } catch (err) {
+                    console.error('Failed to fetch job data:', err);
+                }
+            }
+        };
+        fetchJobData();
+    }, [proposal.terms?.jobId, proposal.terms?.linkedJobId, isOpen]);
 
     // --- HELPER: Strip Markdown for Form Fields ---
     const cleanMarkdown = (text: string) => {
@@ -55,20 +77,52 @@ export function ProposalViewer({
             .trim();
     };
 
+    // --- HELPER: Format work days array to readable text ---
+    const formatWorkDays = (days: number[] | undefined): string => {
+        if (!days || days.length === 0) return 'Mon, Tue, Wed, Thu, Fri';
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        return days.map(d => dayNames[d]).join(', ');
+    };
+
+    // --- HELPER: Format penalty for display ---
+    const formatPenalty = (amount: number | undefined, unit: string | undefined, currency: string | undefined): string => {
+        if (!amount || amount === 0) return 'None';
+        if (unit === 'percentage') return `${amount}% of payment per late task`;
+        return `${amount} ${currency || 'GMD'} per late task`;
+    };
+
+    // --- HELPER: Calculate hours per week ---
+    const calculateHoursPerWeek = (startTime: string | undefined, endTime: string | undefined, workDays: number[] | undefined): number => {
+        if (!startTime || !endTime || !workDays) return 40;
+        try {
+            const start = parseInt(startTime.split(':')[0]);
+            const end = parseInt(endTime.split(':')[0]);
+            const hoursPerDay = end - start;
+            return hoursPerDay * workDays.length;
+        } catch {
+            return 40;
+        }
+    };
+
+
     // --- MAIN LOGIC ---
     const handleReplyWithContract = () => {
         const terms = proposal.terms || {};
 
-        // 1. ROBUST ID EXTRACTION
-        const workspaceId = terms.workspaceId || terms.linkedWorkspaceId || terms.proposalContext?.workspaceId;
+        // PRIORITY: Use fetched job data from Firestore, fallback to URL params
+        const job = jobData;
+
+        // 1. ROBUST ID EXTRACTION (job data has priority)
+        const workspaceId = job?.workspaceId || terms.workspaceId || terms.linkedWorkspaceId || terms.proposalContext?.workspaceId;
         const projectId = terms.projectId || terms.linkedProjectId || terms.proposalContext?.projectId;
         const taskId = terms.taskId || terms.linkedTaskId || terms.proposalContext?.taskId;
+        const jobId = job?.id || terms.jobId || terms.linkedJobId;
 
         // 2. Determine Template & Type
         let templateId: string = TEMPLATE_IDS.FREELANCE_CONTRACT;
         let contractType: string = CONTRACT_TYPES.PROJECT;
 
-        const isEmployment = terms.jobId || terms.employmentType === 'employee' || proposal.title.toLowerCase().includes('job') || terms.contractType === CONTRACT_TYPES.JOB;
+        const isEmployment = jobId || terms.employmentType === 'employee' || proposal.title.toLowerCase().includes('job') || terms.contractType === CONTRACT_TYPES.JOB;
 
         if (isEmployment) {
             templateId = TEMPLATE_IDS.EMPLOYMENT_CONTRACT;
@@ -78,9 +132,9 @@ export function ProposalViewer({
             contractType = CONTRACT_TYPES.TASK;
         }
 
-        // 3. Prepare Names
+        // 3. Prepare Names (use job owner info if available)
         const recruiterName = userProfile?.displayName || userProfile?.username || 'Recruiter';
-        const recipientName = terms.applicantName || proposal.fromUsername || 'Recipient';
+        const recipientName = terms.applicantName || terms.contractorName || proposal.fromUsername || 'Recipient';
         const toAddress = `${proposal.fromUsername}@connekt.com`;
 
         // 4. Date calculations (like AddMemberModal)
@@ -100,13 +154,30 @@ export function ProposalViewer({
         // 5. Clean Description
         const cleanedDescription = cleanMarkdown(proposal.description);
 
-        // 6. Build Variables (COMPLETE VERSION)
+        // 6. Build Variables - PRIORITY: Fetched job data > URL params > defaults
+        // First, extract the raw schedule/conditions data
+        const scheduleData = job?.schedule || terms.schedule || {};
+        const conditionsData = job?.conditions || terms.conditions || {};
+        const rawWorkDays = job?.schedule?.workDays || terms.workDays || terms.schedule?.workDays || [1, 2, 3, 4, 5];
+        const rawStartTime = job?.schedule?.startTime || terms.workStartTime || terms.schedule?.startTime || '09:00';
+        const rawEndTime = job?.schedule?.endTime || terms.workEndTime || terms.schedule?.endTime || '17:00';
+        const rawBreakDuration = job?.schedule?.breakDurationMinutes || terms.schedule?.breakDurationMinutes || 60;
+        const rawPenalty = job?.conditions?.penaltyPerLateTask || terms.penaltyPerLateTask || terms.conditions?.penaltyPerLateTask || 0;
+        const rawPenaltyUnit = job?.conditions?.penaltyUnit || terms.penaltyUnit || terms.conditions?.penaltyUnit || 'fixed';
+        const rawCurrency = job?.currency || terms.currency || terms.paymentCurrency || 'GMD';
+
         const variables = {
             // ===== CRITICAL IDs =====
             proposalId: proposalId,
+            jobId: jobId,
             projectId: isEmployment ? undefined : projectId,
             workspaceId: workspaceId,
             taskId: taskId,
+            // Duplicate with linked prefix for backward compatibility
+            linkedJobId: jobId,
+            linkedProjectId: projectId,
+            linkedWorkspaceId: workspaceId,
+            linkedTaskId: taskId,
 
             // ===== Contract metadata =====
             contractDate: todayStr,
@@ -118,22 +189,67 @@ export function ProposalViewer({
             employerName: recruiterName,
             employeeName: recipientName,
 
-            // ===== Titles =====
-            projectTitle: proposal.title,
-            jobTitle: terms.jobTitle || proposal.title,
+            // ===== Titles (job data has priority) =====
+            projectTitle: job?.title || terms.projectTitle || proposal.title,
+            jobTitle: job?.title || terms.jobTitle || proposal.title,
             taskTitle: terms.taskTitle || proposal.title,
 
             // ===== Descriptions =====
-            projectDescription: `Engagement based on accepted proposal: "${proposal.title}"`,
+            projectDescription: job?.description || `Engagement based on accepted proposal: "${proposal.title}"`,
             deliverables: cleanedDescription,
-            jobDescription: cleanedDescription,
+            jobDescription: job?.description || terms.jobDescription || cleanedDescription,
             taskDescription: cleanedDescription,
+            jobRequirements: terms.jobRequirements || 'As specified in job posting',
 
-            // ===== Payment (CRITICAL for escrow) =====
-            paymentAmount: terms.bidAmount || terms.taskPayment || terms.salary || terms.budget || terms.paymentAmount || 0,
-            paymentCurrency: terms.currency || terms.paymentCurrency || 'GMD',
-            salary: terms.desiredSalary || terms.bidAmount || terms.salary || 0,
+            // ===== CRITICAL: Raw schedule data for enforcement =====
+            schedule: {
+                startTime: rawStartTime,
+                endTime: rawEndTime,
+                workDays: rawWorkDays,
+                isFlexible: scheduleData.isFlexible || false,
+                breakDurationMinutes: rawBreakDuration,
+                timezone: scheduleData.timezone || 'UTC'
+            },
+            // Raw values for enforcement
+            workStartTime: rawStartTime,
+            workEndTime: rawEndTime,
+            workDays: rawWorkDays,
+
+            // ===== FORMATTED VALUES for template display =====
+            scheduleType: scheduleData.isFlexible ? 'Flexible' : 'Fixed Schedule',
+            workDaysFormatted: formatWorkDays(rawWorkDays),
+            breakDuration: rawBreakDuration,
+            hoursPerWeek: calculateHoursPerWeek(rawStartTime, rawEndTime, rawWorkDays),
+            timezone: scheduleData.timezone || 'UTC',
+            workLocation: 'Remote',
+
+            // ===== CRITICAL: Raw conditions for enforcement =====
+            conditions: {
+                penaltyPerLateTask: rawPenalty,
+                penaltyUnit: rawPenaltyUnit,
+                overtimeRate: conditionsData.overtimeRate || 1.5
+            },
+            penaltyPerLateTask: rawPenalty,
+            penaltyUnit: rawPenaltyUnit,
+            overtimeRate: conditionsData.overtimeRate || 1.5,
+
+            // ===== FORMATTED penalty for template display =====
+            penaltyDisplay: formatPenalty(rawPenalty, rawPenaltyUnit, rawCurrency),
+
+            // ===== CRITICAL: Payment for escrow (JOB DATA HAS PRIORITY) =====
+            paymentAmount: job?.salary || terms.bidAmount || terms.salary || terms.paymentAmount || terms.taskPayment || terms.budget || 0,
+            salary: job?.salary || terms.salary || terms.bidAmount || terms.paymentAmount || 0,
+            paymentCurrency: rawCurrency,
+            currency: rawCurrency,
             taskPayment: terms.taskPayment || terms.bidAmount || 0,
+
+            // ===== CRITICAL: Escrow flags for LegalEscrow.holdSalary =====
+            requireSalaryEscrow: true, // ALWAYS require escrow for job contracts
+            salaryAmount: job?.salary || terms.salary || terms.bidAmount || terms.paymentAmount || 0,
+            salaryCurrency: rawCurrency,
+            requireEscrow: true, // Generic escrow flag
+            requireWalletFunding: true, // Alternative flag checked by enforcement
+            totalAmount: job?.salary || terms.salary || terms.bidAmount || terms.paymentAmount || 0,
 
             // ===== Dates =====
             startDate: terms.startDate || todayStr,
@@ -143,8 +259,8 @@ export function ProposalViewer({
             duration: durationDays,
             durationUnit: 'days',
 
-            // ===== Work terms =====
-            paymentSchedule: 'milestone',
+            // ===== Work terms (JOB DATA HAS PRIORITY) =====
+            paymentSchedule: job?.paymentSchedule || terms.paymentSchedule || 'milestone',
             paymentType: terms.paymentType || 'on-completion',
             noticePeriod: 30,
             terminationConditions: 'Standard terms apply via Connekt.',
@@ -153,12 +269,7 @@ export function ProposalViewer({
             paymentMilestones: 'As outlined in deliverables',
 
             // ===== Flags =====
-            isProposalAcceptance: true,
-
-            // ===== CRITICAL: Backward compatibility =====
-            linkedProjectId: projectId,
-            linkedWorkspaceId: workspaceId,
-            linkedTaskId: taskId
+            isProposalAcceptance: true
         };
 
         // 6. Build URL Params

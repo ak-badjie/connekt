@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '@/context/AuthContext';
 import toast from 'react-hot-toast';
-import { ContractSigningService } from '@/lib/services/contract-signing-service';
+import { getContract, signContract } from '@/lib/services/legal';
 import { EnhancedProjectService } from '@/lib/services/enhanced-project-service';
 import { WorkspaceService } from '@/lib/services/workspace-service';
 import { TaskService } from '@/lib/services/task-service';
@@ -81,7 +81,7 @@ export function UnifiedContractViewer({
             // Ensure we have the freshest contract payload (with inferred terms) before signing
             let hydratedContract = contract;
             try {
-                const latest = await ContractSigningService.getContract(contractId);
+                const latest = await getContract(contractId);
                 if (latest) hydratedContract = { ...hydratedContract, ...latest };
             } catch (loadErr) {
                 console.warn('[UnifiedContractViewer] Failed to hydrate contract before sign', loadErr);
@@ -91,7 +91,7 @@ export function UnifiedContractViewer({
                 await onSign(contractId, fullName.trim());
             } else if (canFallbackSign) {
                 const username = hydratedContract.toUsername || contract.toUsername || user?.displayName || 'recipient';
-                await ContractSigningService.signContract(contractId, user.uid, username, fullName.trim());
+                await signContract(contractId, user.uid, username, fullName.trim());
             }
             console.log('[UnifiedContractViewer] Sign success');
             const t = hydratedContract?.terms || {};

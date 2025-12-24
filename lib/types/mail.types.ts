@@ -346,6 +346,42 @@ export interface ContractTerms {
 
     // General Terms
     customTerms?: Record<string, any>;
+
+    // ===== EMPLOYMENT SCHEDULE ENFORCEMENT =====
+    /** Available working hours - start time in HH:MM format (24hr) */
+    workStartTime?: string;
+    /** Available working hours - end time in HH:MM format (24hr) */
+    workEndTime?: string;
+    /** Available working days (0=Sunday, 1=Monday, 2=Tuesday, etc.) */
+    workDays?: number[];
+    /** Hours per day employee is available */
+    hoursPerDay?: number;
+
+    // ===== SALARY & COMPENSATION (Employment) =====
+    /** Monthly salary amount (for employees) */
+    salaryAmount?: number;
+    /** Salary currency (default: GMD) */
+    salaryCurrency?: string;
+    /** Day of month salary is paid (1-28) */
+    salaryPayDay?: number;
+    /** Require monthly escrow hold for salary */
+    requireSalaryEscrow?: boolean;
+
+    // ===== PENALTIES =====
+    /** Enable penalty system for missed deadlines */
+    penaltiesEnabled?: boolean;
+    /** Deduction amount per missed task deadline (for employees) */
+    penaltyPerMissedDeadline?: number;
+    /** Penalty currency (default: same as salary) */
+    penaltyCurrency?: string;
+    /** Maximum total penalty deduction percentage (0-100, caps monthly deductions) */
+    maxPenaltyPercentage?: number;
+
+    // ===== CLASSIFICATION =====
+    /** Type of member: 'employee' = salary-based with penalties, 'freelancer' = per-task payment */
+    memberType?: 'employee' | 'freelancer';
+    /** Flag indicating this is a proposal, not a contract */
+    proposal?: boolean;
 }
 
 /**

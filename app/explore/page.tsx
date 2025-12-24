@@ -512,20 +512,69 @@ Email: ${user?.email || 'your.email@example.com'}
 
 
 
-        // Pass detailed variables for Composer state
+        // Pass detailed variables for Composer state - CRITICAL for contract reply flow
         params.set('variables', JSON.stringify({
             isProposal: true, // IMPORTANT FLAG
             proposalContext: proposalContext,
             applicantName: contractorName,
-            brief: brief, // Redundant but safe
-            autoStart: withAI, // Triggers modal open
+            brief: brief,
+            autoStart: withAI,
+
+            // CRITICAL: IDs needed when owner replies with contract
+            jobId: job.id,
+            workspaceId: job.workspaceId,
+            linkedWorkspaceId: job.workspaceId, // Duplicate for compatibility
+            linkedJobId: job.id,
+            // Only set project/task IDs if applicable
+            ...(job.type === 'project' && { projectId: job.projectId || job.id, linkedProjectId: job.projectId || job.id }),
+            ...(job.type === 'task' && { taskId: job.taskId || job.id, linkedTaskId: job.taskId || job.id }),
 
             // Standard Contract Variables
             clientName: (job as any).ownerName || (job as any).ownerUsername || 'Client',
             contractorName: contractorName,
+            employerName: (job as any).ownerName || (job as any).ownerUsername || 'Employer',
+            employeeName: contractorName,
             jobTitle: job.title,
             projectTitle: job.title,
             taskTitle: job.title,
+            jobDescription: job.description,
+            projectDescription: job.description,
+
+            // Pass job schedule terms from posting - CRITICAL for enforcement
+            schedule: job.schedule || {
+                startTime: '09:00',
+                endTime: '17:00',
+                workDays: [1, 2, 3, 4, 5],
+                isFlexible: false,
+                breakDurationMinutes: 60,
+                timezone: 'UTC'
+            },
+            // Format for template display
+            workStartTime: job.schedule?.startTime || '09:00',
+            workEndTime: job.schedule?.endTime || '17:00',
+            workDays: job.schedule?.workDays || [1, 2, 3, 4, 5],
+
+            // Pass job conditions (penalties, etc) - CRITICAL for enforcement
+            conditions: job.conditions || {
+                penaltyPerLateTask: 0,
+                penaltyUnit: 'fixed',
+                overtimeRate: 1.5
+            },
+            // Format for template display
+            penaltyPerLateTask: job.conditions?.penaltyPerLateTask || 0,
+            penaltyUnit: job.conditions?.penaltyUnit || 'fixed',
+            overtimeRate: job.conditions?.overtimeRate || 1.5,
+
+            // Payment details - CRITICAL for escrow
+            paymentAmount: job.salary,
+            salary: job.salary,
+            paymentCurrency: job.currency,
+            currency: job.currency,
+            paymentSchedule: job.paymentSchedule,
+
+            // Dates (ISO format for proper parsing)
+            startDate: new Date().toISOString().slice(0, 10),
+            contractDate: new Date().toISOString().slice(0, 10)
         }));
 
         // Mapping Job Type to Template ID

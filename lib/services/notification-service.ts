@@ -41,7 +41,8 @@ export const NotificationService = {
             const notificationsRef = ref(realtimeDb, `notifications/${userId}`);
             const newNotificationRef = push(notificationsRef);
 
-            const notification: Omit<Notification, 'id'> = {
+            // Build notification object, excluding undefined values (Firebase doesn't allow undefined)
+            const notification: Record<string, any> = {
                 userId,
                 type,
                 title,
@@ -49,10 +50,12 @@ export const NotificationService = {
                 priority,
                 read: false,
                 createdAt: Date.now(),
-                actionUrl,
-                actionLabel,
                 metadata
             };
+
+            // Only add optional fields if they have values
+            if (actionUrl) notification.actionUrl = actionUrl;
+            if (actionLabel) notification.actionLabel = actionLabel;
 
             await set(newNotificationRef, notification);
             return newNotificationRef.key!;

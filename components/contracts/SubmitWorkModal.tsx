@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { X, Upload, Link as LinkIcon, FileText, Image, Video, Loader2 } from 'lucide-react';
 import { TaskService } from '@/lib/services/task-service';
+import { EnhancedProjectService } from '@/lib/services/enhanced-project-service';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '@/lib/firebase';
 
 interface SubmitWorkModalProps {
     isOpen: boolean;
@@ -63,20 +66,47 @@ export default function SubmitWorkModal({
         setLinks(newLinks);
     };
 
-    const handleSubmit = async () => {
-        if (!taskId) {
-            alert('Project POP submission is not yet fully supported in this UI version.');
-            return;
+    // Upload files to Firebase Storage and return URLs
+    const uploadFiles = async (files: File[], folder: string): Promise<string[]> => {
+        const urls: string[] = [];
+        for (const file of files) {
+            const filePath = `${folder}/${Date.now()}_${file.name}`;
+            const storageRef = ref(storage, filePath);
+            await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(storageRef);
+            urls.push(downloadURL);
         }
+        return urls;
+    };
 
+    const handleSubmit = async () => {
         setIsSubmitting(true);
         try {
-            await TaskService.submitProofOfTask(taskId, userId, username, {
-                screenshots,
-                videos,
-                links: links.filter(l => l.trim() !== ''),
-                notes
-            });
+            const filteredLinks = links.filter(l => l.trim() !== '');
+
+            if (taskId) {
+                // POT Submission - use TaskService
+                await TaskService.submitProofOfTask(taskId, userId, username, {
+                    screenshots,
+                    videos,
+                    links: filteredLinks,
+                    notes
+                });
+            } else if (projectId) {
+                // POP Submission - upload files first, then submit
+                const screenshotUrls = await uploadFiles(screenshots, `projects/${projectId}/proofs/screenshots`);
+                const videoUrls = await uploadFiles(videos, `projects/${projectId}/proofs/videos`);
+
+                await EnhancedProjectService.submitProofOfProject(projectId, userId, username, {
+                    screenshots: screenshotUrls,
+                    videos: videoUrls,
+                    links: filteredLinks,
+                    notes
+                });
+            } else {
+                throw new Error('Either taskId or projectId must be provided');
+            }
+
             onSubmitSuccess();
             onClose();
         } catch (error) {
@@ -86,6 +116,7 @@ export default function SubmitWorkModal({
             setIsSubmitting(false);
         }
     };
+
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">

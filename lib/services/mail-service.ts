@@ -150,6 +150,21 @@ export const MailService = {
         // Determine recipient mail type
         const isAgencyMail = recipientDomain && recipientDomain !== 'connekt.com';
 
+        // Get recipient agency ID if this is an agency mail
+        let recipientAgencyId: string | undefined;
+        if (isAgencyMail) {
+            try {
+                // Extract agency username from domain (e.g., "agencyname.com" -> "agencyname")
+                const agencyUsername = recipientDomain.replace('.com', '');
+                const agency = await AgencyService.getAgencyByUsername(agencyUsername);
+                if (agency) {
+                    recipientAgencyId = agency.id;
+                }
+            } catch (error) {
+                console.error('Error fetching recipient agency:', error);
+            }
+        }
+
         // Create inbox copy for recipient
         const inboxMail: Partial<ExtendedMailMessage> = {
             ownerId: recipientId,
@@ -167,7 +182,7 @@ export const MailService = {
             recipientName,
             ...(recipientPhotoURL && { recipientPhotoURL }),
             recipientMailType: isAgencyMail ? 'agency' : 'personal',
-            ...(isAgencyMail && { recipientAgencyId: undefined }), // TODO: Get actual agency ID
+            ...(recipientAgencyId && { recipientAgencyId }), // Only include if we have a valid agency ID
             subject,
             body,
             ...(attachments && attachments.length > 0 && { attachments }),

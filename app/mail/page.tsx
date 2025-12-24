@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { MailService, type MailMessage } from '@/lib/services/mail-service';
-import { ContractMailService } from '@/lib/services/contract-mail-service';
+import { createContractDocument } from '@/lib/services/legal';
 import { StorageQuotaService } from '@/lib/services/storage-quota-service';
 import { ComposeModal } from '@/components/mail/ComposeModal';
 import { ContractDrafterModal } from '@/components/mail/ContractDrafterModal';
@@ -269,7 +269,7 @@ export default function MailPage() {
         if (contractData) {
             try {
                 // Create the contract document only
-                contractId = await ContractMailService.createContractDocument(
+                contractId = await createContractDocument(
                     user.uid,
                     username,
                     fromMailAddress,

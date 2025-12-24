@@ -8,7 +8,7 @@ import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import ReactMarkdown from 'react-markdown';
 import GambianLegalHeader from './GambianLegalHeader';
-import { ContractMailService } from '@/lib/services/contract-mail-service';
+import { signContract, LegalLifecycle } from '@/lib/services/legal';
 import { EnhancedProjectService } from '@/lib/services/enhanced-project-service';
 import { WorkspaceService } from '@/lib/services/workspace-service';
 import { TaskService } from '@/lib/services/task-service';
@@ -91,7 +91,7 @@ export function ContractViewerModal({ contractId, userId, isOpen, onClose, onSig
         setError(null);
 
         try {
-            await ContractMailService.signContract(contract.id, userId, fullName.trim());
+            await signContract(contract.id, userId, contract.toUsername || 'User', fullName.trim());
             await loadContract(); // Reload to show updated status
             if (onSigned) onSigned(contract);
             // Success toast with simple summary
@@ -142,9 +142,9 @@ export function ContractViewerModal({ contractId, userId, isOpen, onClose, onSig
         setError(null);
 
         try {
-            await ContractMailService.rejectContract(contract.id, userId, reason || undefined);
+            await LegalLifecycle.reject(contract.id, userId, contract.toUsername || 'User', reason || 'No reason provided');
             await loadContract(); // Reload to show updated status
-            if (onSigned) onSigned();
+            if (onSigned) onSigned(contract);
             toast.success('Contract rejected.');
         } catch (err: any) {
             console.error('Error rejecting contract:', err);

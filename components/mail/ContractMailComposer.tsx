@@ -105,8 +105,8 @@ export default function ContractMailComposer({
             console.log('Auto-selecting Template:', autoAIRequest.templateId);
             // Fuzzy match logic to find the best system template
             const targetId = autoAIRequest.templateId.toLowerCase();
-            const template = templates.find(t => 
-                t.id === autoAIRequest.templateId || 
+            const template = templates.find(t =>
+                t.id === autoAIRequest.templateId ||
                 t.name.toLowerCase().includes(targetId) ||
                 t.name === autoAIRequest.templateId ||
                 t.type === targetId.toLowerCase() ||
@@ -115,7 +115,7 @@ export default function ContractMailComposer({
                 (targetId.includes('project') && t.type === 'project') ||
                 (targetId.includes('task') && t.type === 'project')
             );
-            
+
             if (template) {
                 console.log('Template matched:', template.name);
                 setSelectedTemplate(template);
@@ -214,32 +214,35 @@ export default function ContractMailComposer({
         }
     };
 
-    // Auto-select Workspace
+    // Auto-select Workspace (check both prop and variables)
     useEffect(() => {
-        if (autoSelectWorkspaceId && myWorkspaces.length > 0) {
-            const wsExists = myWorkspaces.find(w => w.id === autoSelectWorkspaceId);
-            if (wsExists && selectedWorkspaceId !== autoSelectWorkspaceId) {
-                console.log('Auto-selecting Workspace:', autoSelectWorkspaceId);
-                handleWorkspaceSelect(autoSelectWorkspaceId);
+        const wsId = autoSelectWorkspaceId || autoAIRequest?.variables?.workspaceId || autoAIRequest?.variables?.linkedWorkspaceId;
+        if (wsId && myWorkspaces.length > 0) {
+            const wsExists = myWorkspaces.find(w => w.id === wsId);
+            if (wsExists && selectedWorkspaceId !== wsId) {
+                console.log('Auto-selecting Workspace:', wsId);
+                handleWorkspaceSelect(wsId);
             }
         }
-    }, [autoSelectWorkspaceId, myWorkspaces]);
+    }, [autoSelectWorkspaceId, autoAIRequest?.variables, myWorkspaces]);
 
-    // Auto-select Project (dependent on workspaceProjects being loaded)
+    // Auto-select Project (check both prop and variables)
     useEffect(() => {
-        if (autoSelectProjectId && workspaceProjects.length > 0) {
-            const projExists = workspaceProjects.find(p => p.id === autoSelectProjectId);
-            if (projExists && selectedProjectId !== autoSelectProjectId) {
-                console.log('Auto-selecting Project:', autoSelectProjectId);
-                handleProjectSelect(autoSelectProjectId);
+        const projId = autoSelectProjectId || autoAIRequest?.variables?.projectId || autoAIRequest?.variables?.linkedProjectId;
+        if (projId && workspaceProjects.length > 0) {
+            const projExists = workspaceProjects.find(p => p.id === projId);
+            if (projExists && selectedProjectId !== projId) {
+                console.log('Auto-selecting Project:', projId);
+                handleProjectSelect(projId);
             }
         }
-    }, [autoSelectProjectId, workspaceProjects]);
+    }, [autoSelectProjectId, autoAIRequest?.variables, workspaceProjects]);
 
-    // Auto-select task(s) when autoSelectTaskId is provided
+    // Auto-select task(s) (check both prop and variables)
     useEffect(() => {
-        if (autoSelectTaskId && projectTasks.length > 0) {
-            const taskIds = autoSelectTaskId.split(',').filter(id => id.trim());
+        const tId = autoSelectTaskId || autoAIRequest?.variables?.taskId || autoAIRequest?.variables?.linkedTaskId;
+        if (tId && projectTasks.length > 0) {
+            const taskIds = String(tId).split(',').filter(id => id.trim());
 
             if (taskIds.length === 1) {
                 const taskExists = projectTasks.find(t => t.id === taskIds[0]);
@@ -268,7 +271,7 @@ export default function ContractMailComposer({
                 }
             }
         }
-    }, [autoSelectTaskId, projectTasks]);
+    }, [autoSelectTaskId, autoAIRequest?.variables, projectTasks]);
 
     const handleTemplateSelect = (templateId: string) => {
         const template = templates.find(t => t.id === templateId || t.name === templateId);

@@ -13,7 +13,6 @@ import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
 import { AIEmailComposerModal } from './ai/AIEmailComposerModal';
 import { useAuth } from '@/context/AuthContext';
 import { UnifiedContractViewer } from '@/components/contracts/UnifiedContractViewer';
-import { ContractSigningService } from '@/lib/services/contract-signing-service';
 import { Eye } from 'lucide-react';
 
 interface ComposeModalProps {
@@ -175,11 +174,55 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
         templateId?: string;
         defaultTerms?: string;
     }) => {
+        // Helper to format work days array to readable text
+        const formatWorkDays = (days: number[] | undefined): string => {
+            if (!days || days.length === 0) return 'Mon, Tue, Wed, Thu, Fri';
+            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            return days.map(d => dayNames[d]).join(', ');
+        };
+
+        // Helper to format penalty for display
+        const formatPenalty = (amount: number | undefined, unit: string | undefined, currency: string | undefined): string => {
+            if (!amount || amount === 0) return 'None';
+            if (unit === 'percentage') return `${amount}% of payment per late task`;
+            return `${amount} ${currency || 'GMD'} per late task`;
+        };
+
+        // Get schedule from job posting (passed via autoContractDraftRequest.variables)
+        const jobSchedule = autoContractDraftRequest?.variables?.schedule;
+        const jobConditions = autoContractDraftRequest?.variables?.conditions;
+        const currency = autoContractDraftRequest?.variables?.paymentCurrency || 'GMD';
+
+        // Build schedule-related template variables (matching new template format)
+        const scheduleVars = {
+            scheduleType: jobSchedule?.isFlexible ? 'Flexible' : 'Fixed Schedule',
+            workDaysFormatted: formatWorkDays(jobSchedule?.workDays),
+            workStartTime: jobSchedule?.startTime || '09:00',
+            workEndTime: jobSchedule?.endTime || '17:00',
+            breakDuration: jobSchedule?.breakDurationMinutes || 60,
+            timezone: jobSchedule?.timezone || 'UTC',
+            hoursPerWeek: 40,
+            // Store raw schedule for enforcement
+            schedule: jobSchedule
+        };
+
+        // Build penalty-related template variables (matching new template format)
+        const penaltyVars = {
+            penaltyDisplay: formatPenalty(jobConditions?.penaltyPerLateTask, jobConditions?.penaltyUnit, currency),
+            overtimeRate: jobConditions?.overtimeRate || 1.5,
+            // Store raw conditions for enforcement
+            conditions: jobConditions
+        };
+
         if (!subject) setSubject(data.title);
         // Don't overwrite body
         setContractData({
             templateId: data.templateId,
-            terms: data.terms,
+            terms: {
+                ...data.terms,
+                ...scheduleVars,
+                ...penaltyVars
+            },
             defaultTerms: data.defaultTerms,
             description: data.description,
             type: 'contract',
@@ -198,16 +241,67 @@ export function ComposeModal({ isOpen, onClose, onSend, onSaveDraft, signatures 
         templateId?: string;
         defaultTerms?: string;
     }) => {
+        // Helper to format work days array to readable text
+        const formatWorkDays = (days: number[] | undefined): string => {
+            if (!days || days.length === 0) return 'Mon, Tue, Wed, Thu, Fri';
+            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            return days.map(d => dayNames[d]).join(', ');
+        };
+
+        // Helper to format penalty for display
+        const formatPenalty = (amount: number | undefined, unit: string | undefined, currency: string | undefined): string => {
+            if (!amount || amount === 0) return 'None';
+            if (unit === 'percentage') return `${amount}% of payment per late task`;
+            return `${amount} ${currency || 'GMD'} per late task`;
+        };
+
+        // Get schedule from job posting (passed via autoContractDraftRequest.variables)
+        const jobSchedule = autoContractDraftRequest?.variables?.schedule;
+        const jobConditions = autoContractDraftRequest?.variables?.conditions;
+        const currency = autoContractDraftRequest?.variables?.paymentCurrency || 'GMD';
+
+        // Build schedule-related template variables (matching new template format)
+        const scheduleVars = {
+            scheduleType: jobSchedule?.isFlexible ? 'Flexible' : 'Fixed Schedule',
+            workDaysFormatted: formatWorkDays(jobSchedule?.workDays),
+            workStartTime: jobSchedule?.startTime || '09:00',
+            workEndTime: jobSchedule?.endTime || '17:00',
+            breakDuration: jobSchedule?.breakDurationMinutes || 60,
+            timezone: jobSchedule?.timezone || 'UTC',
+            hoursPerWeek: 40,
+            // Store raw schedule for enforcement
+            schedule: jobSchedule
+        };
+
+        // Build penalty-related template variables (matching new template format)
+        const penaltyVars = {
+            penaltyDisplay: formatPenalty(jobConditions?.penaltyPerLateTask, jobConditions?.penaltyUnit, currency),
+            overtimeRate: jobConditions?.overtimeRate || 1.5,
+            // Store raw conditions for enforcement
+            conditions: jobConditions
+        };
+
+        // Payment details from job
+        const paymentVars = {
+            ...(autoContractDraftRequest?.variables?.paymentAmount ? { paymentAmount: autoContractDraftRequest.variables.paymentAmount } : {}),
+            ...(autoContractDraftRequest?.variables?.paymentCurrency ? { paymentCurrency: autoContractDraftRequest.variables.paymentCurrency } : {}),
+            ...(autoContractDraftRequest?.variables?.paymentSchedule ? { paymentSchedule: autoContractDraftRequest.variables.paymentSchedule } : {})
+        };
+
         // Save the generated proposal data
         setContractData({
             templateId: data.templateId,
             terms: {
                 ...data.terms,
                 proposal: true, // Mark terms as proposal for identification
+                // Merge schedule and penalty variables
+                ...scheduleVars,
+                ...penaltyVars,
+                ...paymentVars,
                 // Persist context IDs from the initial request if available
                 ...(autoContractDraftRequest?.variables?.proposalContext ? {
                     linkedJobId: autoContractDraftRequest.variables.proposalContext.jobId,
-                    linkedProjectId: autoContractDraftRequest.variables.proposalContext.projectId || autoContractDraftRequest.variables.proposalContext.jobId, // Fallback if needed
+                    linkedProjectId: autoContractDraftRequest.variables.proposalContext.projectId || autoContractDraftRequest.variables.proposalContext.jobId,
                     linkedTaskId: autoContractDraftRequest.variables.proposalContext.taskId
                 } : {}),
                 // Also check direct autoSelect params if they were passed in variables

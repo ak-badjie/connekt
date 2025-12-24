@@ -352,5 +352,83 @@ export const TaskService = {
                 ...t.proofOfTask!,
                 submittedByUsername: t.assigneeUsername || 'Unknown'
             }));
+    },
+
+    /**
+     * Check if a task can be assigned to a user based on their employment contract terms
+     * Enforces working hours and working days from employment contracts
+     */
+    async checkAssignmentAvailability(
+        userId: string,
+        workspaceId: string,
+        proposedDeadline: Date
+    ): Promise<{ allowed: boolean; reason?: string }> {
+        try {
+            // Get user's employment contracts
+            const contractsQuery = query(
+                collection(db, 'contracts'),
+                where('toUserId', '==', userId),
+                where('status', '==', 'signed')
+            );
+            const contractsSnap = await getDocs(contractsQuery);
+
+            // Find employment contract for this workspace
+            const workspaceContract = contractsSnap.docs.find(d => {
+                const data = d.data();
+                return (
+                    data.terms?.linkedWorkspaceId === workspaceId &&
+                    data.terms?.memberType === 'employee'
+                );
+            });
+
+            if (!workspaceContract) {
+                return { allowed: true }; // No employment restrictions
+            }
+
+            const terms = workspaceContract.data().terms;
+
+            // Check working days
+            if (terms.workDays?.length) {
+                const deadlineDay = proposedDeadline.getDay();
+                if (!terms.workDays.includes(deadlineDay)) {
+                    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                    const allowedDays = terms.workDays.map((d: number) => dayNames[d]).join(', ');
+                    return {
+                        allowed: false,
+                        reason: `Task deadline falls on ${dayNames[deadlineDay]}, but employee only works on: ${allowedDays}`
+                    };
+                }
+            }
+
+            // Check working hours for same-day deadlines
+            if (terms.workStartTime && terms.workEndTime) {
+                const now = new Date();
+                const isSameDay = proposedDeadline.toDateString() === now.toDateString();
+
+                if (isSameDay) {
+                    const [startHour, startMin] = terms.workStartTime.split(':').map(Number);
+                    const [endHour, endMin] = terms.workEndTime.split(':').map(Number);
+
+                    const deadlineHour = proposedDeadline.getHours();
+                    const deadlineMin = proposedDeadline.getMinutes();
+                    const deadlineTime = deadlineHour * 60 + deadlineMin;
+                    const startTime = startHour * 60 + startMin;
+                    const endTime = endHour * 60 + endMin;
+
+                    if (deadlineTime < startTime || deadlineTime > endTime) {
+                        return {
+                            allowed: false,
+                            reason: `Task deadline is outside employee's working hours (${terms.workStartTime} - ${terms.workEndTime})`
+                        };
+                    }
+                }
+            }
+
+            return { allowed: true };
+        } catch (error) {
+            console.error('Error checking assignment availability:', error);
+            return { allowed: true }; // Default to allowing if check fails
+        }
     }
 };
+

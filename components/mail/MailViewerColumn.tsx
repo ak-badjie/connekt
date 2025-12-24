@@ -8,19 +8,18 @@ import type { MailMessage } from '@/lib/services/mail-service';
 import Image from 'next/image';
 import { UnifiedContractViewer } from '@/components/contracts/UnifiedContractViewer';
 import { ProposalViewer } from '@/components/contracts/ProposalViewer';
-import { ContractSigningService } from '@/lib/services/contract-signing-service';
-import { ContractMailService } from '@/lib/services/contract-mail-service';
+import { getContract, signContract } from '@/lib/services/legal';
 import toast from 'react-hot-toast';
 import { useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 
 interface MailViewerColumnProps {
     mail: MailMessage | null;
-    onReply?: (prefill: { 
-        recipient?: string; 
-        subject?: string; 
-        body?: string; 
-        contractId?: string; 
+    onReply?: (prefill: {
+        recipient?: string;
+        subject?: string;
+        body?: string;
+        contractId?: string;
         isProposalResponse?: boolean;
         autoContractDraftRequest?: {
             templateId?: string;
@@ -50,6 +49,7 @@ export function MailViewerColumn({
     const [showProposalViewer, setShowProposalViewer] = useState(false);
     const [loadedDocument, setLoadedDocument] = useState<any | null>(null);
     const [loadingDoc, setLoadingDoc] = useState(false);
+    const [documentType, setDocumentType] = useState<'proposal' | 'contract' | null>(null);
 
     // Check if this mail has an attachment
     const hasAttachment = (mail as any)?.contractId;
@@ -58,11 +58,15 @@ export function MailViewerColumn({
     const loadDocument = async (contractId: string) => {
         setLoadingDoc(true);
         try {
-            const docData = await ContractSigningService.getContract(contractId);
+            const docData = await getContract(contractId);
             setLoadedDocument(docData);
-            
-            // Determine which viewer to open based on data
-            if (docData?.terms?.proposal) {
+
+            // Determine document type based on actual data, not mail metadata
+            const isProposal = docData?.terms?.proposal === true;
+            setDocumentType(isProposal ? 'proposal' : 'contract');
+
+            // Open appropriate viewer
+            if (isProposal) {
                 setShowProposalViewer(true);
             } else {
                 setShowContractViewer(true);
@@ -81,7 +85,10 @@ export function MailViewerColumn({
     };
 
     // Determine if the attachment label should say "Contract" or "Proposal"
-    const isLikelyProposal = mail?.category === 'Proposals' || mail?.subject?.toLowerCase().includes('proposal');
+    // Use actual document type if loaded, otherwise fall back to heuristic
+    const isProposalDocument = documentType !== null
+        ? documentType === 'proposal'
+        : (mail?.category === 'Proposals' || mail?.subject?.toLowerCase().includes('proposal'));
 
     if (!mail) {
         return (
@@ -211,16 +218,16 @@ export function MailViewerColumn({
                     <div className="mt-8 p-6 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-zinc-800 dark:to-zinc-800/50 rounded-xl border-2 border-dashed border-gray-200 dark:border-zinc-700">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
-                                <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${isLikelyProposal ? 'bg-teal-600' : 'bg-blue-600'}`}>
+                                <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${isProposalDocument ? 'bg-teal-600' : 'bg-blue-600'}`}>
                                     <FileText className="w-6 h-6 text-white" />
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-gray-900 dark:text-white">
-                                        {isLikelyProposal ? 'Attached Proposal' : 'Attached Contract'}
+                                        {isProposalDocument ? 'Attached Proposal' : 'Attached Contract'}
                                     </h4>
                                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                                        {isLikelyProposal 
-                                            ? 'Review the proposal terms and reply with a contract.' 
+                                        {isProposalDocument
+                                            ? 'Review the proposal terms and reply with a contract.'
                                             : 'Review and sign the attached legal contract.'}
                                     </p>
                                 </div>
@@ -230,7 +237,7 @@ export function MailViewerColumn({
                                 disabled={loadingDoc}
                                 className="px-6 py-2.5 bg-white dark:bg-zinc-700 border border-gray-200 dark:border-zinc-600 text-gray-900 dark:text-white font-medium rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-zinc-600 transition-all"
                             >
-                                {loadingDoc ? 'Loading...' : `View ${isLikelyProposal ? 'Proposal' : 'Contract'}`}
+                                {loadingDoc ? 'Loading...' : `View ${isProposalDocument ? 'Proposal' : 'Contract'}`}
                             </button>
                         </div>
                     </div>
@@ -245,7 +252,7 @@ export function MailViewerColumn({
                     isOpen={showContractViewer}
                     onClose={() => setShowContractViewer(false)}
                     onSign={async (contractId, fullName) => {
-                        await ContractSigningService.signContract(contractId, user!.uid, mail.recipientUsername, fullName);
+                        await signContract(contractId, user!.uid, mail.recipientUsername, fullName);
                         toast.success('Signed successfully');
                     }}
                     canSign={user?.uid === (mail as any).recipientId && loadedDocument.status === 'pending'}

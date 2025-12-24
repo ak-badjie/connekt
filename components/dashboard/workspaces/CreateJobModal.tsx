@@ -20,7 +20,8 @@ interface CreateJobModalProps {
 const steps = [
     { number: 1, title: "Basics", description: "Role & Type" },
     { number: 2, title: "Details", description: "Description & Pay" },
-    { number: 3, title: "Requirements", description: "Skills & Schedule" }
+    { number: 3, title: "Requirements", description: "Skills Needed" },
+    { number: 4, title: "Schedule", description: "Hours & Terms" }
 ];
 
 export default function CreateJobModal({ isOpen, onClose, workspaceId, jobToEdit }: CreateJobModalProps) {
@@ -43,7 +44,17 @@ export default function CreateJobModal({ isOpen, onClose, workspaceId, jobToEdit
         currency: jobToEdit?.currency || 'USD',
         paymentSchedule: jobToEdit?.paymentSchedule || 'monthly',
         requirements: Array.isArray(jobToEdit?.requirements) ? jobToEdit.requirements.join('\n') : (jobToEdit?.requirements || ''),
-        skills: '' // Comma separated for now
+        skills: '', // Comma separated for now
+        // Schedule Configuration
+        startTime: jobToEdit?.schedule?.startTime || '09:00',
+        endTime: jobToEdit?.schedule?.endTime || '17:00',
+        workDays: jobToEdit?.schedule?.workDays || [1, 2, 3, 4, 5], // Mon-Fri default
+        breakDuration: jobToEdit?.schedule?.breakDurationMinutes || 60,
+        isFlexible: jobToEdit?.schedule?.isFlexible || false,
+        timezone: jobToEdit?.schedule?.timezone || 'UTC',
+        // Penalty Configuration
+        penaltyPerLateTask: jobToEdit?.conditions?.penaltyPerLateTask || 0,
+        penaltyUnit: jobToEdit?.conditions?.penaltyUnit || 'fixed'
     });
 
     useEffect(() => {
@@ -66,7 +77,17 @@ export default function CreateJobModal({ isOpen, onClose, workspaceId, jobToEdit
                 currency: jobToEdit.currency || 'USD',
                 paymentSchedule: jobToEdit.paymentSchedule || 'monthly',
                 requirements: Array.isArray(jobToEdit.requirements) ? jobToEdit.requirements.join('\n') : (jobToEdit.requirements || ''),
-                skills: Array.isArray(jobToEdit.skills) ? jobToEdit.skills.join(', ') : (jobToEdit.skills || '')
+                skills: Array.isArray(jobToEdit.skills) ? jobToEdit.skills.join(', ') : (jobToEdit.skills || ''),
+                // Schedule fields
+                startTime: jobToEdit.schedule?.startTime || '09:00',
+                endTime: jobToEdit.schedule?.endTime || '17:00',
+                workDays: jobToEdit.schedule?.workDays || [1, 2, 3, 4, 5],
+                breakDuration: jobToEdit.schedule?.breakDurationMinutes || 60,
+                isFlexible: jobToEdit.schedule?.isFlexible || false,
+                timezone: jobToEdit.schedule?.timezone || 'UTC',
+                // Penalty fields
+                penaltyPerLateTask: jobToEdit.conditions?.penaltyPerLateTask || 0,
+                penaltyUnit: jobToEdit.conditions?.penaltyUnit || 'fixed'
             });
         } else if (isOpen && !jobToEdit) {
             // Reset if opening in Create mode (and not Edit mode)
@@ -80,7 +101,15 @@ export default function CreateJobModal({ isOpen, onClose, workspaceId, jobToEdit
                 currency: 'USD',
                 paymentSchedule: 'monthly',
                 requirements: '',
-                skills: ''
+                skills: '',
+                startTime: '09:00',
+                endTime: '17:00',
+                workDays: [1, 2, 3, 4, 5],
+                breakDuration: 60,
+                isFlexible: false,
+                timezone: 'UTC',
+                penaltyPerLateTask: 0,
+                penaltyUnit: 'fixed'
             });
         }
     }, [jobToEdit, isOpen]);
@@ -117,19 +146,26 @@ export default function CreateJobModal({ isOpen, onClose, workspaceId, jobToEdit
         setLoading(true);
         try {
             const commonData = {
-                ...formData,
+                title: formData.title,
+                description: formData.description,
+                type: formData.type,
+                projectId: formData.projectId,
+                taskId: formData.taskId,
                 salary: Number(formData.salary),
+                currency: formData.currency,
+                paymentSchedule: formData.paymentSchedule,
                 requirements: formData.requirements.split('\n').filter((r: string) => r.trim()),
                 schedule: {
-                    startTime: '09:00',
-                    endTime: '17:00',
-                    timezone: 'UTC',
-                    breakDurationMinutes: 60,
-                    workDays: [1, 2, 3, 4, 5]
+                    startTime: formData.startTime,
+                    endTime: formData.endTime,
+                    timezone: formData.timezone,
+                    breakDurationMinutes: formData.breakDuration,
+                    workDays: formData.workDays,
+                    isFlexible: formData.isFlexible
                 },
                 conditions: {
-                    penaltyPerLateTask: 0,
-                    penaltyUnit: 'fixed',
+                    penaltyPerLateTask: Number(formData.penaltyPerLateTask),
+                    penaltyUnit: formData.penaltyUnit,
                     overtimeRate: 1.5
                 }
             };
@@ -159,7 +195,7 @@ export default function CreateJobModal({ isOpen, onClose, workspaceId, jobToEdit
         }
     };
 
-    const nextStep = () => setCurrentStep(curr => Math.min(curr + 1, 3));
+    const nextStep = () => setCurrentStep(curr => Math.min(curr + 1, 4));
     const prevStep = () => setCurrentStep(curr => Math.max(curr - 1, 1));
 
     if (!mounted) return null;
@@ -210,8 +246,8 @@ export default function CreateJobModal({ isOpen, onClose, workspaceId, jobToEdit
                             </div>
                         </div>
 
-                        {/* Content */}
-                        <div className="p-8">
+                        {/* Content - Fixed height with internal scroll */}
+                        <div className="p-8 h-[400px] overflow-y-auto">
                             <AnimatePresence mode="wait">
                                 {currentStep === 1 && (
                                     <motion.div
@@ -373,26 +409,180 @@ export default function CreateJobModal({ isOpen, onClose, workspaceId, jobToEdit
                                         exit={{ opacity: 0, x: -20 }}
                                         className="space-y-6"
                                     >
+                                        {/* Requirements */}
                                         <div>
                                             <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                                                Requirements
+                                                Key Requirements
                                             </label>
                                             <textarea
                                                 value={formData.requirements}
                                                 onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
-                                                placeholder="List the key requirements (one per line)..."
-                                                className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-[#008080] outline-none transition-all min-h-[160px]"
+                                                placeholder="List the key requirements (one per line)...\n• 3+ years of experience\n• Strong communication skills\n• Proficiency in..."
+                                                className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-[#008080] outline-none transition-all min-h-[180px]"
                                             />
                                         </div>
 
+                                        {/* Skills */}
+                                        <div>
+                                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                                                Required Skills
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={formData.skills}
+                                                onChange={(e) => setFormData({ ...formData, skills: e.target.value })}
+                                                placeholder="e.g. React, TypeScript, Node.js (comma separated)"
+                                                className="w-full px-4 py-3 bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-[#008080] outline-none transition-all"
+                                            />
+                                            <p className="text-xs text-gray-500 mt-1">Separate skills with commas</p>
+                                        </div>
+
+                                        {/* Info Box */}
                                         <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl flex gap-3">
                                             <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-lg h-fit">
                                                 <Briefcase size={20} className="text-blue-600 dark:text-blue-400" />
                                             </div>
                                             <div>
-                                                <h4 className="font-bold text-gray-900 dark:text-white mb-1">Standard Contract</h4>
+                                                <h4 className="font-bold text-gray-900 dark:text-white mb-1">Matching Candidates</h4>
                                                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                                                    This role will include standard workspace benefits and follow the default contract terms.
+                                                    These requirements help Connekt AI match you with the best candidates.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                )}
+
+                                {currentStep === 4 && (
+                                    <motion.div
+                                        key="step4"
+                                        initial={{ opacity: 0, x: 20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -20 }}
+                                        className="space-y-6"
+                                    >
+                                        {/* Work Schedule Section */}
+                                        <div className="space-y-4 p-4 bg-gray-50 dark:bg-zinc-800/50 rounded-xl border border-gray-200 dark:border-zinc-700">
+                                            <h4 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                                <Clock size={18} className="text-[#008080]" />
+                                                Work Schedule
+                                            </h4>
+
+                                            {/* Flexible Toggle */}
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-sm text-gray-600 dark:text-gray-400">Flexible Hours</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setFormData({ ...formData, isFlexible: !formData.isFlexible })}
+                                                    className={`w-12 h-6 rounded-full transition-colors ${formData.isFlexible ? 'bg-[#008080]' : 'bg-gray-300 dark:bg-zinc-600'}`}
+                                                >
+                                                    <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${formData.isFlexible ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                                                </button>
+                                            </div>
+
+                                            {!formData.isFlexible && (
+                                                <>
+                                                    {/* Work Days */}
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">Work Days</label>
+                                                        <div className="flex gap-2">
+                                                            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, idx) => (
+                                                                <button
+                                                                    key={idx}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        const newDays = formData.workDays.includes(idx)
+                                                                            ? formData.workDays.filter((d: number) => d !== idx)
+                                                                            : [...formData.workDays, idx].sort();
+                                                                        setFormData({ ...formData, workDays: newDays });
+                                                                    }}
+                                                                    className={`w-9 h-9 rounded-lg font-bold text-sm transition-all ${formData.workDays.includes(idx)
+                                                                        ? 'bg-[#008080] text-white'
+                                                                        : 'bg-gray-200 dark:bg-zinc-700 text-gray-500 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-zinc-600'
+                                                                        }`}
+                                                                >
+                                                                    {day}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Time Range */}
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div>
+                                                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Start Time</label>
+                                                            <input
+                                                                type="time"
+                                                                value={formData.startTime}
+                                                                onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                                                                className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">End Time</label>
+                                                            <input
+                                                                type="time"
+                                                                value={formData.endTime}
+                                                                onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+                                                                className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm"
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Break Duration */}
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Break Duration</label>
+                                                        <select
+                                                            value={formData.breakDuration}
+                                                            onChange={(e) => setFormData({ ...formData, breakDuration: Number(e.target.value) })}
+                                                            className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm"
+                                                        >
+                                                            <option value={0}>No Break</option>
+                                                            <option value={30}>30 minutes</option>
+                                                            <option value={60}>1 hour</option>
+                                                            <option value={90}>1.5 hours</option>
+                                                        </select>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+
+                                        {/* Penalty Settings */}
+                                        <div className="space-y-3 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+                                            <h4 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                                <DollarSign size={18} className="text-amber-600" />
+                                                Late Task Penalty (Optional)
+                                            </h4>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="number"
+                                                    value={formData.penaltyPerLateTask}
+                                                    onChange={(e) => setFormData({ ...formData, penaltyPerLateTask: Number(e.target.value) })}
+                                                    placeholder="0"
+                                                    className="flex-1 px-3 py-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm"
+                                                />
+                                                <select
+                                                    value={formData.penaltyUnit}
+                                                    onChange={(e) => setFormData({ ...formData, penaltyUnit: e.target.value })}
+                                                    className="w-28 px-3 py-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm"
+                                                >
+                                                    <option value="fixed">{formData.currency}</option>
+                                                    <option value="percentage">%</option>
+                                                </select>
+                                            </div>
+                                            <p className="text-xs text-amber-700 dark:text-amber-400">
+                                                Amount deducted per late task delivery. Set to 0 for no penalties.
+                                            </p>
+                                        </div>
+
+                                        {/* Contract Info */}
+                                        <div className="bg-teal-50 dark:bg-teal-900/20 p-4 rounded-xl flex gap-3">
+                                            <div className="p-2 bg-teal-100 dark:bg-teal-900/40 rounded-lg h-fit">
+                                                <Briefcase size={20} className="text-teal-600 dark:text-teal-400" />
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-gray-900 dark:text-white mb-1">Enforceable Contract</h4>
+                                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                                    These schedule and penalty terms will be embedded in the contract and enforced by Connekt.
                                                 </p>
                                             </div>
                                         </div>
@@ -415,7 +605,7 @@ export default function CreateJobModal({ isOpen, onClose, workspaceId, jobToEdit
                                 <div></div>
                             )}
 
-                            {currentStep === 3 ? (
+                            {currentStep === 4 ? (
                                 <button
                                     onClick={handleSubmit}
                                     disabled={loading}

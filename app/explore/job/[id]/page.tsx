@@ -92,28 +92,70 @@ Email: ${user?.email || 'your.email@example.com'}
 
         params.set('brief', brief);
 
-        // Pass detailed variables for Composer state
+        // Pass detailed variables for Composer state - CRITICAL for contract reply flow
         params.set('variables', JSON.stringify({
-            isProposal: true, // IMPORTANT FLAG
+            isProposal: true,
             proposalContext: proposalContext,
-            brief: brief, // Redundant but safe
-            autoStart: withAI, // Triggers modal open
-            // Explicitly set linked Workspace ID for later contract generation
+            brief: brief,
+            autoStart: withAI,
+
+            // CRITICAL: IDs needed when owner replies with contract
+            jobId: job.id,
             workspaceId: job.workspaceId,
+            linkedWorkspaceId: job.workspaceId,
+            linkedJobId: job.id,
+            // Only set project/task IDs if applicable
+            ...(job.type === 'project' && { projectId: job.id, linkedProjectId: job.id }),
+            ...(job.type === 'task' && { taskId: job.id, linkedTaskId: job.id }),
 
             // Standard Contract Variables
             clientName: (job as any).ownerName || (job as any).ownerUsername || 'Client',
             contractorName: userProfile?.displayName || userProfile?.username || 'Contractor',
-            applicantName: userProfile?.displayName || userProfile?.username || 'Contractor', // NEW: Required by templates
+            applicantName: userProfile?.displayName || userProfile?.username || 'Contractor',
+            employerName: (job as any).ownerName || (job as any).ownerUsername || 'Employer',
+            employeeName: userProfile?.displayName || userProfile?.username || 'Contractor',
             jobTitle: job.title,
             projectTitle: job.title,
             taskTitle: job.title,
+            jobDescription: job.description,
+            projectDescription: job.description,
+
+            // Pass job schedule terms - CRITICAL for enforcement
+            schedule: job.schedule || {
+                startTime: '09:00',
+                endTime: '17:00',
+                workDays: [1, 2, 3, 4, 5],
+                isFlexible: false,
+                breakDurationMinutes: 60,
+                timezone: 'UTC'
+            },
+            workStartTime: job.schedule?.startTime || '09:00',
+            workEndTime: job.schedule?.endTime || '17:00',
+            workDays: job.schedule?.workDays || [1, 2, 3, 4, 5],
+
+            // Pass job conditions - CRITICAL for enforcement
+            conditions: job.conditions || {
+                penaltyPerLateTask: 0,
+                penaltyUnit: 'fixed',
+                overtimeRate: 1.5
+            },
+            penaltyPerLateTask: job.conditions?.penaltyPerLateTask || 0,
+            penaltyUnit: job.conditions?.penaltyUnit || 'fixed',
+            overtimeRate: job.conditions?.overtimeRate || 1.5,
+
+            // Payment details - CRITICAL for escrow
+            paymentAmount: job.salary,
+            salary: job.salary,
+            paymentCurrency: job.currency,
+            currency: job.currency,
+            paymentSchedule: job.paymentSchedule,
+
+            // Dates (ISO format)
+            startDate: new Date().toISOString().slice(0, 10),
+            contractDate: new Date().toISOString().slice(0, 10)
         }));
 
         // Mapping Job Type to Template ID
-        // job -> job_proposal
-        // project -> project_proposal
-        // task -> task_proposal
         // job -> job_proposal
         // project -> project_proposal
         // task -> task_proposal

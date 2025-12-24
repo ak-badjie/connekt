@@ -4,11 +4,14 @@ import {
     query,
     where,
     getDocs,
+    getDoc,
+    doc,
     orderBy,
     limit as firestoreLimit,
     startAfter,
     DocumentSnapshot
 } from 'firebase/firestore';
+import type { JobTemplate } from '@/lib/types/workspace.types';
 import type { Project, Task } from '@/lib/types/workspace.types';
 import type { ExtendedUserProfile, ExtendedAgencyProfile } from '@/lib/types/profile.types';
 import { Agency } from '../services/agency-service';
@@ -122,6 +125,33 @@ export const ExploreService = {
         }
 
         return jobs;
+    },
+
+    /**
+     * Get a single job by ID
+     */
+    async getJobById(jobId: string): Promise<JobTemplate | null> {
+        const snap = await getDoc(doc(db, 'jobs', jobId));
+        if (!snap.exists()) return null;
+        return { id: snap.id, ...snap.data() } as JobTemplate;
+    },
+
+    /**
+     * Get a single project by ID
+     */
+    async getProjectById(projectId: string): Promise<Project | null> {
+        const snap = await getDoc(doc(db, 'projects', projectId));
+        if (!snap.exists()) return null;
+        return { id: snap.id, ...snap.data() } as Project;
+    },
+
+    /**
+     * Get a single task by ID
+     */
+    async getTaskById(taskId: string): Promise<Task | null> {
+        const snap = await getDoc(doc(db, 'tasks', taskId));
+        if (!snap.exists()) return null;
+        return { id: snap.id, ...snap.data() } as Task;
     },
 
     /**
