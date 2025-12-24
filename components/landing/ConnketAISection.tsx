@@ -49,58 +49,112 @@ export default function ConnketAISection({ isVisible }: { isVisible: boolean }) 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
 
                     {/* LEFT SIDE: Text Content */}
-                    <div className="flex flex-col justify-start">
+                    <motion.div
+                        initial={{ opacity: 0, x: -30 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.6 }}
+                        className="flex flex-col justify-start"
+                    >
 
                         {/* Icon + Badge */}
-                        <div className="flex items-center gap-3 mb-6">
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.1 }}
+                            className="flex items-center gap-3 mb-6"
+                        >
                             <ConnektAIIcon className="w-12 h-12" />
                             <span className="px-3 py-1 rounded-full bg-[#008080]/10 text-[#008080] text-xs font-bold">
                                 AI POWERED
                             </span>
-                        </div>
+                        </motion.div>
 
                         {/* Main Heading */}
-                        <h2 className="text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 leading-tight mb-4">
+                        <motion.h2
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.2 }}
+                            className="text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 leading-tight mb-4"
+                        >
                             Connekt
                             <br />
                             <span className="text-[#008080]">AI Services</span>
-                        </h2>
+                        </motion.h2>
 
                         {/* Description */}
-                        <p className="text-gray-600 text-base md:text-lg mb-6 max-w-md">
+                        <motion.p
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.3 }}
+                            className="text-gray-600 text-base md:text-lg mb-6 max-w-md"
+                        >
                             Leverage the power of AI to enhance your profile, parse resumes, generate proposals, and find perfect matches automatically.
-                        </p>
+                        </motion.p>
 
                         {/* 100+ Tools Badge */}
-                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#008080] to-teal-600 text-white font-bold rounded-full w-fit mb-8 shadow-lg shadow-teal-500/20">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            whileInView={{ opacity: 1, scale: 1 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.4 }}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#008080] to-teal-600 text-white font-bold rounded-full w-fit mb-8 shadow-lg shadow-teal-500/20"
+                        >
                             <Zap className="w-5 h-5" />
                             <span>100+ AI Tools Available</span>
-                        </div>
+                        </motion.div>
 
                         {/* CTA Button */}
-                        <button className="inline-flex items-center gap-2 px-6 py-3 bg-[#008080] text-white font-bold rounded-full w-fit hover:bg-teal-600 transition-colors shadow-lg shadow-teal-500/20 mb-8">
+                        <motion.button
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.5 }}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="inline-flex items-center gap-2 px-6 py-3 bg-[#008080] text-white font-bold rounded-full w-fit hover:bg-teal-600 transition-colors shadow-lg shadow-teal-500/20 mb-8"
+                        >
                             Explore All AI Features
                             <ArrowRight size={18} />
-                        </button>
+                        </motion.button>
 
                         {/* Image */}
-                        <div className="relative w-full max-w-lg">
+                        <motion.div
+                            initial={{ opacity: 0, y: 30 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.6 }}
+                            className="relative w-full max-w-lg"
+                        >
                             <img
                                 src="/va1.jpeg"
                                 alt="AI Assistant"
                                 className="w-full h-auto rounded-2xl shadow-lg"
                             />
-                        </div>
-                    </div>
+                        </motion.div>
+                    </motion.div>
 
                     {/* RIGHT SIDE: All AI Tools Grid */}
-                    <div className="bg-gray-50 rounded-3xl p-6 md:p-8">
+                    <motion.div
+                        initial={{ opacity: 0, x: 30 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.6, delay: 0.2 }}
+                        className="bg-gray-50 rounded-3xl p-6 md:p-8"
+                    >
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                            {AI_TOOLS.map((tool) => {
+                            {AI_TOOLS.map((tool, i) => {
                                 const Icon = tool.icon;
                                 return (
-                                    <div
+                                    <motion.div
                                         key={tool.label}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        whileInView={{ opacity: 1, y: 0 }}
+                                        viewport={{ once: true }}
+                                        transition={{ delay: 0.3 + i * 0.05 }}
                                         className="flex flex-col items-center text-center p-4 rounded-xl bg-white border border-gray-200 hover:border-[#008080] hover:shadow-lg transition-all cursor-pointer group"
                                     >
                                         <div className="w-12 h-12 rounded-xl bg-[#008080]/10 flex items-center justify-center mb-3 group-hover:bg-[#008080] transition-colors">
@@ -108,18 +162,24 @@ export default function ConnketAISection({ isVisible }: { isVisible: boolean }) 
                                         </div>
                                         <p className="text-sm font-bold text-gray-900 mb-1">{tool.label}</p>
                                         <p className="text-[10px] text-gray-500 leading-tight">{tool.description}</p>
-                                    </div>
+                                    </motion.div>
                                 );
                             })}
                         </div>
 
                         {/* More Tools Indicator */}
-                        <div className="mt-4 text-center">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            whileInView={{ opacity: 1 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 1 }}
+                            className="mt-4 text-center"
+                        >
                             <span className="text-sm text-gray-500">
                                 + many more AI-powered tools
                             </span>
-                        </div>
-                    </div>
+                        </motion.div>
+                    </motion.div>
                 </div>
             </div>
         </section>

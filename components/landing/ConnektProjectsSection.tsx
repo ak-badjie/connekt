@@ -31,28 +31,58 @@ export default function ConnektProjectsSection() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
 
                     {/* LEFT SIDE: Text Content */}
-                    <div className="flex flex-col justify-center order-2 lg:order-1">
+                    <motion.div
+                        initial={{ opacity: 0, x: -30 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.6 }}
+                        className="flex flex-col justify-center order-2 lg:order-1"
+                    >
 
                         {/* Badge */}
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#008080]/10 text-[#008080] text-xs font-bold w-fit mb-6">
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.1 }}
+                            className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#008080]/10 text-[#008080] text-xs font-bold w-fit mb-6"
+                        >
                             <Briefcase className="w-4 h-4" />
                             PROJECT MANAGEMENT
-                        </div>
+                        </motion.div>
 
                         {/* Main Heading */}
-                        <h2 className="text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 leading-tight mb-4">
+                        <motion.h2
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.2 }}
+                            className="text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 leading-tight mb-4"
+                        >
                             Connekt
                             <br />
                             <span className="text-[#008080]">Projects</span>
-                        </h2>
+                        </motion.h2>
 
                         {/* Description */}
-                        <p className="text-gray-600 text-base md:text-lg mb-8 max-w-md">
+                        <motion.p
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.3 }}
+                            className="text-gray-600 text-base md:text-lg mb-8 max-w-md"
+                        >
                             From proposal to payment, manage every project milestone with precision. Track deliverables, budgets, and deadlines in one sophisticated dashboard.
-                        </p>
+                        </motion.p>
 
                         {/* Stats Row */}
-                        <div className="grid grid-cols-3 gap-4 mb-8">
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.4 }}
+                            className="grid grid-cols-3 gap-4 mb-8"
+                        >
                             <div className="bg-gray-50 rounded-xl p-4 text-center">
                                 <div className="text-2xl font-black text-[#008080]">98%</div>
                                 <div className="text-xs text-gray-500">On-Time Delivery</div>
@@ -65,14 +95,22 @@ export default function ConnektProjectsSection() {
                                 <div className="text-2xl font-black text-[#008080]">15K+</div>
                                 <div className="text-xs text-gray-500">Active Projects</div>
                             </div>
-                        </div>
+                        </motion.div>
 
                         {/* CTA Button */}
-                        <button className="inline-flex items-center gap-2 px-6 py-3 bg-[#008080] text-white font-bold rounded-full w-fit hover:bg-teal-600 transition-colors shadow-lg shadow-teal-500/20">
+                        <motion.button
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.5 }}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="inline-flex items-center gap-2 px-6 py-3 bg-[#008080] text-white font-bold rounded-full w-fit hover:bg-teal-600 transition-colors shadow-lg shadow-teal-500/20"
+                        >
                             Start a Project
                             <ArrowRight size={18} />
-                        </button>
-                    </div>
+                        </motion.button>
+                    </motion.div>
 
                     {/* RIGHT SIDE: Project Dashboard Preview */}
                     <div className="relative order-1 lg:order-2">
@@ -111,8 +149,8 @@ export default function ConnektProjectsSection() {
                                     {MILESTONES.map((milestone, i) => (
                                         <div key={milestone.label} className="flex items-center gap-4 mb-3 relative">
                                             <div className={`w-6 h-6 rounded-full flex items-center justify-center z-10 ${milestone.status === 'completed' ? 'bg-[#008080]' :
-                                                    milestone.status === 'current' ? 'bg-[#008080] ring-4 ring-[#008080]/20' :
-                                                        'bg-gray-200'
+                                                milestone.status === 'current' ? 'bg-[#008080] ring-4 ring-[#008080]/20' :
+                                                    'bg-gray-200'
                                                 }`}>
                                                 {milestone.status === 'completed' && (
                                                     <CheckCircle2 className="w-4 h-4 text-white" />

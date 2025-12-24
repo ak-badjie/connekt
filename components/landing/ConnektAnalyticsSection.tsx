@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { motion } from 'framer-motion';
 import { BarChart3 } from 'lucide-react';
 
 export default function ConnektAnalyticsSection() {
@@ -9,37 +10,71 @@ export default function ConnektAnalyticsSection() {
             <div className="max-w-7xl mx-auto">
 
                 {/* Full Image Container with Text Overlay */}
-                <div className="relative w-full rounded-3xl overflow-hidden">
+                <motion.div
+                    initial={{ opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.6 }}
+                    className="relative w-full rounded-3xl overflow-hidden"
+                >
 
                     {/* Laptop Image - Full Width */}
-                    <img
+                    <motion.img
+                        initial={{ scale: 1.1 }}
+                        whileInView={{ scale: 1 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.8 }}
                         src="/laptop.jpeg"
                         alt="Connekt Analytics Dashboard"
                         className="w-full h-auto"
                     />
 
                     {/* Text Overlay - Top Left */}
-                    <div className="absolute top-6 left-6 md:top-10 md:left-10 lg:top-12 lg:left-12">
+                    <motion.div
+                        initial={{ opacity: 0, x: -30 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.6, delay: 0.3 }}
+                        className="absolute top-6 left-6 md:top-10 md:left-10 lg:top-12 lg:left-12"
+                    >
                         <div className="bg-black/60 backdrop-blur-sm rounded-2xl p-6 md:p-8 max-w-sm">
 
                             {/* Badge */}
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#008080]/30 text-[#008080] text-xs font-bold mb-4">
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ delay: 0.5 }}
+                                className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#008080]/30 text-[#008080] text-xs font-bold mb-4"
+                            >
                                 <BarChart3 className="w-4 h-4" />
                                 ANALYTICS
-                            </div>
+                            </motion.div>
 
                             {/* Heading */}
-                            <h2 className="text-2xl md:text-3xl font-black text-white leading-tight mb-3">
+                            <motion.h2
+                                initial={{ opacity: 0, y: 10 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ delay: 0.6 }}
+                                className="text-2xl md:text-3xl font-black text-white leading-tight mb-3"
+                            >
                                 Connekt <span className="text-[#008080]">Analytics</span>
-                            </h2>
+                            </motion.h2>
 
                             {/* Simple Description */}
-                            <p className="text-white/80 text-sm md:text-base">
+                            <motion.p
+                                initial={{ opacity: 0, y: 10 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ delay: 0.7 }}
+                                className="text-white/80 text-sm md:text-base"
+                            >
                                 Track revenue, monitor projects, and watch your business grow with real-time insights.
-                            </p>
+                            </motion.p>
                         </div>
-                    </div>
-                </div>
+                    </motion.div>
+                </motion.div>
             </div>
         </section>
     );

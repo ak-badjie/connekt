@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { motion } from 'framer-motion';
 import {
     FileSignature,
     Shield,
@@ -41,33 +42,61 @@ export default function ConnektContractSection() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
 
                     {/* LEFT SIDE: Text Content */}
-                    <div className="flex flex-col justify-center">
+                    <motion.div
+                        initial={{ opacity: 0, x: -30 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.6 }}
+                        className="flex flex-col justify-center"
+                    >
 
                         {/* Badge */}
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#008080]/10 text-[#008080] text-xs font-bold w-fit mb-6">
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.1 }}
+                            className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#008080]/10 text-[#008080] text-xs font-bold w-fit mb-6"
+                        >
                             <FileSignature className="w-4 h-4" />
                             DIGITAL CONTRACTS
-                        </div>
+                        </motion.div>
 
                         {/* Main Heading */}
-                        <h2 className="text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 leading-tight mb-4">
+                        <motion.h2
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.2 }}
+                            className="text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 leading-tight mb-4"
+                        >
                             Contracts &
                             <br />
                             <span className="text-[#008080]">Proposals</span>
-                        </h2>
+                        </motion.h2>
 
                         {/* Description */}
-                        <p className="text-gray-600 text-base md:text-lg mb-8 max-w-md">
+                        <motion.p
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.3 }}
+                            className="text-gray-600 text-base md:text-lg mb-8 max-w-md"
+                        >
                             Say goodbye to paper contracts. We've digitalized the entire contract and proposal workflow — from creation to signature, all in one secure platform.
-                        </p>
+                        </motion.p>
 
                         {/* Feature Grid */}
                         <div className="grid grid-cols-2 gap-3 mb-8">
-                            {CONTRACT_FEATURES.map((feature) => {
+                            {CONTRACT_FEATURES.map((feature, i) => {
                                 const Icon = feature.icon;
                                 return (
-                                    <div
+                                    <motion.div
                                         key={feature.label}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        whileInView={{ opacity: 1, y: 0 }}
+                                        viewport={{ once: true }}
+                                        transition={{ delay: 0.4 + i * 0.1 }}
                                         className="flex items-center gap-3 p-3 rounded-xl bg-white border border-gray-200 hover:border-[#008080] transition-colors shadow-sm"
                                     >
                                         <div className="w-10 h-10 rounded-lg bg-[#008080]/10 flex items-center justify-center">
@@ -77,26 +106,44 @@ export default function ConnektContractSection() {
                                             <p className="text-gray-900 text-sm font-bold">{feature.label}</p>
                                             <p className="text-gray-500 text-xs">{feature.description}</p>
                                         </div>
-                                    </div>
+                                    </motion.div>
                                 );
                             })}
                         </div>
 
                         {/* CTA Button */}
-                        <button className="inline-flex items-center gap-2 px-6 py-3 bg-[#008080] text-white font-bold rounded-full w-fit hover:bg-teal-600 transition-colors shadow-lg shadow-teal-500/20">
+                        <motion.button
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.8 }}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="inline-flex items-center gap-2 px-6 py-3 bg-[#008080] text-white font-bold rounded-full w-fit hover:bg-teal-600 transition-colors shadow-lg shadow-teal-500/20"
+                        >
                             Create Contract
                             <ArrowRight size={18} />
-                        </button>
-                    </div>
+                        </motion.button>
+                    </motion.div>
 
                     {/* RIGHT SIDE: Image Only */}
-                    <div className="flex items-center justify-center">
-                        <img
+                    <motion.div
+                        initial={{ opacity: 0, x: 30 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.6, delay: 0.2 }}
+                        className="flex items-center justify-center"
+                    >
+                        <motion.img
+                            initial={{ scale: 0.9 }}
+                            whileInView={{ scale: 1 }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.6 }}
                             src="/contract.jpeg"
                             alt="Digital Contract"
                             className="w-full max-w-xl h-auto rounded-3xl shadow-2xl"
                         />
-                    </div>
+                    </motion.div>
                 </div>
             </div>
         </section>

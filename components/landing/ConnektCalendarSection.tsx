@@ -104,8 +104,8 @@ export default function ConnektCalendarSection() {
                                         <div
                                             key={item.day}
                                             className={`aspect-square rounded-xl flex flex-col items-center justify-center p-2 cursor-pointer transition-colors ${item.day === 24
-                                                    ? 'bg-[#008080] text-white'
-                                                    : 'bg-gray-50 hover:bg-gray-100 text-gray-700'
+                                                ? 'bg-[#008080] text-white'
+                                                : 'bg-gray-50 hover:bg-gray-100 text-gray-700'
                                                 }`}
                                         >
                                             <span className="text-sm font-semibold">{item.day}</span>
@@ -144,28 +144,58 @@ export default function ConnektCalendarSection() {
                     </div>
 
                     {/* RIGHT SIDE: Text Content */}
-                    <div className="flex flex-col justify-center">
+                    <motion.div
+                        initial={{ opacity: 0, x: 30 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.6, delay: 0.2 }}
+                        className="flex flex-col justify-center"
+                    >
 
                         {/* Badge */}
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#008080]/10 text-[#008080] text-xs font-bold w-fit mb-6">
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.3 }}
+                            className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#008080]/10 text-[#008080] text-xs font-bold w-fit mb-6"
+                        >
                             <Calendar className="w-4 h-4" />
                             SCHEDULING
-                        </div>
+                        </motion.div>
 
                         {/* Main Heading */}
-                        <h2 className="text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 leading-tight mb-4">
+                        <motion.h2
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.4 }}
+                            className="text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 leading-tight mb-4"
+                        >
                             Connekt
                             <br />
                             <span className="text-[#008080]">Calendar</span>
-                        </h2>
+                        </motion.h2>
 
                         {/* Description */}
-                        <p className="text-gray-600 text-base md:text-lg mb-8 max-w-md">
+                        <motion.p
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.5 }}
+                            className="text-gray-600 text-base md:text-lg mb-8 max-w-md"
+                        >
                             Never miss a deadline or meeting. Our smart calendar syncs with your projects, tasks, and team availability to keep you perfectly organized.
-                        </p>
+                        </motion.p>
 
                         {/* Stats */}
-                        <div className="grid grid-cols-3 gap-4 mb-8">
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.6 }}
+                            className="grid grid-cols-3 gap-4 mb-8"
+                        >
                             <div className="text-center">
                                 <div className="text-3xl font-black text-[#008080]">24/7</div>
                                 <div className="text-xs text-gray-500">Sync</div>
@@ -178,14 +208,22 @@ export default function ConnektCalendarSection() {
                                 <div className="text-3xl font-black text-[#008080]">50+</div>
                                 <div className="text-xs text-gray-500">Integrations</div>
                             </div>
-                        </div>
+                        </motion.div>
 
                         {/* CTA Button */}
-                        <button className="inline-flex items-center gap-2 px-6 py-3 bg-[#008080] text-white font-bold rounded-full w-fit hover:bg-teal-600 transition-colors shadow-lg shadow-teal-500/20">
+                        <motion.button
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.7 }}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="inline-flex items-center gap-2 px-6 py-3 bg-[#008080] text-white font-bold rounded-full w-fit hover:bg-teal-600 transition-colors shadow-lg shadow-teal-500/20"
+                        >
                             Open Calendar
                             <ArrowRight size={18} />
-                        </button>
-                    </div>
+                        </motion.button>
+                    </motion.div>
                 </div>
             </div>
         </section>

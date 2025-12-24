@@ -32,28 +32,58 @@ export default function ConnektMeetingsSection() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
 
                     {/* LEFT SIDE: Text Content */}
-                    <div className="flex flex-col justify-center order-2 lg:order-1">
+                    <motion.div
+                        initial={{ opacity: 0, x: -30 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.6 }}
+                        className="flex flex-col justify-center order-2 lg:order-1"
+                    >
 
                         {/* Badge */}
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#008080]/10 text-[#008080] text-xs font-bold w-fit mb-6">
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.1 }}
+                            className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#008080]/10 text-[#008080] text-xs font-bold w-fit mb-6"
+                        >
                             <Video className="w-4 h-4" />
                             VIDEO MEETINGS
-                        </div>
+                        </motion.div>
 
                         {/* Main Heading */}
-                        <h2 className="text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 leading-tight mb-4">
+                        <motion.h2
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.2 }}
+                            className="text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 leading-tight mb-4"
+                        >
                             Connekt
                             <br />
                             <span className="text-[#008080]">Meetings</span>
-                        </h2>
+                        </motion.h2>
 
                         {/* Description */}
-                        <p className="text-gray-600 text-base md:text-lg mb-8 max-w-md">
+                        <motion.p
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.3 }}
+                            className="text-gray-600 text-base md:text-lg mb-8 max-w-md"
+                        >
                             Crystal-clear video meetings integrated with your projects. Screen share, record, and collaborate in real-time without leaving the platform.
-                        </p>
+                        </motion.p>
 
                         {/* Feature Grid */}
-                        <div className="grid grid-cols-2 gap-4 mb-8">
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.4 }}
+                            className="grid grid-cols-2 gap-4 mb-8"
+                        >
                             {[
                                 { icon: Monitor, label: 'Screen Share', desc: 'Present with ease' },
                                 { icon: MessageSquare, label: 'Live Chat', desc: 'In-meeting messages' },
@@ -71,14 +101,22 @@ export default function ConnektMeetingsSection() {
                                     </div>
                                 );
                             })}
-                        </div>
+                        </motion.div>
 
                         {/* CTA Button */}
-                        <button className="inline-flex items-center gap-2 px-6 py-3 bg-[#008080] text-white font-bold rounded-full w-fit hover:bg-teal-600 transition-colors shadow-lg shadow-teal-500/20">
+                        <motion.button
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.5 }}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="inline-flex items-center gap-2 px-6 py-3 bg-[#008080] text-white font-bold rounded-full w-fit hover:bg-teal-600 transition-colors shadow-lg shadow-teal-500/20"
+                        >
                             Start a Meeting
                             <ArrowRight size={18} />
-                        </button>
-                    </div>
+                        </motion.button>
+                    </motion.div>
 
                     {/* RIGHT SIDE: Video Meeting UI Mockup */}
                     <div className="relative order-1 lg:order-2">

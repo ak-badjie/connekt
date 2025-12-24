@@ -28,7 +28,7 @@ import ConnektNotificationsSection from '@/components/landing/ConnektNotificatio
 import ConnektProofSection from '@/components/landing/ConnektProofSection';
 import ConnektRolesSection from '@/components/landing/ConnektRolesSection';
 import ConnektWalletSection from '@/components/landing/ConnektWalletSection';
-import KAISection from '@/components/landing/KAISection';
+import ConnektFooter from '@/components/landing/ConnektFooter';
 import ExploreSection from '@/components/landing/ExploreSection';
 
 function cn(...classes: (string | undefined | null | false)[]) {
@@ -501,10 +501,8 @@ export default function LandingPage() {
       {/* CONNEKT WALLET SECTION */}
       <ConnektWalletSection />
 
-      {/* KAI SECTION */}
-      <section className="min-h-screen w-full">
-        <KAISection isVisible={true} />
-      </section>
+      {/* FOOTER */}
+      <ConnektFooter />
     </div>
   );
 }

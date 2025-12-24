@@ -60,20 +60,38 @@ export default function ConnektTasksSection() {
                 {/* Header */}
                 <div className="text-center mb-12">
                     {/* Badge */}
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#008080]/10 text-[#008080] text-xs font-bold mb-6">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: 0.1 }}
+                        className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#008080]/10 text-[#008080] text-xs font-bold mb-6"
+                    >
                         <ListTodo className="w-4 h-4" />
                         TASK MANAGEMENT
-                    </div>
+                    </motion.div>
 
                     {/* Main Heading */}
-                    <h2 className="text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 leading-tight mb-4">
+                    <motion.h2
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: 0.2 }}
+                        className="text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 leading-tight mb-4"
+                    >
                         Connekt <span className="text-[#008080]">Tasks</span>
-                    </h2>
+                    </motion.h2>
 
                     {/* Description */}
-                    <p className="text-gray-600 text-base md:text-lg max-w-2xl mx-auto">
+                    <motion.p
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: 0.3 }}
+                        className="text-gray-600 text-base md:text-lg max-w-2xl mx-auto"
+                    >
                         A powerful Kanban-style task system that adapts to how you work. Drag, drop, and conquer your workload with AI-powered prioritization.
-                    </p>
+                    </motion.p>
                 </div>
 
                 {/* Kanban Board Preview */}
