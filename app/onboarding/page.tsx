@@ -18,35 +18,35 @@ import ConnektMailIcon from '@/components/branding/ConnektMailIcon';
 // DATA: PREDEFINED SKILLS (100+)
 // ==========================================
 const PREDEFINED_SKILLS = [
-    "React.js", "Next.js", "Node.js", "Python", "TypeScript", "JavaScript", "Java", "C++", "C#", "Rust", "Go", 
+    "React.js", "Next.js", "Node.js", "Python", "TypeScript", "JavaScript", "Java", "C++", "C#", "Rust", "Go",
     "Swift", "Kotlin", "Flutter", "React Native", "AWS", "Docker", "Kubernetes", "Firebase", "MongoDB", "PostgreSQL",
     "GraphQL", "DevOps", "CI/CD", "Machine Learning", "AI Integration", "Web3", "Smart Contracts",
-    "Figma", "Adobe XD", "Photoshop", "Illustrator", "After Effects", "Premiere Pro", "UI Design", "UX Research", 
-    "Logo Design", "Branding", "3D Modeling", "Blender", "Cinema 4D", "Motion Graphics", "Video Editing", 
+    "Figma", "Adobe XD", "Photoshop", "Illustrator", "After Effects", "Premiere Pro", "UI Design", "UX Research",
+    "Logo Design", "Branding", "3D Modeling", "Blender", "Cinema 4D", "Motion Graphics", "Video Editing",
     "Illustration", "Typography", "Color Theory", "Prototyping",
-    "AutoCAD", "Revit", "SketchUp", "Rhino 3D", "BIM", "Interior Design", "Landscape Architecture", 
+    "AutoCAD", "Revit", "SketchUp", "Rhino 3D", "BIM", "Interior Design", "Landscape Architecture",
     "Structural Engineering", "Civil Engineering", "Bluebeam", "Rendering", "Lumion", "V-Ray",
-    "Data Entry", "Email Management", "Calendar Management", "Travel Planning", "Customer Support", "Zendesk", 
+    "Data Entry", "Email Management", "Calendar Management", "Travel Planning", "Customer Support", "Zendesk",
     "Intercom", "Notion", "Asana", "Trello", "Monday.com", "Project Management", "Research", "Transcription",
-    "SEO", "Copywriting", "Content Writing", "Social Media Management", "Digital Marketing", "Google Ads", 
+    "SEO", "Copywriting", "Content Writing", "Social Media Management", "Digital Marketing", "Google Ads",
     "Facebook Ads", "Email Marketing", "Mailchimp", "HubSpot", "Google Analytics", "Blog Writing", "Storytelling",
-    "Lead Generation", "Cold Calling", "Salesforce", "CRM Management", "Business Strategy", "Market Research", 
+    "Lead Generation", "Cold Calling", "Salesforce", "CRM Management", "Business Strategy", "Market Research",
     "Accounting", "QuickBooks", "Xero", "Financial Analysis", "Excel", "PowerPoint",
     "English", "Spanish", "French", "German", "Mandarin", "Communication", "Leadership", "Problem Solving"
 ].sort();
 
 const ROLE_ITEMS = [
-    { 
-        title: 'Virtual Assistant', 
-        description: 'Find Work', 
+    {
+        title: 'Virtual Assistant',
+        description: 'Find Work',
         value: 'va',
-        image: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=800&q=80' 
+        image: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=800&q=80'
     },
-    { 
-        title: 'Recruiter', 
-        description: 'Hire Talent', 
+    {
+        title: 'Recruiter',
+        description: 'Hire Talent',
         value: 'recruiter',
-        image: 'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=800&q=80' 
+        image: 'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=800&q=80'
     }
 ];
 
@@ -54,15 +54,15 @@ const ROLE_ITEMS = [
 // UI HELPERS (Stepper)
 // ==========================================
 
-function Stepper({ 
-    children, 
-    onComplete, 
-    isNextDisabled, 
-    currentStep, 
-    setCurrentStep 
-}: { 
-    children: React.ReactNode, 
-    onComplete: () => void, 
+function Stepper({
+    children,
+    onComplete,
+    isNextDisabled,
+    currentStep,
+    setCurrentStep
+}: {
+    children: React.ReactNode,
+    onComplete: () => void,
     isNextDisabled: (step: number) => boolean,
     currentStep: number,
     setCurrentStep: (step: number) => void
@@ -89,10 +89,10 @@ function Stepper({
             `}>
                 {stepsArray.map((_, i) => (
                     <React.Fragment key={i}>
-                        <StepIndicator 
-                            step={i + 1} 
-                            currentStep={currentStep} 
-                            onClick={() => i + 1 < currentStep && updateStep(i + 1)} 
+                        <StepIndicator
+                            step={i + 1}
+                            currentStep={currentStep}
+                            onClick={() => i + 1 < currentStep && updateStep(i + 1)}
                             isDark={isRoleStep}
                         />
                         {i < totalSteps - 1 && (
@@ -122,8 +122,8 @@ function Stepper({
             {/* Footer Buttons */}
             <div className={`
                 flex justify-between items-center z-50 transition-all duration-500 flex-shrink-0
-                ${isRoleStep 
-                    ? 'absolute bottom-8 left-8 right-8 max-w-4xl mx-auto' 
+                ${isRoleStep
+                    ? 'absolute bottom-8 left-8 right-8 max-w-4xl mx-auto'
                     : 'mt-6 pt-4 border-t border-gray-100 dark:border-zinc-800'}
             `}>
                 <button
@@ -132,8 +132,8 @@ function Stepper({
                     className={`
                         px-6 py-3 rounded-xl text-sm font-medium transition-colors flex items-center gap-2
                         ${currentStep === 1 ? 'opacity-0 pointer-events-none' : ''}
-                        ${isRoleStep 
-                            ? 'text-white/70 hover:text-white bg-black/40 hover:bg-black/60 backdrop-blur-md border border-white/10' 
+                        ${isRoleStep
+                            ? 'text-white/70 hover:text-white bg-black/40 hover:bg-black/60 backdrop-blur-md border border-white/10'
                             : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}
                     `}
                 >
@@ -145,8 +145,8 @@ function Stepper({
                     disabled={isNextDisabled(currentStep)}
                     className={`
                         px-8 py-3 rounded-xl font-bold text-white shadow-lg transition-all duration-300 flex items-center gap-2
-                        ${isNextDisabled(currentStep) 
-                            ? 'bg-gray-300 dark:bg-zinc-800 cursor-not-allowed text-gray-500 shadow-none' 
+                        ${isNextDisabled(currentStep)
+                            ? 'bg-gray-300 dark:bg-zinc-800 cursor-not-allowed text-gray-500 shadow-none'
                             : 'bg-gradient-to-r from-[#008080] to-teal-600 hover:scale-105 shadow-teal-500/30'}
                     `}
                 >
@@ -161,7 +161,7 @@ function StepIndicator({ step, currentStep, onClick, isDark }: { step: number, c
     const status = currentStep === step ? 'active' : currentStep > step ? 'complete' : 'inactive';
     return (
         <motion.button onClick={onClick} disabled={status === 'inactive'} className="relative z-10" whileHover={status === 'complete' ? { scale: 1.1 } : {}}>
-            <motion.div 
+            <motion.div
                 animate={{
                     backgroundColor: status === 'active' || status === 'complete' ? '#008080' : isDark ? '#27272a' : '#e5e7eb',
                     scale: status === 'active' ? 1.2 : 1
@@ -176,7 +176,7 @@ function StepIndicator({ step, currentStep, onClick, isDark }: { step: number, c
 
 export function Step({ children, title, description, isFullScreen = false }: { children: React.ReactNode, title?: string, description?: string, isFullScreen?: boolean }) {
     if (isFullScreen) return <div className="w-full h-full">{children}</div>;
-    
+
     return (
         <div className="flex flex-col h-full">
             <div className="text-center mb-4 flex-shrink-0">
@@ -207,8 +207,8 @@ export default function OnboardingPage() {
     const [displayName, setDisplayName] = useState(user?.displayName || '');
     const [profilePicture, setProfilePicture] = useState<File | null>(null);
     const [profilePicturePreview, setProfilePicturePreview] = useState<string | null>(user?.photoURL || null);
-    
-    const [roleIndex, setRoleIndex] = useState(0); 
+
+    const [roleIndex, setRoleIndex] = useState(0);
     const role = ROLE_ITEMS[roleIndex].value as 'va' | 'recruiter';
 
     const [bio, setBio] = useState('');
@@ -227,7 +227,7 @@ export default function OnboardingPage() {
 
     const suggestions = useMemo(() => {
         if (!currentSkillInput.trim()) return [];
-        return availableCanvasSkills.filter(s => 
+        return availableCanvasSkills.filter(s =>
             s.toLowerCase().includes(currentSkillInput.toLowerCase())
         );
     }, [currentSkillInput, availableCanvasSkills]);
@@ -266,10 +266,10 @@ export default function OnboardingPage() {
             case 2: // Username & Credentials
                 return !username || !isUsernameValid;
             case 3: // Role (Full screen)
-                return false; 
+                return false;
             case 4: // Skills
                 if (role === 'recruiter') return false;
-                return skills.length < 5; 
+                return skills.length < 5;
             default: return false;
         }
     };
@@ -302,13 +302,13 @@ export default function OnboardingPage() {
 
             await setDoc(userRef, userData, { merge: true });
             await setDoc(doc(db, 'usernames', username.toLowerCase()), { uid: user.uid });
-            
+
             try {
                 const { ProfileService } = await import('@/lib/services/profile-service');
                 await ProfileService.initializeUserProfile(user.uid, userData);
             } catch (e) { console.warn('Profile init failed (non-critical):', e); }
 
-            router.push('/intro/ai');
+            router.push('/intro');
         } catch (error: any) {
             setError(error.message || 'Failed to save profile.');
         } finally {
@@ -321,12 +321,12 @@ export default function OnboardingPage() {
     const showSideVectors = !isRoleStep;
 
     const card = (
-        <motion.div 
+        <motion.div
             layout
             transition={{ duration: 0.5, type: "spring", stiffness: 200, damping: 25 }}
             className={`
                 relative z-10 flex flex-col transition-all duration-500 ease-in-out
-                ${isRoleStep 
+                ${isRoleStep
                     ? 'w-screen h-screen rounded-none border-0 bg-black p-0'
                     : 'w-full max-w-lg h-[85vh] md:h-[80vh] bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-white/20 dark:border-zinc-800 rounded-3xl p-6 shadow-2xl'
                 }
@@ -347,13 +347,13 @@ export default function OnboardingPage() {
                 </motion.div>
             )}
 
-            <Stepper 
-                currentStep={currentStep} 
-                setCurrentStep={setCurrentStep} 
-                onComplete={handleComplete} 
+            <Stepper
+                currentStep={currentStep}
+                setCurrentStep={setCurrentStep}
+                onComplete={handleComplete}
                 isNextDisabled={isStepDisabled}
             >
-                
+
                 {/* STEP 1: IDENTITY (Name & Photo) */}
                 <Step>
                     <div className="max-w-sm mx-auto w-full flex flex-col flex-1 min-h-0 items-center justify-center">
@@ -404,7 +404,7 @@ export default function OnboardingPage() {
                                 <div className="absolute top-0 right-0 p-2 opacity-10">
                                     <ConnektIcon className="w-24 h-24 rotate-12" />
                                 </div>
-                                
+
                                 <div className="relative z-10 space-y-3">
                                     <div className="flex items-start gap-3">
                                         <div className="p-2 bg-white dark:bg-zinc-950 rounded-lg shadow-sm text-blue-500">
@@ -417,7 +417,7 @@ export default function OnboardingPage() {
                                             </p>
                                         </div>
                                     </div>
-                                    
+
                                     <div className="h-px bg-gray-200 dark:bg-zinc-700 w-full" />
 
                                     <div className="flex items-start gap-3">
@@ -452,9 +452,9 @@ export default function OnboardingPage() {
 
                 {/* STEP 3: ROLE SELECTION (Full Screen) */}
                 <Step isFullScreen>
-                    <RoleSelector 
-                        items={ROLE_ITEMS} 
-                        onSelect={setRoleIndex} 
+                    <RoleSelector
+                        items={ROLE_ITEMS}
+                        onSelect={setRoleIndex}
                         className="w-full h-full absolute inset-0 bg-black"
                     />
                 </Step>
@@ -471,12 +471,12 @@ export default function OnboardingPage() {
                                         {skills.length}/5 minimum
                                     </span>
                                 </div>
-                                
+
                                 <div className="relative group">
                                     <div className="bg-white dark:bg-zinc-800 p-2 rounded-xl border border-gray-200 dark:border-zinc-700 focus-within:border-[#008080] focus-within:ring-1 focus-within:ring-[#008080] transition-all flex flex-wrap gap-2 min-h-[50px] max-h-[120px] overflow-y-auto no-scrollbar">
                                         {skills.map(skill => (
                                             <span key={skill} className="bg-[#008080]/10 text-[#008080] border border-[#008080]/20 px-2 py-1 rounded-lg text-xs font-medium flex items-center gap-1 animate-in fade-in zoom-in duration-200">
-                                                {skill} 
+                                                {skill}
                                                 <button onClick={() => toggleSkill(skill)} className="hover:text-red-500 transition-colors">
                                                     <X size={12} />
                                                 </button>
@@ -520,7 +520,7 @@ export default function OnboardingPage() {
                             {/* Bottom: The "Canvas" Cloud */}
                             <div className="flex-1 min-h-0 relative overflow-hidden flex flex-col">
                                 <div className="absolute inset-x-0 top-0 h-4 bg-gradient-to-b from-white/80 dark:from-zinc-900/80 to-transparent z-10 pointer-events-none" />
-                                
+
                                 <div className="overflow-y-auto no-scrollbar flex-1 pb-4">
                                     <div className="flex flex-wrap gap-2 justify-center content-start">
                                         {availableCanvasSkills.map((skill, i) => (

@@ -441,26 +441,40 @@ export default function MailPage() {
         return <LoadingScreen variant="mail" />;
     }
 
-    // Onboarding Flow
+    // Onboarding Flow - Premium Design
     if (showIntro) {
         return (
-            <div className="h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-800 flex items-center justify-center overflow-hidden">
+            <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-teal-50 flex items-center justify-center overflow-hidden relative px-6">
+                {/* Background Effects */}
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-[#008080]/10 rounded-full blur-[120px]" />
+                    <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-amber-500/5 rounded-full blur-[100px]" />
+                </div>
+
                 <AnimatePresence mode="wait">
                     {introStep === 0 && (
                         <motion.div
-                            key="step0"
+                            key="loading"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.5 }}
-                            className="text-center"
+                            className="text-center relative z-10"
                         >
-                            <ConnektMailLogo size="large" color="teal" />
+                            <motion.div
+                                animate={{
+                                    boxShadow: ["0 0 20px rgba(0,128,128,0.2)", "0 0 50px rgba(0,128,128,0.4)", "0 0 20px rgba(0,128,128,0.2)"]
+                                }}
+                                transition={{ duration: 2, repeat: Infinity }}
+                                className="w-24 h-24 mx-auto mb-6 rounded-2xl bg-white/80 backdrop-blur-xl border border-gray-200/50 flex items-center justify-center shadow-xl"
+                            >
+                                <ConnektMailLogo size="large" color="teal" />
+                            </motion.div>
                             <motion.h1
                                 initial={{ y: 20, opacity: 0 }}
                                 animate={{ y: 0, opacity: 1 }}
                                 transition={{ delay: 0.3 }}
-                                className="text-4xl font-bold text-[#008080] mt-8 mb-4"
+                                className="text-4xl font-bold text-[#008080] mb-4"
                             >
                                 ConnektMail
                             </motion.h1>
@@ -468,128 +482,203 @@ export default function MailPage() {
                                 initial={{ y: 20, opacity: 0 }}
                                 animate={{ y: 0, opacity: 1 }}
                                 transition={{ delay: 0.5 }}
-                                className="text-xl text-gray-600 dark:text-gray-400"
+                                className="text-lg text-gray-500"
                             >
-                                Loading your inbox...
+                                Preparing your inbox...
                             </motion.p>
                         </motion.div>
                     )}
 
                     {introStep === 1 && (
                         <motion.div
-                            key="step1"
-                            initial={{ opacity: 0, scale: 0.9 }}
+                            key="showcase"
+                            initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.9 }}
-                            className="max-w-4xl mx-auto p-8 text-center"
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="max-w-6xl mx-auto relative z-10"
                         >
-                            <ConnektMailLogo size="large" color="teal" />
-                            <h1 className="text-5xl font-bold text-gray-900 dark:text-white mt-8 mb-6">
-                                Welcome to ConnektMail
-                            </h1>
-                            <p className="text-xl text-gray-600 dark:text-gray-400 mb-12">
-                                Your professional communication platform on Connekt
-                            </p>
-
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                                {/* LEFT: Email Mockup */}
                                 <motion.div
-                                    initial={{ y: 20, opacity: 0 }}
-                                    animate={{ y: 0, opacity: 1 }}
+                                    initial={{ opacity: 0, x: -30 }}
+                                    animate={{ opacity: 1, x: 0 }}
                                     transition={{ delay: 0.2 }}
-                                    className="p-6 bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700"
+                                    className="w-full max-w-md mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200"
                                 >
-                                    <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-xl flex items-center justify-center mb-4 mx-auto">
-                                        <span className="text-2xl">@</span>
+                                    {/* Email Header */}
+                                    <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify.between">
+                                        <div className="flex items-center gap-2">
+                                            <ConnektMailLogo size="small" color="teal" />
+                                            <span className="text-sm font-bold text-gray-900">ConnektMail</span>
+                                        </div>
+                                        <div className="flex items-center gap-1 ml-auto">
+                                            <div className="w-2 h-2 rounded-full bg-green-500" />
+                                            <span className="text-xs text-gray-500">Secure</span>
+                                        </div>
                                     </div>
-                                    <h3 className="font-bold text-lg mb-2 text-gray-900 dark:text-white">Username-Based Routing</h3>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                                        Simply use @username to send messages. No complex email addresses needed.
-                                    </p>
+
+                                    {/* Email Content */}
+                                    <div className="p-4">
+                                        {/* From/To */}
+                                        <div className="mb-4 space-y-2">
+                                            <div className="flex items-center gap-2 text-sm">
+                                                <span className="text-gray-500 w-12">From:</span>
+                                                <span className="font-medium text-gray-900">recruiter@connekt.com</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-sm">
+                                                <span className="text-gray-500 w-12">To:</span>
+                                                <span className="font-medium text-[#008080]">{mailAddresses[0]?.address || 'you@connekt.com'}</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Subject */}
+                                        <div className="mb-4 pb-4 border-b border-gray-100">
+                                            <h4 className="font-bold text-gray-900">Project Proposal: Web Development</h4>
+                                        </div>
+
+                                        {/* Body Preview */}
+                                        <div className="space-y-2 mb-4">
+                                            <div className="h-2.5 w-full bg-gray-100 rounded" />
+                                            <div className="h-2.5 w-4/5 bg-gray-100 rounded" />
+                                            <div className="h-2.5 w-3/4 bg-gray-100 rounded" />
+                                        </div>
+
+                                        {/* Contract Attachment */}
+                                        <motion.div
+                                            initial={{ opacity: 0, scale: 0.95 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            transition={{ delay: 0.6 }}
+                                            className="flex items-center gap-3 p-3 rounded-xl bg-[#008080]/5 border border-[#008080]/20"
+                                        >
+                                            <div className="w-10 h-10 rounded-lg bg-[#008080]/10 flex items-center justify-center">
+                                                <svg className="w-5 h-5 text-[#008080]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                                                </svg>
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="text-sm font-bold text-gray-900">Contract_Agreement.pdf</p>
+                                                <p className="text-xs text-gray-500">Legally binding • Ready to sign</p>
+                                            </div>
+                                            <div className="w-6 h-6 rounded-full bg-[#008080] flex items-center justify-center">
+                                                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            </div>
+                                        </motion.div>
+                                    </div>
+
+                                    {/* Email Actions */}
+                                    <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 flex items-center gap-2">
+                                        <button className="flex-1 py-2 px-4 bg-[#008080] text-white text-sm font-bold rounded-lg flex items-center justify-center gap-2">
+                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                            </svg>
+                                            Reply
+                                        </button>
+                                        <button className="py-2 px-4 bg-white border border-gray-200 text-gray-700 text-sm font-bold rounded-lg">
+                                            Sign Contract
+                                        </button>
+                                    </div>
                                 </motion.div>
 
-                                <motion.div
-                                    initial={{ y: 20, opacity: 0 }}
-                                    animate={{ y: 0, opacity: 1 }}
-                                    transition={{ delay: 0.4 }}
-                                    className="p-6 bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700"
-                                >
-                                    <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-xl flex items-center justify-center mb-4 mx-auto">
-                                        <span className="text-2xl">✍️</span>
-                                    </div>
-                                    <h3 className="font-bold text-lg mb-2 text-gray-900 dark:text-white">Rich Text Formatting</h3>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                                        Format your messages with bold, italic, headings, lists, and more.
-                                    </p>
-                                </motion.div>
+                                {/* RIGHT: Content */}
+                                <div className="flex flex-col">
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.3 }}
+                                        className="flex items-center gap-3 mb-4"
+                                    >
+                                        <ConnektMailLogo size="large" color="teal" />
+                                        <span className="px-3 py-1 rounded-full bg-[#008080]/10 text-[#008080] text-xs font-bold">
+                                            YOUR PROFESSIONAL EMAIL
+                                        </span>
+                                    </motion.div>
 
-                                <motion.div
-                                    initial={{ y: 20, opacity: 0 }}
-                                    animate={{ y: 0, opacity: 1 }}
-                                    transition={{ delay: 0.6 }}
-                                    className="p-6 bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700"
-                                >
-                                    <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-xl flex items-center justify-center mb-4 mx-auto">
-                                        <span className="text-2xl">✓</span>
-                                    </div>
-                                    <h3 className="font-bold text-lg mb-2 text-gray-900 dark:text-white">Verified Internal Communication</h3>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                                        All messages are secure and verified within the Connekt platform.
-                                    </p>
-                                </motion.div>
-                            </div>
+                                    <motion.h1
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.4 }}
+                                        className="text-4xl md:text-5xl font-black text-gray-900 mb-4"
+                                    >
+                                        Welcome to<br />
+                                        <span className="text-[#008080]">ConnektMail</span>
+                                    </motion.h1>
 
-                            <motion.button
-                                initial={{ y: 20, opacity: 0 }}
-                                animate={{ y: 0, opacity: 1 }}
-                                transition={{ delay: 0.8 }}
-                                onClick={() => setIntroStep(2)}
-                                className="px-12 py-4 bg-gradient-to-r from-[#f97316] to-orange-600 text-white rounded-2xl font-bold text-lg shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 transition-all hover:scale-105"
-                            >
-                                Setup My Inbox
-                            </motion.button>
-                        </motion.div>
-                    )}
+                                    <motion.p
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.5 }}
+                                        className="text-gray-600 text-lg mb-6 max-w-md"
+                                    >
+                                        Your professional @connekt.com email. Send contracts, proposals, and secure messages all in one place.
+                                    </motion.p>
 
-                    {introStep === 2 && (
-                        <motion.div
-                            key="step2"
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.9 }}
-                            className="max-w-2xl mx-auto p-8 text-center"
-                        >
-                            <div className="mb-8">
-                                <div className="w-20 h-20 bg-gradient-to-br from-[#008080] to-teal-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                                    <span className="text-4xl text-white">✉️</span>
+                                    {/* Feature Grid */}
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.6 }}
+                                        className="grid grid-cols-2 gap-3 mb-8"
+                                    >
+                                        {[
+                                            { icon: '📧', label: '@connekt.com Email', desc: 'Professional address' },
+                                            { icon: '📄', label: 'Contract Attachments', desc: 'Legally binding docs' },
+                                            { icon: '🔒', label: 'Secure Messaging', desc: 'End-to-end encrypted' },
+                                            { icon: '⏰', label: 'Smart Scheduling', desc: 'Automated follow-ups' }
+                                        ].map((feature, i) => (
+                                            <motion.div
+                                                key={feature.label}
+                                                initial={{ opacity: 0, scale: 0.9 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                transition={{ delay: 0.7 + i * 0.1 }}
+                                                className="flex items-center gap-3 p-3 rounded-xl bg-white border border-gray-200 hover:border-[#008080] transition-colors shadow-sm"
+                                            >
+                                                <div className="w-9 h-9 rounded-lg bg-[#008080]/10 flex items-center justify-center text-lg">
+                                                    {feature.icon}
+                                                </div>
+                                                <div>
+                                                    <p className="text-gray-900 text-xs font-bold">{feature.label}</p>
+                                                    <p className="text-gray-500 text-[10px]">{feature.desc}</p>
+                                                </div>
+                                            </motion.div>
+                                        ))}
+                                    </motion.div>
+
+                                    {/* Email Address Display */}
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.9 }}
+                                        className="mb-6 p-4 rounded-2xl bg-[#008080]/5 border-2 border-[#008080]/30"
+                                    >
+                                        <p className="text-xs text-gray-500 mb-1">Your ConnektMail Address:</p>
+                                        <p className="text-xl font-bold text-[#008080]">
+                                            {mailAddresses[0]?.address || 'Loading...'}
+                                        </p>
+                                    </motion.div>
+
+                                    {/* CTA Button */}
+                                    <motion.button
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 1 }}
+                                        onClick={completeIntro}
+                                        className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-[#008080] to-teal-600 text-white font-bold text-lg rounded-full w-fit hover:scale-105 transition-all shadow-lg shadow-teal-500/30"
+                                    >
+                                        Enter My Inbox
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                                        </svg>
+                                    </motion.button>
                                 </div>
-                                <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-                                    Your Mail Address
-                                </h2>
-                                <p className="text-gray-600 dark:text-gray-400 mb-8">
-                                    Your ConnektMail address is:
-                                </p>
-                                <div className="px-8 py-4 bg-teal-50 dark:bg-teal-900/20 rounded-2xl border-2 border-[#008080] inline-block">
-                                    <p className="text-2xl font-bold text-[#008080]">
-                                        {mailAddresses[0]?.address || 'Loading...'}
-                                    </p>
-                                </div>
                             </div>
-
-                            <motion.button
-                                initial={{ y: 20, opacity: 0 }}
-                                animate={{ y: 0, opacity: 1 }}
-                                transition={{ delay: 0.3 }}
-                                onClick={completeIntro}
-                                className="px-12 py-4 bg-gradient-to-r from-[#f97316] to-orange-600 text-white rounded-2xl font-bold text-lg shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 transition-all hover:scale-105"
-                            >
-                                Enter Inbox
-                            </motion.button>
                         </motion.div>
                     )}
                 </AnimatePresence>
 
                 {/* Auto-advance from step 0 */}
-                {introStep === 0 && setTimeout(() => setIntroStep(1), 3000) && null}
+                {introStep === 0 && setTimeout(() => setIntroStep(1), 2500) && null}
             </div>
         );
     }
