@@ -17,6 +17,7 @@ import { MailViewerColumn } from '@/components/mail/MailViewerColumn';
 import LoadingScreen from '@/components/ui/LoadingScreen';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { MailAddress, MailCategory } from '@/lib/types/mail.types';
+import ConnektMailIcon from '@/components/branding/ConnektMailIcon';
 import ConnektMailLogo from '@/components/branding/ConnektMailLogo';
 import { useMinimumLoading } from '@/hooks/useMinimumLoading';
 
@@ -508,7 +509,7 @@ export default function MailPage() {
                                     {/* Email Header */}
                                     <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify.between">
                                         <div className="flex items-center gap-2">
-                                            <ConnektMailLogo size="small" color="teal" />
+                                            <ConnektMailIcon className="w-5 h-5 text-[#008080]" />
                                             <span className="text-sm font-bold text-gray-900">ConnektMail</span>
                                         </div>
                                         <div className="flex items-center gap-1 ml-auto">
@@ -589,7 +590,7 @@ export default function MailPage() {
                                         transition={{ delay: 0.3 }}
                                         className="flex items-center gap-3 mb-4"
                                     >
-                                        <ConnektMailLogo size="large" color="teal" />
+                                        <ConnektMailIcon className="w-12 h-12 text-[#008080]" />
                                         <span className="px-3 py-1 rounded-full bg-[#008080]/10 text-[#008080] text-xs font-bold">
                                             YOUR PROFESSIONAL EMAIL
                                         </span>

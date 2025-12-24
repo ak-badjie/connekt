@@ -10,6 +10,7 @@ import {
     Check, Crown, Zap, ArrowRight, Sparkles, HardDrive, Bot,
     Target, TrendingUp, ChevronLeft, ChevronRight
 } from 'lucide-react';
+import { ElectroBorder } from '@/components/ui/ElectricBorder';
 
 export default function IntroPage() {
     const { user } = useAuth();
@@ -86,21 +87,21 @@ export default function IntroPage() {
                                     Choose Your <span className="bg-gradient-to-r from-[#008080] to-amber-500 bg-clip-text text-transparent">Power Level</span>
                                 </h1>
                                 <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                                    Unlock advanced AI agents, unlimited proposals, and verified status with <span className="font-bold text-[#008080]">ConnektPro</span>.
+                                    Unlock advanced AI tools, unlimited projects, and premium features with <span className="font-bold text-[#008080]">ConnektPro</span>.
                                 </p>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center max-w-6xl mx-auto">
                                 {/* Starter Tier */}
                                 <div className="bg-white/60 backdrop-blur-xl border border-gray-200/50 rounded-3xl p-6 hover:shadow-xl transition-all">
-                                    <h3 className="text-xl font-bold mb-2 text-gray-900">Starter</h3>
-                                    <div className="text-3xl font-bold mb-4 text-gray-900">$0<span className="text-base text-gray-500 font-normal">/mo</span></div>
+                                    <h3 className="text-xl font-bold mb-2 text-gray-900">Free</h3>
+                                    <div className="text-3xl font-bold mb-4 text-gray-900">D0<span className="text-base text-gray-500 font-normal">/mo</span></div>
                                     <p className="text-gray-600 text-sm mb-6">Perfect for getting started.</p>
                                     <ul className="space-y-3 mb-6">
-                                        <li className="flex items-center gap-2 text-sm text-gray-700"><Check size={14} className="text-[#008080]" /> 5 Job Applications/mo</li>
-                                        <li className="flex items-center gap-2 text-sm text-gray-700"><Check size={14} className="text-[#008080]" /> Basic Profile</li>
-                                        <li className="flex items-center gap-2 text-sm text-gray-700"><Check size={14} className="text-[#008080]" /> 1GB ConnektStorage</li>
-                                        <li className="flex items-center gap-2 text-sm text-gray-700"><Check size={14} className="text-[#008080]" /> Community Access</li>
+                                        <li className="flex items-center gap-2 text-sm text-gray-700"><Check size={14} className="text-[#008080]" /> 10 Projects</li>
+                                        <li className="flex items-center gap-2 text-sm text-gray-700"><Check size={14} className="text-[#008080]" /> 3 Workspaces</li>
+                                        <li className="flex items-center gap-2 text-sm text-gray-700"><Check size={14} className="text-[#008080]" /> 1GB Storage</li>
+                                        <li className="flex items-center gap-2 text-sm text-gray-700"><Check size={14} className="text-[#008080]" /> Basic Features</li>
                                     </ul>
                                     <button
                                         onClick={nextStep}
@@ -111,52 +112,68 @@ export default function IntroPage() {
                                 </div>
 
                                 {/* ConnektPro Tier (Highlighted) */}
-                                <div className="bg-white/80 backdrop-blur-xl border-2 border-[#008080] rounded-[2rem] p-8 relative transform md:-translate-y-4 shadow-2xl shadow-teal-500/20">
-                                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#008080] to-teal-600 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wide flex items-center gap-1 shadow-lg">
-                                        <Zap size={12} fill="white" /> Most Popular
+                                <ElectroBorder
+                                    borderColor="#008080"
+                                    borderWidth={2}
+                                    distortion={0.5}
+                                    animationSpeed={1}
+                                    radius={24}
+                                    glow={true}
+                                    aura={true}
+                                    glowBlur={20}
+                                >
+                                    <div className="bg-white/80 backdrop-blur-xl rounded-3xl p-8 relative transform md:-translate-y-4">
+                                        <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#008080] to-teal-600 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wide flex items-center gap-1 shadow-lg z-10">
+                                            <Zap size={12} fill="white" /> Most Popular
+                                        </div>
+                                        <h3 className="text-2xl font-bold mb-2 text-gray-900">Connect Pro</h3>
+                                        <div className="text-4xl font-bold mb-4 bg-gradient-to-r from-[#008080] to-teal-600 bg-clip-text text-transparent">D500<span className="text-base text-gray-500 font-normal">/mo</span></div>
+                                        <p className="text-gray-600 text-sm mb-6">15 AI tools + Advanced analytics</p>
+                                        <ul className="space-y-3 mb-8">
+                                            <li className="flex items-center gap-2 text-sm font-medium text-gray-900">
+                                                <div className="w-5 h-5 rounded-full bg-[#008080]/20 flex items-center justify-center"><Check size={12} className="text-[#008080]" /></div>
+                                                100 AI Requests/month
+                                            </li>
+                                            <li className="flex items-center gap-2 text-sm font-medium text-gray-900">
+                                                <div className="w-5 h-5 rounded-full bg-[#008080]/20 flex items-center justify-center"><Bot size={12} className="text-[#008080]" /></div>
+                                                15 AI Tools Access
+                                            </li>
+                                            <li className="flex items-center gap-2 text-sm font-medium text-gray-900">
+                                                <div className="w-5 h-5 rounded-full bg-[#008080]/20 flex items-center justify-center"><HardDrive size={12} className="text-[#008080]" /></div>
+                                                5GB Storage
+                                            </li>
+                                            <li className="flex items-center gap-2 text-sm font-medium text-gray-900">
+                                                <div className="w-5 h-5 rounded-full bg-[#008080]/20 flex items-center justify-center"><Check size={12} className="text-[#008080]" /></div>
+                                                50 Projects • 10 Workspaces
+                                            </li>
+                                            <li className="flex items-center gap-2 text-sm font-medium text-gray-900">
+                                                <div className="w-5 h-5 rounded-full bg-[#008080]/20 flex items-center justify-center"><Check size={12} className="text-[#008080]" /></div>
+                                                Advanced Analytics
+                                            </li>
+                                        </ul>
+                                        <button className="w-full py-3 rounded-xl bg-gradient-to-r from-[#008080] to-teal-600 hover:from-teal-600 hover:to-[#008080] text-white font-bold hover:scale-[1.02] transition-all shadow-lg shadow-teal-500/30">
+                                            Get Connect Pro
+                                        </button>
                                     </div>
-                                    <h3 className="text-2xl font-bold mb-2 text-gray-900">ConnektPro</h3>
-                                    <div className="text-4xl font-bold mb-4 bg-gradient-to-r from-[#008080] to-teal-600 bg-clip-text text-transparent">$29<span className="text-base text-gray-500 font-normal">/mo</span></div>
-                                    <p className="text-gray-600 text-sm mb-6">For serious professionals.</p>
-                                    <ul className="space-y-3 mb-8">
-                                        <li className="flex items-center gap-2 text-sm font-medium text-gray-900">
-                                            <div className="w-5 h-5 rounded-full bg-[#008080]/20 flex items-center justify-center"><Check size={12} className="text-[#008080]" /></div>
-                                            Unlimited Applications
-                                        </li>
-                                        <li className="flex items-center gap-2 text-sm font-medium text-gray-900">
-                                            <div className="w-5 h-5 rounded-full bg-[#008080]/20 flex items-center justify-center"><Bot size={12} className="text-[#008080]" /></div>
-                                            <span className="font-bold text-[#008080]">ConnektAI</span> Agent
-                                        </li>
-                                        <li className="flex items-center gap-2 text-sm font-medium text-gray-900">
-                                            <div className="w-5 h-5 rounded-full bg-[#008080]/20 flex items-center justify-center"><HardDrive size={12} className="text-[#008080]" /></div>
-                                            5GB <span className="font-bold text-[#008080]">ConnektStorage</span>
-                                        </li>
-                                        <li className="flex items-center gap-2 text-sm font-medium text-gray-900">
-                                            <div className="w-5 h-5 rounded-full bg-[#008080]/20 flex items-center justify-center"><Check size={12} className="text-[#008080]" /></div>
-                                            Verified Badge
-                                        </li>
-                                    </ul>
-                                    <button className="w-full py-3 rounded-xl bg-gradient-to-r from-[#008080] to-teal-600 hover:from-teal-600 hover:to-[#008080] text-white font-bold hover:scale-[1.02] transition-all shadow-lg shadow-teal-500/30">
-                                        Get ConnektPro
-                                    </button>
-                                </div>
+                                </ElectroBorder>
 
                                 {/* ConnektPro Plus Tier */}
                                 <div className="bg-white/60 backdrop-blur-xl border border-gray-200/50 rounded-3xl p-6 hover:shadow-xl transition-all">
                                     <div className="flex items-center gap-2 mb-2">
-                                        <h3 className="text-xl font-bold text-gray-900">ConnektPro Plus</h3>
-                                        <Sparkles size={18} className="text-amber-500" />
+                                        <h3 className="text-xl font-bold text-gray-900">Connect Pro Plus</h3>
+                                        <Crown size={18} className="text-amber-500" />
                                     </div>
-                                    <div className="text-3xl font-bold mb-4 text-gray-900">$99<span className="text-base text-gray-500 font-normal">/mo</span></div>
-                                    <p className="text-gray-600 text-sm mb-6">For agencies and teams.</p>
+                                    <div className="text-3xl font-bold mb-4 text-gray-900">D1,500<span className="text-base text-gray-500 font-normal">/mo</span></div>
+                                    <p className="text-gray-600 text-sm mb-6">25 AI tools + Agency features</p>
                                     <ul className="space-y-3 mb-6">
-                                        <li className="flex items-center gap-2 text-sm text-gray-700"><Check size={14} className="text-amber-500" /> Everything in Pro</li>
+                                        <li className="flex items-center gap-2 text-sm text-gray-700"><Check size={14} className="text-amber-500" /> 1,000 AI Requests/month</li>
+                                        <li className="flex items-center gap-2 text-sm text-gray-700"><Check size={14} className="text-amber-500" /> 25 AI Tools Access</li>
                                         <li className="flex items-center gap-2 text-sm text-gray-700"><HardDrive size={14} className="text-amber-500" /> 50GB Storage</li>
-                                        <li className="flex items-center gap-2 text-sm text-gray-700"><Check size={14} className="text-amber-500" /> 5 Team Seats</li>
-                                        <li className="flex items-center gap-2 text-sm text-gray-700"><Check size={14} className="text-amber-500" /> API Access</li>
+                                        <li className="flex items-center gap-2 text-sm text-gray-700"><Check size={14} className="text-amber-500" /> Unlimited Projects</li>
+                                        <li className="flex items-center gap-2 text-sm text-gray-700"><Check size={14} className="text-amber-500" /> White-label Branding</li>
                                     </ul>
                                     <button className="w-full py-3 rounded-xl border border-gray-300 hover:bg-gray-100 font-medium transition-all text-gray-900">
-                                        Contact Sales
+                                        Get Pro Plus
                                     </button>
                                 </div>
                             </div>
