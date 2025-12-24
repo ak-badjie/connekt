@@ -17,6 +17,13 @@ import ConnketAISection from '@/components/landing/ConnketAISection';
 import ConnektMailSection from '@/components/landing/ConnektMailSection';
 import ConnektAnalyticsSection from '@/components/landing/ConnektAnalyticsSection';
 import ConnektContractSection from '@/components/landing/ConnektContractSection';
+import ConnektTeamsSection from '@/components/landing/ConnektTeamsSection';
+import ConnektWorkspaceSection from '@/components/landing/ConnektWorkspaceSection';
+import ConnektProjectsSection from '@/components/landing/ConnektProjectsSection';
+import ConnektTasksSection from '@/components/landing/ConnektTasksSection';
+import ConnektMessagesSection from '@/components/landing/ConnektMessagesSection';
+import ConnektCalendarSection from '@/components/landing/ConnektCalendarSection';
+import ConnektMeetingsSection from '@/components/landing/ConnektMeetingsSection';
 import KAISection from '@/components/landing/KAISection';
 import ExploreSection from '@/components/landing/ExploreSection';
 
@@ -456,6 +463,27 @@ export default function LandingPage() {
 
       {/* CONNEKT CONTRACT SECTION */}
       <ConnektContractSection />
+
+      {/* CONNEKT TEAMS SECTION */}
+      <ConnektTeamsSection />
+
+      {/* CONNEKT WORKSPACE SECTION */}
+      <ConnektWorkspaceSection />
+
+      {/* CONNEKT PROJECTS SECTION */}
+      <ConnektProjectsSection />
+
+      {/* CONNEKT TASKS SECTION */}
+      <ConnektTasksSection />
+
+      {/* CONNEKT MESSAGES SECTION */}
+      <ConnektMessagesSection />
+
+      {/* CONNEKT CALENDAR SECTION */}
+      <ConnektCalendarSection />
+
+      {/* CONNEKT MEETINGS SECTION */}
+      <ConnektMeetingsSection />
 
       {/* KAI SECTION */}
       <section className="min-h-screen w-full">

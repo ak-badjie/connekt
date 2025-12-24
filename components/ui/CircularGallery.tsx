@@ -736,14 +736,7 @@ function makeProfileCardCanvas(params: {
     drawCoverImage(ctx, params.img, width, height);
   }
 
-  // bottom tint gradient: fade out before ~3/8 height
-  const tintHeight = Math.floor(height * 0.375);
-  const g = ctx.createLinearGradient(0, height, 0, height - tintHeight);
-  g.addColorStop(0, 'rgba(0,0,0,0.78)');
-  g.addColorStop(0.55, 'rgba(0,0,0,0.35)');
-  g.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, height - tintHeight, width, tintHeight);
+  // No tint overlay - clean image
 
   const title = params.title || 'Member';
   const subTitle = params.subTitle || '';
