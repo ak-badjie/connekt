@@ -78,10 +78,19 @@ export default function ConnketAISection({ isVisible }: { isVisible: boolean }) 
                         </div>
 
                         {/* CTA Button */}
-                        <button className="inline-flex items-center gap-2 px-6 py-3 bg-[#008080] text-white font-bold rounded-full w-fit hover:bg-teal-600 transition-colors shadow-lg shadow-teal-500/20">
+                        <button className="inline-flex items-center gap-2 px-6 py-3 bg-[#008080] text-white font-bold rounded-full w-fit hover:bg-teal-600 transition-colors shadow-lg shadow-teal-500/20 mb-8">
                             Explore All AI Features
                             <ArrowRight size={18} />
                         </button>
+
+                        {/* Image */}
+                        <div className="relative w-full max-w-lg">
+                            <img
+                                src="/va1.jpeg"
+                                alt="AI Assistant"
+                                className="w-full h-auto rounded-2xl shadow-lg"
+                            />
+                        </div>
                     </div>
 
                     {/* RIGHT SIDE: All AI Tools Grid */}
