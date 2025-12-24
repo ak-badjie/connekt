@@ -150,7 +150,7 @@ export function TopUpModal({ isOpen, onClose, walletId, onPaymentComplete }: Top
                                         <div className="flex flex-col items-center gap-3 flex-1">
                                             <div className="w-32 h-16 bg-white rounded-xl flex items-center justify-center shadow-sm p-3">
                                                 <img
-                                                    src="/Wave.png"
+                                                    src="/wave.png"
                                                     alt="Wave"
                                                     className="w-full h-full object-contain"
                                                 />

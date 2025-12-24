@@ -26,6 +26,8 @@ import ConnektCalendarSection from '@/components/landing/ConnektCalendarSection'
 import ConnektMeetingsSection from '@/components/landing/ConnektMeetingsSection';
 import ConnektNotificationsSection from '@/components/landing/ConnektNotificationsSection';
 import ConnektProofSection from '@/components/landing/ConnektProofSection';
+import ConnektRolesSection from '@/components/landing/ConnektRolesSection';
+import ConnektWalletSection from '@/components/landing/ConnektWalletSection';
 import KAISection from '@/components/landing/KAISection';
 import ExploreSection from '@/components/landing/ExploreSection';
 
@@ -492,6 +494,12 @@ export default function LandingPage() {
 
       {/* CONNEKT PROOF SYSTEM SECTION */}
       <ConnektProofSection />
+
+      {/* CONNEKT ROLES SECTION */}
+      <ConnektRolesSection />
+
+      {/* CONNEKT WALLET SECTION */}
+      <ConnektWalletSection />
 
       {/* KAI SECTION */}
       <section className="min-h-screen w-full">
