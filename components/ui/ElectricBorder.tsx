@@ -12,6 +12,18 @@ import React, {
 ------------------------------ */
 const toRGBA = (hex: string, alpha = 1): string => {
     if (!hex) return `rgba(0,0,0,${alpha})`;
+    // SSR guard - document not available during server-side rendering
+    if (typeof document === 'undefined') {
+        // Fallback: simple hex parsing for SSR
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        if (result) {
+            const r = parseInt(result[1], 16);
+            const g = parseInt(result[2], 16);
+            const b = parseInt(result[3], 16);
+            return `rgba(${r},${g},${b},${alpha})`;
+        }
+        return `rgba(0,128,128,${alpha})`; // Default teal
+    }
     const ctx = document.createElement("canvas").getContext("2d");
     if (!ctx) return `rgba(0,0,0,${alpha})`;
     ctx.fillStyle = hex;
