@@ -2,92 +2,117 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Cpu } from 'lucide-react';
+import {
+    FileText,
+    Sparkles,
+    MessageSquare,
+    Zap,
+    ArrowRight,
+    Target,
+    Users,
+    FileSignature,
+    Mail,
+    Brain,
+    BarChart3,
+    ClipboardList,
+    UserCheck,
+    Briefcase,
+    TrendingUp,
+    Calendar,
+} from 'lucide-react';
+import ConnektAIIcon from '@/components/branding/ConnektAIIcon';
 
-interface LandingCardProps {
-    icon: any;
-    color: string;
-    isVisible: boolean;
-    statusText?: string;
-}
+// All 15+ AI Tools available
+const AI_TOOLS = [
+    { icon: Sparkles, label: 'Bio Enhancer', description: 'AI-powered profile optimization' },
+    { icon: FileText, label: 'Resume Parser', description: 'Smart document analysis' },
+    { icon: MessageSquare, label: 'Proposal Writer', description: 'Generate winning proposals' },
+    { icon: Target, label: 'Smart Matching', description: 'Find perfect opportunities' },
+    { icon: Mail, label: 'Email Composer', description: 'Draft professional emails' },
+    { icon: FileSignature, label: 'Contract Drafter', description: 'Legal document generation' },
+    { icon: Brain, label: 'Skills Suggester', description: 'Discover hidden talents' },
+    { icon: Users, label: 'Candidate Finder', description: 'Best-fit talent search' },
+    { icon: UserCheck, label: 'Candidate Compare', description: 'Side-by-side analysis' },
+    { icon: Briefcase, label: 'Job Description AI', description: 'Craft compelling listings' },
+    { icon: ClipboardList, label: 'Task Generator', description: 'Auto-create project tasks' },
+    { icon: Zap, label: 'Task Auto-Assign', description: 'Smart task allocation' },
+    { icon: BarChart3, label: 'Market Insights', description: 'Salary & demand analytics' },
+    { icon: TrendingUp, label: 'Profile Optimizer', description: 'Boost your visibility' },
+    { icon: Calendar, label: 'Schedule Assistant', description: 'AI meeting coordinator' },
+];
 
-const LandingCard = ({ icon: Icon, color, isVisible, statusText = "Optimized" }: LandingCardProps) => {
+export default function ConnketAISection({ isVisible }: { isVisible: boolean }) {
     return (
-        <motion.div
-            initial={{ rotateX: 20, rotateY: 20, scale: 0.8, opacity: 0 }}
-            animate={isVisible ? { rotateX: 0, rotateY: 0, scale: 1, opacity: 1 } : { rotateX: 20, rotateY: 20, scale: 0.8, opacity: 0 }}
-            transition={{ duration: 1.2, type: "spring", bounce: 0.4 }}
-            className="relative perspective-1000 w-full max-w-md"
-        >
-            <motion.div
-                animate={{ y: [-10, 10, -10] }}
-                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-            >
-                <div className={`relative aspect-square rounded-[3rem] bg-gradient-to-br from-white/90 to-white/40 backdrop-blur-xl border border-white/60 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.15)] p-10 flex flex-col justify-between overflow-hidden group`}>
-                    
-                    {/* Abstract Blob Background */}
-                    <div className={`absolute top-0 right-0 w-64 h-64 bg-${color}-200/50 rounded-full blur-[60px] group-hover:bg-${color}-300/60 transition-colors duration-700`} />
-                    
-                    <div className="relative z-10">
-                        <div className={`w-16 h-16 rounded-2xl bg-white shadow-lg flex items-center justify-center text-${color}-600 mb-6`}>
-                            <Icon size={32} />
+        <section className="w-full py-16 md:py-24 px-6 md:px-12 lg:px-20 bg-white">
+            <div className="max-w-7xl mx-auto">
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
+
+                    {/* LEFT SIDE: Text Content */}
+                    <div className="flex flex-col justify-start">
+
+                        {/* Icon + Badge */}
+                        <div className="flex items-center gap-3 mb-6">
+                            <ConnektAIIcon className="w-12 h-12" />
+                            <span className="px-3 py-1 rounded-full bg-[#008080]/10 text-[#008080] text-xs font-bold">
+                                AI POWERED
+                            </span>
                         </div>
-                        <div className="space-y-4 opacity-80">
-                            <div className="h-3 w-1/3 bg-slate-800/10 rounded-full" />
-                            <div className="h-3 w-full bg-slate-800/10 rounded-full" />
-                            <div className="h-3 w-3/4 bg-slate-800/10 rounded-full" />
+
+                        {/* Main Heading */}
+                        <h2 className="text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 leading-tight mb-4">
+                            Connekt
+                            <br />
+                            <span className="text-[#008080]">AI Services</span>
+                        </h2>
+
+                        {/* Description */}
+                        <p className="text-gray-600 text-base md:text-lg mb-6 max-w-md">
+                            Leverage the power of AI to enhance your profile, parse resumes, generate proposals, and find perfect matches automatically.
+                        </p>
+
+                        {/* 100+ Tools Badge */}
+                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#008080] to-teal-600 text-white font-bold rounded-full w-fit mb-8 shadow-lg shadow-teal-500/20">
+                            <Zap className="w-5 h-5" />
+                            <span>100+ AI Tools Available</span>
                         </div>
+
+                        {/* CTA Button */}
+                        <button className="inline-flex items-center gap-2 px-6 py-3 bg-[#008080] text-white font-bold rounded-full w-fit hover:bg-teal-600 transition-colors shadow-lg shadow-teal-500/20">
+                            Explore All AI Features
+                            <ArrowRight size={18} />
+                        </button>
                     </div>
-                    
-                    <div className="relative z-10 bg-white/60 backdrop-blur-md rounded-2xl p-4 border border-white/50 shadow-sm mt-4">
-                        <div className="flex justify-between items-center">
-                            <span className="text-sm font-semibold text-slate-600">Status</span>
-                            <span className={`text-xs font-bold px-3 py-1 rounded-full bg-${color}-100 text-${color}-700`}>
-                                {statusText}
+
+                    {/* RIGHT SIDE: All AI Tools Grid */}
+                    <div className="bg-gray-50 rounded-3xl p-6 md:p-8">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            {AI_TOOLS.map((tool) => {
+                                const Icon = tool.icon;
+                                return (
+                                    <div
+                                        key={tool.label}
+                                        className="flex flex-col items-center text-center p-4 rounded-xl bg-white border border-gray-200 hover:border-[#008080] hover:shadow-lg transition-all cursor-pointer group"
+                                    >
+                                        <div className="w-12 h-12 rounded-xl bg-[#008080]/10 flex items-center justify-center mb-3 group-hover:bg-[#008080] transition-colors">
+                                            <Icon className="w-6 h-6 text-[#008080] group-hover:text-white transition-colors" />
+                                        </div>
+                                        <p className="text-sm font-bold text-gray-900 mb-1">{tool.label}</p>
+                                        <p className="text-[10px] text-gray-500 leading-tight">{tool.description}</p>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* More Tools Indicator */}
+                        <div className="mt-4 text-center">
+                            <span className="text-sm text-gray-500">
+                                + many more AI-powered tools
                             </span>
                         </div>
                     </div>
                 </div>
-            </motion.div>
-        </motion.div>
-    );
-};
-
-interface SectionProps {
-    isVisible: boolean;
-}
-
-export default function ConnketAISection({ isVisible }: SectionProps) {
-    const color = "indigo";
-
-    return (
-        <div className="container mx-auto px-6 md:px-12 grid grid-cols-1 md:grid-cols-2 gap-16 items-center h-full">
-            {/* TEXT CONTENT - RIGHT (Swapped Order via CSS order class) */}
-            <motion.div 
-                className="flex flex-col gap-6 md:order-2"
-                animate={isVisible ? { opacity: 1, x: 0 } : { opacity: 0, x: 50 }}
-                transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
-            >
-                <div className={`w-fit px-4 py-2 rounded-full bg-${color}-100 text-${color}-800 font-bold uppercase tracking-wider text-xs`}>
-                    AI Changing Development
-                </div>
-                <h2 className="text-5xl md:text-6xl font-bold leading-tight text-slate-900">
-                    Orchestrate <br/> Solutions
-                </h2>
-                <p className="text-xl text-slate-500 leading-relaxed">
-                    GenAI will execute mundane tasks while developers orchestrate high-level problem solving. Step into the future of automated workflows.
-                </p>
-            </motion.div>
-
-            {/* CARD CONTENT - LEFT */}
-            <div className="flex justify-center md:order-1">
-                <LandingCard 
-                    icon={Cpu} 
-                    color={color} 
-                    isVisible={isVisible}
-                    statusText="AI Powered"
-                />
             </div>
-        </div>
+        </section>
     );
 }
