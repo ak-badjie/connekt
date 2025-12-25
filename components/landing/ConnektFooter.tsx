@@ -242,7 +242,7 @@ export default function ConnektFooter() {
                     <div className="inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 rounded-full border border-zinc-700">
                         <Sparkles className="w-5 h-5 text-[#008080]" />
                         <span className="text-sm text-gray-300">
-                            <span className="font-bold text-white">3 months</span> of solo development
+                            <span className="font-bold text-white">1 month</span> of solo development by GiDave '19
                             <span className="mx-2">•</span>
                             <span className="font-bold text-white">1 vision</span>
                             <span className="mx-2">•</span>
