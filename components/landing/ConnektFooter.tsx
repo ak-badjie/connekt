@@ -232,23 +232,22 @@ export default function ConnektFooter() {
                     </div>
                 </div>
 
-                {/* Solo Developer Credit - The Heart of It All */}
+                {/* DAVELABS Credit */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     className="mt-16 text-center"
                 >
-                    <div className="inline-flex flex-wrap items-center justify-center gap-2 sm:gap-3 px-4 sm:px-6 py-3 bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 rounded-full border border-zinc-700">
-                        <Sparkles className="w-5 h-5 text-[#008080]" />
-                        <span className="text-xs sm:text-sm text-gray-300 text-center">
-                            <span className="font-bold text-white">1 month</span> of solo development by GiDave '19
-                            <span className="mx-2">•</span>
-                            <span className="font-bold text-white">1 vision</span>
-                            <span className="mx-2">•</span>
-                            <span className="font-bold text-[#008080]">Infinite possibilities</span>
+                    <div className="inline-flex flex-wrap items-center justify-center gap-3 sm:gap-4 px-6 sm:px-8 py-5 bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 rounded-full border border-zinc-700">
+                        <img
+                            src="/davelabsimage.png"
+                            alt="DAVELABS"
+                            className="h-8 w-auto object-contain"
+                        />
+                        <span className="text-sm sm:text-base text-gray-300 font-medium">
+                            Built By <span className="font-bold text-white">DAVELABS</span>
                         </span>
-                        <Sparkles className="w-5 h-5 text-[#008080]" />
                     </div>
                 </motion.div>
             </div>
