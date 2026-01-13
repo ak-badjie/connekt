@@ -304,9 +304,9 @@ const GlassSurface = ({
 }) => {
 
     const intensities: Record<'low' | 'medium' | 'high', string> = {
-        low: 'backdrop-blur-md bg-white/5 border-white/10',
-        medium: 'backdrop-blur-xl bg-white/10 border-white/20',
-        high: 'backdrop-blur-3xl bg-white/15 border-white/30',
+        low: 'backdrop-blur-xl bg-white/[0.02] border-white/10',
+        medium: 'backdrop-blur-2xl bg-white/[0.04] border-white/15',
+        high: 'backdrop-blur-3xl bg-white/[0.06] border-white/20',
     };
 
     return (
@@ -320,17 +320,19 @@ const GlassSurface = ({
             style={{
                 ...style,
                 boxShadow: `
-                    0 8px 32px 0 rgba(0, 0, 0, 0.36), 
-                    inset 0 0 0 1px rgba(255, 255, 255, 0.1),
-                    inset 0 1px 0 0 rgba(255, 255, 255, 0.2)
+                    0 8px 32px 0 rgba(0, 0, 0, 0.2), 
+                    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+                    inset 0 1px 0 0 rgba(255, 255, 255, 0.15)
                 `,
             }}
         >
+            {/* Subtle noise texture */}
             <div
-                className="absolute inset-0 opacity-[0.03] pointer-events-none mix-blend-overlay"
+                className="absolute inset-0 opacity-[0.015] pointer-events-none"
                 style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}
             />
-            <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent pointer-events-none" />
+            {/* Top highlight */}
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
             <div className="relative z-10 h-full w-full">
                 {children}
             </div>
@@ -592,9 +594,9 @@ export default function AuthPage() {
                 distortion={0.01}
             />
 
-            {/* LEFT CONTENT AREA */}
+            {/* LEFT CONTENT AREA - Hidden on mobile, visible on lg+ */}
             {/* Flex-1 ensures it takes available space. min-h-0 prevents overflow. */}
-            <div className="flex-1 min-h-0 flex flex-col justify-center items-center lg:items-start lg:pl-[8vw] p-[2vh] pb-[6vh] overflow-y-auto connekt-hide-scrollbar relative z-10">
+            <div className="hidden lg:flex flex-1 min-h-0 flex-col justify-center items-start pl-[8vw] p-[2vh] pb-[6vh] overflow-y-auto connekt-hide-scrollbar relative z-10">
 
                 {/* Branding Section - Scales with viewport */}
                 <div className="w-full max-w-2xl flex flex-col items-center gap-[1.56vh] transform hover:scale-105 transition-transform duration-500 shrink-0">
@@ -638,14 +640,14 @@ export default function AuthPage() {
                 </div>
             </div>
 
-            {/* RIGHT AUTH AREA */}
-            <div className="flex-1 min-h-0 flex items-center justify-center p-[2.6vmin] relative z-10">
+            {/* RIGHT AUTH AREA - Full screen on mobile */}
+            <div className="flex-1 min-h-0 flex items-center justify-center p-4 sm:p-[2.6vmin] relative z-10">
 
                 <motion.div
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.8, ease: 'easeOut' }}
-                    className="w-full max-w-[437px] max-h-full flex flex-col"
+                    className="w-full max-w-[437px] max-h-full flex flex-col px-2 sm:px-0"
                     style={{ perspective: 1560 }}
                 >
                     <motion.div
@@ -657,13 +659,13 @@ export default function AuthPage() {
                     >
                         <GlassSurface
                             intensity="high"
-                            className="rounded-[3.9vh] p-[3.9vh] lg:p-[5.2vh] border-white/20 h-full flex flex-col justify-center"
+                            className="rounded-2xl sm:rounded-[3.9vh] p-4 sm:p-[3.9vh] lg:p-[5.2vh] border-white/20 h-full flex flex-col justify-center"
                         >
                             {/* Content wrapper to handle small screens logic */}
                             <div className="flex flex-col justify-between h-full max-h-[85vh]">
 
                                 {/* Switcher */}
-                                <div className="flex items-center justify-center mb-[2.6vh] shrink-0">
+                                <div className="flex items-center justify-center mb-4 sm:mb-[2.6vh] shrink-0">
                                     <div className="relative flex p-[0.65vh] rounded-full bg-black/20 backdrop-blur-md border border-white/5 shadow-inner">
                                         <div
                                             className="absolute inset-y-[0.65vh] rounded-full bg-teal-500/20 border border-teal-500/30 transition-all duration-300 ease-out"
@@ -672,40 +674,39 @@ export default function AuthPage() {
                                                 left: mode === 'login' ? '0.65vh' : '50%'
                                             }}
                                         />
-                                        <button onClick={() => setMode('login')} className={`relative z-10 px-[3.9vh] py-[1.3vh] rounded-full text-[clamp(13px,1.56vh,15.6px)] font-bold tracking-widest transition-colors duration-300 ${mode === 'login' ? 'text-white' : 'text-white/40'}`}>
+                                        <button onClick={() => setMode('login')} className={`relative z-10 px-4 sm:px-[3.9vh] py-2 sm:py-[1.3vh] rounded-full text-xs sm:text-[clamp(13px,1.56vh,15.6px)] font-bold tracking-widest transition-colors duration-300 ${mode === 'login' ? 'text-white' : 'text-white/40'}`}>
                                             SIGN IN
                                         </button>
-                                        <button onClick={() => setMode('signup')} className={`relative z-10 px-[3.9vh] py-[1.3vh] rounded-full text-[clamp(13px,1.56vh,15.6px)] font-bold tracking-widest transition-colors duration-300 ${mode === 'signup' ? 'text-white' : 'text-white/40'}`}>
+                                        <button onClick={() => setMode('signup')} className={`relative z-10 px-4 sm:px-[3.9vh] py-2 sm:py-[1.3vh] rounded-full text-xs sm:text-[clamp(13px,1.56vh,15.6px)] font-bold tracking-widest transition-colors duration-300 ${mode === 'signup' ? 'text-white' : 'text-white/40'}`}>
                                             SIGN UP
                                         </button>
                                     </div>
                                 </div>
 
-                                <div className="shrink-0 mb-[2.6vh]">
-                                    <h3 className="text-[clamp(26px,4.55vh,39px)] font-bold text-white text-center drop-shadow-md leading-tight">
+                                <div className="shrink-0 mb-4 sm:mb-[2.6vh]">
+                                    <h3 className="text-xl sm:text-[clamp(26px,4.55vh,39px)] font-bold text-white text-center drop-shadow-md leading-tight">
                                         {mode === 'login' ? 'Sign In' : 'Join Connekt'}
                                     </h3>
-                                    <div className="text-teal-100/60 text-center text-[clamp(13px,1.95vh,18.2px)] min-h-[2.6vh] font-medium tracking-wide">
+                                    <div className="text-teal-100/60 text-center text-sm sm:text-[clamp(13px,1.95vh,18.2px)] min-h-[2.6vh] font-medium tracking-wide">
                                         <span>
                                             {typed}<span className="inline-block w-[2.6px] h-[1.95vh] bg-teal-400 ml-1 translate-y-[2.6px] animate-pulse"></span>
                                         </span>
                                     </div>
                                 </div>
 
-                                <form onSubmit={handleSubmit} className="flex flex-col gap-[3.2vh] shrink">
+                                <form onSubmit={handleSubmit} className="flex flex-col gap-4 sm:gap-[3.2vh] shrink">
                                     {/* Email */}
-                                    <div className="space-y-[0.65vh] group">
-                                        <label className="text-[clamp(11.7px,1.43vh,14.3px)] font-bold text-teal-100/40 uppercase tracking-widest ml-1.3">Email</label>
-                                        <div className="relative h-[7.8vh] min-h-[46.8px]">
-                                            <div className="absolute inset-0 bg-black/20 rounded-xl blur-[1.3px]" />
-                                            <div className="relative flex items-center bg-white/5 border border-white/10 rounded-xl px-5.2 h-full transition-all duration-300 group-focus-within:bg-white/10 group-focus-within:border-teal-500/50">
-                                                <Mail className="text-white/40 mr-[5.2vh] w-[2.6vh] h-[2.6vh]" />
+                                    <div className="space-y-2 group">
+                                        <label className="text-[10px] sm:text-xs font-semibold text-teal-300/60 uppercase tracking-widest ml-1">Email</label>
+                                        <div className="relative">
+                                            <div className="flex items-center bg-white/[0.03] border border-white/10 rounded-xl px-4 h-12 sm:h-14 transition-all duration-300 group-focus-within:bg-white/[0.06] group-focus-within:border-teal-500/40">
+                                                <Mail className="text-teal-400/60 w-5 h-5 shrink-0" />
                                                 <input
                                                     type="email"
                                                     required
                                                     value={formData.email}
                                                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                                    className="w-full bg-transparent outline-none text-white placeholder-white/20 font-medium text-[clamp(15.6px,1.95vh,20.8px)]"
+                                                    className="flex-1 bg-transparent outline-none text-white placeholder-white/30 font-medium text-sm sm:text-base ml-3"
                                                     placeholder="name@connekt.com"
                                                 />
                                             </div>
@@ -713,22 +714,21 @@ export default function AuthPage() {
                                     </div>
 
                                     {/* Password */}
-                                    <div className="space-y-[0.65vh] group">
-                                        <label className="text-[clamp(11.7px,1.43vh,14.3px)] font-bold text-teal-100/40 uppercase tracking-widest ml-1.3">Password</label>
-                                        <div className="relative h-[7.8vh] min-h-[46.8px]">
-                                            <div className="absolute inset-0 bg-black/20 rounded-xl blur-[1.3px]" />
-                                            <div className="relative flex items-center bg-white/5 border border-white/10 rounded-xl px-5.2 h-full transition-all duration-300 group-focus-within:bg-white/10 group-focus-within:border-teal-500/50">
-                                                <Lock className="text-white/40 mr-[5.2vh] w-[2.6vh] h-[2.6vh]" />
+                                    <div className="space-y-2 group">
+                                        <label className="text-[10px] sm:text-xs font-semibold text-teal-300/60 uppercase tracking-widest ml-1">Password</label>
+                                        <div className="relative">
+                                            <div className="flex items-center bg-white/[0.03] border border-white/10 rounded-xl px-4 h-12 sm:h-14 transition-all duration-300 group-focus-within:bg-white/[0.06] group-focus-within:border-teal-500/40">
+                                                <Lock className="text-teal-400/60 w-5 h-5 shrink-0" />
                                                 <input
                                                     type={isPasswordVisible ? 'text' : 'password'}
                                                     required
                                                     value={formData.password}
                                                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                                    className="w-full bg-transparent outline-none text-white placeholder-white/20 font-medium text-[clamp(15.6px,1.95vh,20.8px)]"
+                                                    className="flex-1 bg-transparent outline-none text-white placeholder-white/30 font-medium text-sm sm:text-base ml-3"
                                                     placeholder="••••••••"
                                                 />
-                                                <button type="button" onClick={() => setIsPasswordVisible(!isPasswordVisible)} className="text-white/40 hover:text-white p-2.6 -mr-2.6">
-                                                    {isPasswordVisible ? <EyeOff className="w-[2.6vh] h-[2.6vh]" /> : <Eye className="w-[2.6vh] h-[2.6vh]" />}
+                                                <button type="button" onClick={() => setIsPasswordVisible(!isPasswordVisible)} className="text-white/40 hover:text-teal-400 transition-colors p-1 ml-2">
+                                                    {isPasswordVisible ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                                 </button>
                                             </div>
                                         </div>
@@ -741,7 +741,7 @@ export default function AuthPage() {
                                     )}
 
                                     {/* Submit Button */}
-                                    <button type="submit" disabled={loading} className="relative w-full h-[7.8vh] min-h-[52px] rounded-xl overflow-hidden group outline-none shrink-0">
+                                    <button type="submit" disabled={loading} className="relative w-full h-12 sm:h-[7.8vh] sm:min-h-[52px] rounded-xl overflow-hidden group outline-none shrink-0">
                                         <div className="absolute inset-0 bg-gradient-to-r from-teal-600 to-teal-400 transition-all duration-300 group-hover:scale-105" />
                                         <div className="absolute inset-0 opacity-20 bg-gradient-to-b from-white/50 to-transparent pointer-events-none" />
                                         <div className="relative z-10 flex items-center justify-center gap-2.6 text-white font-bold text-[clamp(15.6px,1.95vh,20.8px)] tracking-wide uppercase">
@@ -750,13 +750,13 @@ export default function AuthPage() {
                                     </button>
                                 </form>
 
-                                <div className="my-[2.6vh] flex items-center gap-5.2 shrink-0">
+                                <div className="my-4 sm:my-[2.6vh] flex items-center gap-5.2 shrink-0">
                                     <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent flex-1" />
                                     <span className="text-[clamp(10.4px,1.3vh,13px)] font-bold text-teal-100/30 uppercase tracking-widest">Or continue with</span>
                                     <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent flex-1" />
                                 </div>
 
-                                <button onClick={handleGoogle} disabled={loading} className="w-full h-[6.5vh] min-h-[46.8px] relative flex items-center justify-center gap-3.9 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl transition-all duration-300 group outline-none shrink-0">
+                                <button onClick={handleGoogle} disabled={loading} className="w-full h-12 sm:h-[6.5vh] sm:min-h-[46.8px] relative flex items-center justify-center gap-3.9 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl transition-all duration-300 group outline-none shrink-0">
                                     <FcGoogle className="w-[3.25vh] h-[3.25vh] filter drop-shadow-md group-hover:scale-110 transition-transform" />
                                     <span className="text-white/80 font-medium text-[clamp(14.3px,1.69vh,18.2px)]">Google Account</span>
                                 </button>

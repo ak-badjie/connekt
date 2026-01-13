@@ -70,11 +70,17 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
 
     // --- ANIMATION CONFIG ---
     // Smoothly adjust padding based on sidebar state
-    // 21rem = 336px (Expanded + gap)
-    // 8rem  = 128px (Collapsed 90px + gap)
+    // Mobile collapsed: 5rem (72px + gap), Mobile expanded: 19rem
+    // Desktop collapsed: 6.5rem, Desktop expanded: 21rem
     const mainVariants = {
-        expanded: { paddingLeft: '21rem', transition: { type: "spring", stiffness: 300, damping: 30 } },
-        collapsed: { paddingLeft: '8rem', transition: { type: "spring", stiffness: 300, damping: 30 } }
+        expanded: {
+            paddingLeft: '19rem',
+            transition: { type: "spring", stiffness: 300, damping: 30 }
+        },
+        collapsed: {
+            paddingLeft: '5.5rem',
+            transition: { type: "spring", stiffness: 300, damping: 30 }
+        }
     };
 
     return (
@@ -93,24 +99,17 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
             <Sidebar />
             <Navbar />
 
-            {/* Main Content Area */}
+            {/* Main Content Area - Single responsive layout */}
             <motion.main
-                initial="expanded"
+                initial="collapsed"
                 animate={isCollapsed ? "collapsed" : "expanded"}
                 variants={mainVariants}
-                className="hidden lg:block pt-20 pr-6 pl-6 pb-6 min-h-screen will-change-[padding]"
+                className="pt-16 sm:pt-20 pr-2 sm:pr-4 lg:pr-6 pb-2 sm:pb-4 lg:pb-6 min-h-screen will-change-[padding]"
             >
-                <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-white/20 dark:border-white/5 rounded-3xl shadow-xl p-0 min-h-[calc(100vh-8rem)] overflow-hidden">
+                <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-white/20 dark:border-white/5 rounded-2xl sm:rounded-3xl shadow-xl p-0 min-h-[calc(100vh-5rem)] sm:min-h-[calc(100vh-8rem)] overflow-hidden">
                     {children}
                 </div>
             </motion.main>
-
-            {/* Mobile Fallback (No padding animation needed) */}
-            <main className="lg:hidden pt-20 px-4 pb-6 min-h-screen">
-                <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-white/20 dark:border-white/5 rounded-3xl shadow-xl p-0 min-h-[calc(100vh-8rem)] overflow-hidden">
-                    {children}
-                </div>
-            </main>
 
             <GlobalChatWidget />
         </div>

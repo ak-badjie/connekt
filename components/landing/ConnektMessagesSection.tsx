@@ -145,9 +145,9 @@ export default function ConnektMessagesSection() {
                                 <div className="w-20" />
                             </div>
 
-                            <div className="flex h-[400px]">
+                            <div className="flex h-[300px] sm:h-[400px]">
                                 {/* Sidebar - Conversations List */}
-                                <div className="w-56 border-r border-gray-200 bg-gray-50">
+                                <div className="hidden sm:block w-48 md:w-56 border-r border-gray-200 bg-gray-50">
                                     <div className="p-3 border-b border-gray-200">
                                         <div className="relative">
                                             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />

@@ -44,7 +44,7 @@ export function MailListColumn({
     };
 
     return (
-        <div className="w-96 bg-white dark:bg-zinc-900 border-r border-gray-200 dark:border-zinc-800 flex flex-col h-full">
+        <div className="w-full sm:w-80 md:w-96 bg-white dark:bg-zinc-900 border-r border-gray-200 dark:border-zinc-800 flex flex-col h-full shrink-0">
             {/* Search & Filters */}
             <div className="p-4 border-b border-gray-200 dark:border-zinc-800 space-y-3">
                 <div className="relative">
@@ -63,8 +63,8 @@ export function MailListColumn({
                     <button
                         onClick={() => onToggleUnreadOnly?.(!showUnreadOnly)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${showUnreadOnly
-                                ? 'bg-[#008080] text-white'
-                                : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400'
+                            ? 'bg-[#008080] text-white'
+                            : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400'
                             }`}
                     >
                         Unread Only
@@ -72,8 +72,8 @@ export function MailListColumn({
                     <button
                         onClick={() => setSortBy('date')}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${sortBy === 'date'
-                                ? 'bg-[#008080] text-white'
-                                : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400'
+                            ? 'bg-[#008080] text-white'
+                            : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400'
                             }`}
                     >
                         <Clock size={12} className="inline mr-1" />
@@ -82,8 +82,8 @@ export function MailListColumn({
                     <button
                         onClick={() => setSortBy('sender')}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${sortBy === 'sender'
-                                ? 'bg-[#008080] text-white'
-                                : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400'
+                            ? 'bg-[#008080] text-white'
+                            : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400'
                             }`}
                     >
                         <UserIcon size={12} className="inline mr-1" />
@@ -113,8 +113,8 @@ export function MailListColumn({
                                 key={mail.id}
                                 onClick={() => onMailSelect(mail)}
                                 className={`w-full p-4 rounded-xl cursor-pointer transition-all text-left ${selectedMail?.id === mail.id
-                                        ? 'bg-[#008080]/5 border border-[#008080] shadow-sm'
-                                        : 'border border-transparent hover:bg-gray-50 dark:hover:bg-zinc-800'
+                                    ? 'bg-[#008080]/5 border border-[#008080] shadow-sm'
+                                    : 'border border-transparent hover:bg-gray-50 dark:hover:bg-zinc-800'
                                     }`}
                             >
                                 {/* Sender & Time */}
@@ -149,8 +149,8 @@ export function MailListColumn({
                                         )}
                                         <div className="flex flex-col">
                                             <h4 className={`text-sm ${!mail.isRead
-                                                    ? 'font-bold text-gray-900 dark:text-white'
-                                                    : 'font-medium text-gray-700 dark:text-gray-300'
+                                                ? 'font-bold text-gray-900 dark:text-white'
+                                                : 'font-medium text-gray-700 dark:text-gray-300'
                                                 }`}>
                                                 {mail.type === 'received' ? mail.senderName : `To: ${mail.recipientAddress}`}
                                             </h4>
@@ -166,8 +166,8 @@ export function MailListColumn({
 
                                 {/* Subject */}
                                 <h5 className={`text-xs mb-1 ${!mail.isRead
-                                        ? 'font-bold text-gray-900 dark:text-white'
-                                        : 'text-gray-500'
+                                    ? 'font-bold text-gray-900 dark:text-white'
+                                    : 'text-gray-500'
                                     }`}>
                                     {mail.subject}
                                 </h5>

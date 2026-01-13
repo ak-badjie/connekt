@@ -85,7 +85,7 @@ function Stepper({
             {/* Header / Indicators */}
             <div className={`
                 flex items-center justify-between px-2 mb-4 z-50 transition-all duration-500 flex-shrink-0
-                ${isRoleStep ? 'absolute top-8 left-8 right-8 max-w-md mx-auto bg-black/50 backdrop-blur-md p-4 rounded-full border border-white/10' : ''}
+                ${isRoleStep ? 'absolute top-4 sm:top-8 left-4 sm:left-8 right-4 sm:right-8 max-w-md mx-auto bg-black/50 backdrop-blur-md p-3 sm:p-4 rounded-full border border-white/10' : ''}
             `}>
                 {stepsArray.map((_, i) => (
                     <React.Fragment key={i}>
@@ -119,18 +119,17 @@ function Stepper({
                 </AnimatePresence>
             </div>
 
-            {/* Footer Buttons */}
             <div className={`
                 flex justify-between items-center z-50 transition-all duration-500 flex-shrink-0
                 ${isRoleStep
-                    ? 'absolute bottom-8 left-8 right-8 max-w-4xl mx-auto'
-                    : 'mt-6 pt-4 border-t border-gray-100 dark:border-zinc-800'}
+                    ? 'absolute bottom-4 sm:bottom-8 left-4 sm:left-8 right-4 sm:right-8 max-w-4xl mx-auto'
+                    : 'mt-4 sm:mt-6 pt-4 border-t border-gray-100 dark:border-zinc-800'}
             `}>
                 <button
                     onClick={() => updateStep(currentStep - 1)}
                     disabled={currentStep === 1}
                     className={`
-                        px-6 py-3 rounded-xl text-sm font-medium transition-colors flex items-center gap-2
+                        px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl text-sm font-medium transition-colors flex items-center gap-2
                         ${currentStep === 1 ? 'opacity-0 pointer-events-none' : ''}
                         ${isRoleStep
                             ? 'text-white/70 hover:text-white bg-black/40 hover:bg-black/60 backdrop-blur-md border border-white/10'
@@ -144,7 +143,7 @@ function Stepper({
                     onClick={() => isLastStep ? onComplete() : updateStep(currentStep + 1)}
                     disabled={isNextDisabled(currentStep)}
                     className={`
-                        px-8 py-3 rounded-xl font-bold text-white shadow-lg transition-all duration-300 flex items-center gap-2
+                        px-6 sm:px-8 py-2.5 sm:py-3 rounded-xl font-bold text-white shadow-lg transition-all duration-300 flex items-center gap-2 text-sm sm:text-base
                         ${isNextDisabled(currentStep)
                             ? 'bg-gray-300 dark:bg-zinc-800 cursor-not-allowed text-gray-500 shadow-none'
                             : 'bg-gradient-to-r from-[#008080] to-teal-600 hover:scale-105 shadow-teal-500/30'}
@@ -328,8 +327,7 @@ export default function OnboardingPage() {
                 relative z-10 flex flex-col transition-all duration-500 ease-in-out
                 ${isRoleStep
                     ? 'w-screen h-screen rounded-none border-0 bg-black p-0'
-                    : 'w-full max-w-lg h-[85vh] md:h-[80vh] bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-white/20 dark:border-zinc-800 rounded-3xl p-6 shadow-2xl'
-                }
+                    : 'w-full max-w-lg h-[90vh] sm:h-[85vh] md:h-[80vh] bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-white/20 dark:border-zinc-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xl'}
             `}
         >
             {/* Header logic */}
@@ -581,31 +579,33 @@ export default function OnboardingPage() {
             {showSideVectors ? (
                 <div className="relative z-10 w-full h-full flex items-center justify-center px-4">
                     <div className="w-full max-w-[1600px] flex items-center justify-center gap-6">
-                        <div className="flex-1 min-w-0 flex items-center justify-center pointer-events-none">
+                        {/* Left side image - Hidden on mobile/tablet */}
+                        <div className="hidden lg:flex flex-1 min-w-0 items-center justify-center pointer-events-none">
                             <div className="relative w-full max-w-[520px] h-[680px] max-h-[75vh] opacity-40">
                                 <Image
                                     src="/va.png"
                                     alt="Virtual assistants working remotely"
                                     fill
                                     priority
-                                    sizes="(max-width: 1024px) 20vw, 520px"
+                                    sizes="520px"
                                     className="object-contain select-none"
                                 />
                             </div>
                         </div>
 
-                        <div className="flex-none w-full max-w-lg">
+                        <div className="flex-none w-full lg:max-w-lg">
                             {card}
                         </div>
 
-                        <div className="flex-1 min-w-0 flex items-center justify-center pointer-events-none">
+                        {/* Right side image - Hidden on mobile/tablet */}
+                        <div className="hidden lg:flex flex-1 min-w-0 items-center justify-center pointer-events-none">
                             <div className="relative w-full max-w-[520px] h-[680px] max-h-[75vh] opacity-40">
                                 <Image
                                     src="/recruiter.png"
                                     alt="Recruiters coordinating an online team"
                                     fill
                                     priority
-                                    sizes="(max-width: 1024px) 20vw, 520px"
+                                    sizes="520px"
                                     className="object-contain select-none"
                                 />
                             </div>

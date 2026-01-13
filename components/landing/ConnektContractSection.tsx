@@ -87,7 +87,7 @@ export default function ConnektContractSection() {
                         </motion.p>
 
                         {/* Feature Grid */}
-                        <div className="grid grid-cols-2 gap-3 mb-8">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
                             {CONTRACT_FEATURES.map((feature, i) => {
                                 const Icon = feature.icon;
                                 return (

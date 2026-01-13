@@ -386,8 +386,8 @@ export function Navbar() {
                 initial={isPrivatePage ? "expanded" : undefined}
                 animate={isPrivatePage ? (isCollapsed ? "collapsed" : "expanded") : undefined}
                 variants={navVariants}
-                className={`fixed top-4 right-4 z-[100] transition-all duration-300
-                ${isPrivatePage ? 'left-4 lg:left-auto' : 'left-4 right-4 max-w-7xl mx-auto'}
+                className={`fixed top-2 sm:top-4 right-2 sm:right-4 z-[100] transition-all duration-300
+                ${isPrivatePage ? 'left-2 sm:left-4' : 'left-2 sm:left-4 right-2 sm:right-4 max-w-7xl mx-auto'}
             `}
                 style={{
                     // We force the motion value only on desktop by checking window width or simply relying on 
@@ -406,8 +406,8 @@ export function Navbar() {
             >
                 <GlassSurface
                     width="100%"
-                    height={56}
-                    borderRadius={24}
+                    height={48}
+                    borderRadius={20}
                     opacity={0.9}
                     blur={30}
                     borderWidth={1}
@@ -416,7 +416,7 @@ export function Navbar() {
                     {/* Dynamic Island Notification Overlay */}
 
 
-                    <div className="flex items-center justify-between w-full h-full gap-4">
+                    <div className="flex items-center justify-between w-full h-full gap-2 sm:gap-4 overflow-x-auto no-scrollbar">
 
                         {/* --- LEFT SECTION: Agency Info or Search --- */}
                         <div className="flex items-center flex-1 gap-6">
@@ -461,7 +461,7 @@ export function Navbar() {
                         </div>
 
                         {/* --- RIGHT SECTION: User & Dock --- */}
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
 
                             {/* User Info */}
                             {user && (
@@ -491,8 +491,8 @@ export function Navbar() {
                             {/* Divider */}
                             <div className="h-8 w-px bg-gray-200 dark:bg-white/10 mx-1 hidden sm:block"></div>
 
-                            {/* The Dock */}
-                            <div className="flex items-end gap-1 pb-1">
+                            {/* The Dock - Scrollable on mobile */}
+                            <div className="flex items-end gap-0.5 sm:gap-1 pb-1 overflow-x-auto no-scrollbar">
                                 <DockItem mouseX={mouseX} href="/mail" isActive={pathname.startsWith('/mail')} label="Mail" badge={unreadMailCount}>
                                     <Mail size={20} />
                                 </DockItem>

@@ -138,7 +138,7 @@ export default function ConnektRolesSection() {
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
                             transition={{ delay: 0.3 }}
-                            className="flex items-center gap-8"
+                            className="flex items-center gap-4 sm:gap-8"
                         >
                             <div className="flex flex-col items-center">
                                 <div className="w-12 h-12 rounded-2xl bg-[#008080] flex items-center justify-center shadow-lg shadow-teal-500/30">

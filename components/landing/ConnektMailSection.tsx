@@ -179,7 +179,7 @@ export default function ConnektMailSection() {
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
                             transition={{ delay: 0.5 }}
-                            className="grid grid-cols-2 gap-3 mb-8"
+                            className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8"
                         >
                             {MAIL_FEATURES.map((feature, index) => {
                                 const Icon = feature.icon;

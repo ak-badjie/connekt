@@ -63,7 +63,7 @@ export function MailPrimarySidebar({
     };
 
     return (
-        <div className="w-64 h-full bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl border-r border-gray-200/50 dark:border-zinc-800/50 flex flex-col relative">
+        <div className="hidden md:flex w-64 h-full bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl border-r border-gray-200/50 dark:border-zinc-800/50 flex-col relative">
             {/* Floating Compose Button */}
             <div className="p-4 sticky top-0 z-10 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl">
                 <button

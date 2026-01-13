@@ -92,14 +92,14 @@ export default function ConnektCalendarSection() {
                                 </div>
 
                                 {/* Week Days Header */}
-                                <div className="grid grid-cols-7 gap-2 mb-2">
+                                <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2">
                                     {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
                                         <div key={d} className="text-center text-xs font-semibold text-gray-400 py-2">{d}</div>
                                     ))}
                                 </div>
 
                                 {/* Calendar Grid */}
-                                <div className="grid grid-cols-7 gap-2">
+                                <div className="grid grid-cols-7 gap-1 sm:gap-2">
                                     {CALENDAR_DAYS.map((item, i) => (
                                         <div
                                             key={item.day}
@@ -194,7 +194,7 @@ export default function ConnektCalendarSection() {
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
                             transition={{ delay: 0.6 }}
-                            className="grid grid-cols-3 gap-4 mb-8"
+                            className="grid grid-cols-3 gap-2 sm:gap-4 mb-8"
                         >
                             <div className="text-center">
                                 <div className="text-3xl font-black text-[#008080]">24/7</div>

@@ -27,12 +27,12 @@ export function MailHeader({
     const [showProfileDropdown, setShowProfileDropdown] = useState(false);
 
     return (
-        <div className="h-16 border-b border-gray-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl flex items-center justify-between px-6 relative z-[100]">
+        <div className="h-14 sm:h-16 border-b border-gray-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl flex items-center justify-between px-3 sm:px-6 relative z-[100]">
             {/* Left: Mail Address Selector */}
-            <div className="flex items-center gap-4">
-                <div className="flex items-center gap-3">
-                    <ConnektMailIcon className="w-10 h-10" />
-                    <span className="text-xl font-bold font-headline text-[#008080]">ConnektMail</span>
+            <div className="flex items-center gap-2 sm:gap-4">
+                <div className="flex items-center gap-2 sm:gap-3">
+                    <ConnektMailIcon className="w-8 h-8 sm:w-10 sm:h-10" />
+                    <span className="hidden sm:inline text-xl font-bold font-headline text-[#008080]">ConnektMail</span>
                 </div>
 
                 <div className="relative">
@@ -85,8 +85,8 @@ export function MailHeader({
                 </div>
             </div>
 
-            {/* Center: Search Bar */}
-            <div className="flex-1 max-w-md mx-8">
+            {/* Center: Search Bar - Hidden on very small screens */}
+            <div className="hidden sm:block flex-1 max-w-md mx-4 md:mx-8">
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input

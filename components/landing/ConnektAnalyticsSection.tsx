@@ -37,7 +37,7 @@ export default function ConnektAnalyticsSection() {
                         transition={{ duration: 0.6, delay: 0.3 }}
                         className="absolute top-6 left-6 md:top-10 md:left-10 lg:top-12 lg:left-12"
                     >
-                        <div className="bg-black/60 backdrop-blur-sm rounded-2xl p-6 md:p-8 max-w-sm">
+                        <div className="bg-black/60 backdrop-blur-sm rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 max-w-xs sm:max-w-sm">
 
                             {/* Badge */}
                             <motion.div

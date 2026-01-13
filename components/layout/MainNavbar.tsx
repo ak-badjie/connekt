@@ -8,9 +8,9 @@ import {
   Compass, Briefcase, Bot, Building2, X, Home
 } from 'lucide-react';
 // Assuming you have these or replace them with simple placeholders
-import { useAuth } from '@/context/AuthContext'; 
-import { AuthService } from '@/lib/services/auth-service'; 
-import ConnektIcon from '@/components/branding/ConnektIcon'; 
+import { useAuth } from '@/context/AuthContext';
+import { AuthService } from '@/lib/services/auth-service';
+import ConnektIcon from '@/components/branding/ConnektIcon';
 
 import {
   motion,
@@ -288,7 +288,7 @@ function DockItem({ children, onClick, href, isActive, label, mouseX }: DockItem
   const baseItemSize = 45; // Base size of icon container
   const magnification = 80; // How big it gets when hovered
   const distance = 150; // The reach of the mouse influence
-  
+
   // Calculate distance from mouse to center of this icon
   const mouseDistance = useTransform(mouseX, (val) => {
     const rect = ref.current?.getBoundingClientRect() ?? { x: 0, width: baseItemSize };
@@ -297,13 +297,13 @@ function DockItem({ children, onClick, href, isActive, label, mouseX }: DockItem
 
   // Transform distance into size (Swell effect)
   const widthSync = useTransform(mouseDistance, [-distance, 0, distance], [baseItemSize, magnification, baseItemSize]);
-  
+
   // Add elasticity (The rubber effect)
   const width = useSpring(widthSync, { mass: 0.1, stiffness: 180, damping: 12 });
-  
+
   // Optional: Make it rise slightly when expanding
   // const ySync = useTransform(width, [baseItemSize, magnification], [0, -5]);
-  
+
   const [tooltipVisible, setTooltipVisible] = useState(false);
 
   const Content = (
@@ -319,8 +319,8 @@ function DockItem({ children, onClick, href, isActive, label, mouseX }: DockItem
         setTooltipVisible(false);
       }}
       className={`relative flex items-center justify-center rounded-full transition-colors duration-200 
-        ${isActive 
-          ? 'bg-[#008080]/10 text-[#008080] border border-[#008080]/20' 
+        ${isActive
+          ? 'bg-[#008080]/10 text-[#008080] border border-[#008080]/20'
           : 'text-gray-600 dark:text-gray-300 hover:text-[#008080] border border-transparent'
         }`}
     >
@@ -347,9 +347,9 @@ function DockItem({ children, onClick, href, isActive, label, mouseX }: DockItem
 
       {/* Active Dot */}
       {isActive && (
-        <motion.div 
-          layoutId="nav-dot" 
-          className="absolute -bottom-2 w-1 h-1 rounded-full bg-[#008080]" 
+        <motion.div
+          layoutId="nav-dot"
+          className="absolute -bottom-2 w-1 h-1 rounded-full bg-[#008080]"
         />
       )}
     </motion.div>
@@ -402,7 +402,7 @@ export default function MainNavbar() {
 
   return (
     <div className="fixed top-8 left-0 right-0 z-50 flex justify-center items-start pointer-events-none px-4">
-      
+
       {/* 
         THE LIQUID ISLAND
         The `layout` prop makes this container morph elastically when content changes.
@@ -418,15 +418,15 @@ export default function MainNavbar() {
         }}
         className="pointer-events-auto relative rounded-[50px] shadow-2xl shadow-[#008080]/10 flex items-center"
         style={{
-          height: '70px', // Fixed height for consistency
+          height: '56px', // Slightly smaller on mobile
           // This width constraint forces the physical expansion
-          width: isExplore ? '850px' : 'fit-content',
-          minWidth: '500px'
+          width: isExplore ? 'min(850px, calc(100vw - 32px))' : 'fit-content',
+          minWidth: 'min(500px, calc(100vw - 32px))'
         }}
         onMouseMove={(e) => mouseX.set(e.pageX)}
         onMouseLeave={() => mouseX.set(Infinity)}
       >
-        
+
         {/* Background Glass Surface - Stretches with parent */}
         <div className="absolute inset-0 rounded-[50px] overflow-hidden z-0">
           <GlassSurface
@@ -441,18 +441,18 @@ export default function MainNavbar() {
         </div>
 
         {/* Navbar Content Wrapper */}
-        <div className="relative z-20 flex items-center justify-between w-full h-full px-6">
+        <div className="relative z-20 flex items-center justify-between w-full h-full px-3 sm:px-6">
 
           {/* LEFT: Logo */}
-          <Link href="/" className="flex items-center gap-3 pr-6 border-r border-gray-400/20 mr-2 flex-shrink-0">
-            <ConnektIcon className="w-8 h-8 text-[#008080]" />
-            <div className="hidden md:block font-bold font-headline text-[#008080] tracking-widest text-lg">
+          <Link href="/" className="flex items-center gap-2 sm:gap-3 pr-3 sm:pr-6 border-r border-gray-400/20 mr-1 sm:mr-2 flex-shrink-0">
+            <ConnektIcon className="w-6 h-6 sm:w-8 sm:h-8 text-[#008080]" />
+            <div className="hidden sm:block font-bold font-headline text-[#008080] tracking-widest text-sm sm:text-lg">
               <SplitText text="CONNEKT" delay={200} />
             </div>
           </Link>
 
           {/* CENTER: Morphing Area (Dock <-> Search) */}
-          <div className="flex-1 flex justify-center items-center px-2 overflow-hidden h-full">
+          <div className="flex-1 flex justify-start sm:justify-center items-center px-1 sm:px-2 overflow-x-auto overflow-y-hidden h-full no-scrollbar">
             <AnimatePresence mode="popLayout">
               {isExplore ? (
                 // STATE B: SEARCH BAR (Wide)
@@ -472,7 +472,7 @@ export default function MainNavbar() {
                     />
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#008080]" size={16} />
                   </div>
-                  
+
                   <button
                     onClick={() => router.push('/')}
                     className="p-2 rounded-full hover:bg-gray-200/50 dark:hover:bg-zinc-700/50 transition-colors"
@@ -488,7 +488,7 @@ export default function MainNavbar() {
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.8, y: -20, filter: "blur(10px)" }}
                   transition={{ duration: 0.3 }}
-                  className="flex items-end gap-2 pb-1" // align items-end for "rising" effect if needed
+                  className="flex items-end gap-1 sm:gap-2 pb-1" // align items-end for "rising" effect if needed
                 >
                   <DockItem mouseX={mouseX} href="/" isActive={pathname === '/'} label="Home">
                     <Home size={20} />
@@ -511,7 +511,7 @@ export default function MainNavbar() {
           </div>
 
           {/* RIGHT: Profile Actions */}
-          <div className="flex items-center pl-6 border-l border-gray-400/20 ml-2 flex-shrink-0">
+          <div className="flex items-center pl-3 sm:pl-6 border-l border-gray-400/20 ml-1 sm:ml-2 flex-shrink-0">
             {user ? (
               <div className="relative" ref={dropdownRef}>
                 <button

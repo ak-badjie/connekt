@@ -97,7 +97,7 @@ export default function ConnektTeamsSection() {
                         </motion.p>
 
                         {/* Feature Grid */}
-                        <div className="grid grid-cols-2 gap-3 mb-8">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
                             {TEAM_FEATURES.map((feature, i) => {
                                 const Icon = feature.icon;
                                 return (
@@ -142,7 +142,7 @@ export default function ConnektTeamsSection() {
                         whileInView={{ opacity: 1, scale: 1 }}
                         viewport={{ once: true }}
                         transition={{ duration: 0.6, delay: 0.3 }}
-                        className="relative h-[550px] md:h-[600px]"
+                        className="relative h-[350px] sm:h-[450px] md:h-[550px] lg:h-[600px]"
                     >
                         <CircularGallery
                             items={TEAM_MEMBERS}

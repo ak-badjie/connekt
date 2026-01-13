@@ -138,7 +138,7 @@ export default function ConnektNotificationsSection() {
                         <div className="mt-10 w-full max-w-md">
                             <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
                                 <h4 className="text-sm font-bold text-gray-700 mb-4">All Notification Types</h4>
-                                <div className="grid grid-cols-3 gap-3">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
                                     {NOTIFICATION_CATEGORIES.map((cat) => {
                                         const CatIcon = cat.icon;
                                         return (

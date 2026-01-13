@@ -92,7 +92,7 @@ export function MailViewerColumn({
 
     if (!mail) {
         return (
-            <div className="flex-1 bg-white dark:bg-zinc-900 flex flex-col items-center justify-center text-gray-400">
+            <div className="hidden sm:flex flex-1 bg-white dark:bg-zinc-900 flex-col items-center justify-center text-gray-400">
                 <div className="w-20 h-20 bg-gray-50 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-4">
                     <Paperclip size={40} className="text-gray-300" />
                 </div>
@@ -114,9 +114,9 @@ export function MailViewerColumn({
     };
 
     return (
-        <div className="flex-1 bg-white dark:bg-zinc-900 flex flex-col h-full overflow-hidden">
+        <div className="hidden sm:flex flex-1 bg-white dark:bg-zinc-900 flex-col h-full overflow-hidden">
             {/* Mail Header */}
-            <div className="p-6 border-b border-gray-200 dark:border-zinc-800">
+            <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-zinc-800">
                 {/* Actions */}
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
@@ -170,7 +170,7 @@ export function MailViewerColumn({
                 </div>
 
                 {/* Subject */}
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+                <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white mb-4">
                     {mail.subject}
                 </h1>
 
@@ -208,7 +208,7 @@ export function MailViewerColumn({
             </div>
 
             {/* Mail Body */}
-            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
                 <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-3 prose-p:leading-relaxed">
                     <ReactMarkdown>{mail.body}</ReactMarkdown>
                 </div>

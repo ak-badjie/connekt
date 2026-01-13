@@ -145,7 +145,7 @@ export default function ConnketAISection({ isVisible }: { isVisible: boolean }) 
                         transition={{ duration: 0.6, delay: 0.2 }}
                         className="bg-gray-50 rounded-3xl p-6 md:p-8"
                     >
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
                             {AI_TOOLS.map((tool, i) => {
                                 const Icon = tool.icon;
                                 return (
@@ -155,7 +155,7 @@ export default function ConnketAISection({ isVisible }: { isVisible: boolean }) 
                                         whileInView={{ opacity: 1, y: 0 }}
                                         viewport={{ once: true }}
                                         transition={{ delay: 0.3 + i * 0.05 }}
-                                        className="flex flex-col items-center text-center p-4 rounded-xl bg-white border border-gray-200 hover:border-[#008080] hover:shadow-lg transition-all cursor-pointer group"
+                                        className="flex flex-col items-center text-center p-3 sm:p-4 rounded-xl bg-white border border-gray-200 hover:border-[#008080] hover:shadow-lg transition-all cursor-pointer group"
                                     >
                                         <div className="w-12 h-12 rounded-xl bg-[#008080]/10 flex items-center justify-center mb-3 group-hover:bg-[#008080] transition-colors">
                                             <Icon className="w-6 h-6 text-[#008080] group-hover:text-white transition-colors" />

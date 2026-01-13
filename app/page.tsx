@@ -278,15 +278,22 @@ export default function LandingPage() {
 
           {/* Full-width Background Image */}
           <div className="absolute inset-0">
+            {/* Desktop Image */}
             <Image
-              src="/hero_image.jpeg"
+              src="/hero-image.jpeg"
               alt="Professional working on laptop"
               fill
-              className="object-cover object-center"
+              className="object-cover object-center hidden sm:block"
               priority
             />
-            {/* Gradient overlay for text readability */}
-            <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-transparent" />
+            {/* Mobile Image */}
+            <Image
+              src="/mobile-hero-image.jpeg"
+              alt="Professional working on laptop"
+              fill
+              className="object-cover object-center sm:hidden"
+              priority
+            />
           </div>
 
           {/* Content Grid */}
@@ -303,7 +310,7 @@ export default function LandingPage() {
                 className="flex items-center gap-4 md:gap-6 mb-6"
               >
                 {/* Metallic Briefcase Icon */}
-                <div className="w-20 h-20 md:w-28 md:h-28 lg:w-32 lg:h-32 shrink-0">
+                <div className="w-14 h-14 sm:w-20 sm:h-20 md:w-28 md:h-28 lg:w-32 lg:h-32 shrink-0">
                   <MetallicPaint
                     svg={CONNEKT_ICON_SVG}
                     className="block w-full h-full"
@@ -311,7 +318,7 @@ export default function LandingPage() {
                 </div>
 
                 {/* Metallic CONNEKT Wordmark */}
-                <div className="relative w-[280px] md:w-[400px] lg:w-[500px] h-20 md:h-28 lg:h-36">
+                <div className="relative w-[180px] sm:w-[280px] md:w-[400px] lg:w-[500px] h-14 sm:h-20 md:h-28 lg:h-36">
                   <MetallicPaint
                     svg={CONNEKT_WORDMARK_SVG}
                     className="block w-full h-full"
@@ -337,7 +344,7 @@ export default function LandingPage() {
                   <motion.div
                     layout="position"
                     transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-                    className="flex flex-col md:flex-row items-start md:items-center gap-2 md:gap-3 text-2xl md:text-3xl lg:text-4xl font-semibold tracking-tight"
+                    className="flex flex-col md:flex-row items-start md:items-center gap-2 md:gap-3 text-lg sm:text-2xl md:text-3xl lg:text-4xl font-semibold tracking-tight"
                   >
                     <motion.span
                       layout="position"
@@ -350,7 +357,7 @@ export default function LandingPage() {
                     <motion.div
                       layout
                       transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-                      className="bg-white/10 border border-white/20 backdrop-blur-md rounded-full px-5 py-1.5 md:py-2 flex items-center justify-center min-w-[120px]"
+                      className="bg-white/10 border border-white/20 backdrop-blur-md rounded-full px-3 sm:px-5 py-1 sm:py-1.5 md:py-2 flex items-center justify-center min-w-[100px] sm:min-w-[120px]"
                     >
                       <RotatingText
                         texts={[

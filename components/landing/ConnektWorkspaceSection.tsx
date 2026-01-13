@@ -70,7 +70,7 @@ export default function ConnektWorkspaceSection() {
                             {/* Sidebar + Content */}
                             <div className="flex">
                                 {/* Sidebar */}
-                                <div className="w-48 bg-gray-50 border-r border-gray-200 p-4">
+                                <div className="hidden sm:block w-40 md:w-48 bg-gray-50 border-r border-gray-200 p-4">
                                     <div className="text-xs text-gray-500 mb-3 font-semibold">WORKSPACES</div>
                                     {['Design Studio', 'Marketing', 'Development'].map((ws, i) => (
                                         <div
@@ -107,7 +107,7 @@ export default function ConnektWorkspaceSection() {
                                     </div>
 
                                     {/* Project Cards */}
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         {['Website Redesign', 'Mobile App', 'Brand Identity', 'Social Media'].map((proj, i) => (
                                             <div key={proj} className="bg-gray-50 rounded-xl p-4 border border-gray-200 hover:border-[#008080] transition-colors">
                                                 <div className="flex items-center gap-2 mb-2">
@@ -147,7 +147,7 @@ export default function ConnektWorkspaceSection() {
                         </p>
 
                         {/* Feature Cards */}
-                        <div className="grid grid-cols-2 gap-3 mb-8">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
                             {WORKSPACE_CARDS.map((card) => {
                                 const Icon = card.icon;
                                 return (

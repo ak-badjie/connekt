@@ -82,7 +82,7 @@ export default function ConnektMeetingsSection() {
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
                             transition={{ delay: 0.4 }}
-                            className="grid grid-cols-2 gap-4 mb-8"
+                            className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-8"
                         >
                             {[
                                 { icon: Monitor, label: 'Screen Share', desc: 'Present with ease' },

@@ -81,7 +81,7 @@ export default function ConnektProjectsSection() {
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
                             transition={{ delay: 0.4 }}
-                            className="grid grid-cols-3 gap-4 mb-8"
+                            className="grid grid-cols-3 gap-2 sm:gap-4 mb-8"
                         >
                             <div className="bg-gray-50 rounded-xl p-4 text-center">
                                 <div className="text-2xl font-black text-[#008080]">98%</div>

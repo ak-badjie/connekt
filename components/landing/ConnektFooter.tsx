@@ -86,7 +86,7 @@ export default function ConnektFooter() {
             <div className="relative max-w-7xl mx-auto px-6 md:px-12 lg:px-20 pt-20 pb-10">
 
                 {/* Main Footer Content */}
-                <div className="grid grid-cols-2 md:grid-cols-6 gap-10 mb-16">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-8 sm:gap-10 mb-16">
 
                     {/* Brand Column */}
                     <div className="col-span-2">
@@ -170,7 +170,7 @@ export default function ConnektFooter() {
                             <h3 className="text-xl font-bold mb-2">Stay in the loop</h3>
                             <p className="text-gray-400 text-sm">Get updates on new features and early access.</p>
                         </div>
-                        <div className="flex w-full md:w-auto gap-3">
+                        <div className="flex flex-col sm:flex-row w-full md:w-auto gap-3">
                             <input
                                 type="email"
                                 placeholder="your@email.com"
@@ -239,9 +239,9 @@ export default function ConnektFooter() {
                     viewport={{ once: true }}
                     className="mt-16 text-center"
                 >
-                    <div className="inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 rounded-full border border-zinc-700">
+                    <div className="inline-flex flex-wrap items-center justify-center gap-2 sm:gap-3 px-4 sm:px-6 py-3 bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 rounded-full border border-zinc-700">
                         <Sparkles className="w-5 h-5 text-[#008080]" />
-                        <span className="text-sm text-gray-300">
+                        <span className="text-xs sm:text-sm text-gray-300 text-center">
                             <span className="font-bold text-white">1 month</span> of solo development by GiDave '19
                             <span className="mx-2">•</span>
                             <span className="font-bold text-white">1 vision</span>

@@ -757,6 +757,17 @@ export default function MailPage() {
                 />
             </div>
 
+            {/* Floating Compose Button for Mobile */}
+            <button
+                onClick={() => setIsComposing(true)}
+                className="md:hidden fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-[#008080] to-teal-600 text-white rounded-full shadow-lg shadow-teal-500/30 flex items-center justify-center hover:scale-110 transition-transform z-50"
+                aria-label="Compose new mail"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 5v14M5 12h14" />
+                </svg>
+            </button>
+
             {/* Compose Modal */}
             <ComposeModal
                 isOpen={isComposing}

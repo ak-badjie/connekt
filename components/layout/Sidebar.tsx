@@ -438,19 +438,19 @@ export function Sidebar({ agency = null }: SidebarProps) {
 
   const items = getMenuItems();
 
-  // Elastic Animation Config
+  // Elastic Animation Config - Different widths for mobile vs desktop
   const sidebarVariants = {
     expanded: { width: 288, transition: { type: "spring" as const, stiffness: 300, damping: 30 } },
-    collapsed: { width: 90, transition: { type: "spring" as const, stiffness: 300, damping: 30 } }
+    collapsed: { width: 72, transition: { type: "spring" as const, stiffness: 300, damping: 30 } }
   };
 
   return (
     <>
       <motion.aside
-        initial="expanded"
+        initial="collapsed"
         animate={isCollapsed ? "collapsed" : "expanded"}
         variants={sidebarVariants}
-        className="fixed left-6 top-6 bottom-6 z-[110] hidden lg:flex flex-col overflow-visible"
+        className="fixed left-2 sm:left-4 lg:left-6 top-2 sm:top-4 lg:top-6 bottom-2 sm:bottom-4 lg:bottom-6 z-[110] flex flex-col overflow-visible"
         onMouseMove={(e) => mouseY.set(e.clientY)}
         onMouseLeave={() => mouseY.set(Infinity)}
         ref={containerRef}
@@ -468,18 +468,18 @@ export function Sidebar({ agency = null }: SidebarProps) {
           type="button"
           onClick={toggleSidebar}
           aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          className="fixed z-[120] flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-md transition-all duration-300 ease-in-out hover:text-[#008080] dark:border-zinc-700 dark:bg-zinc-800"
+          className="fixed z-[120] flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-md transition-all duration-300 ease-in-out hover:text-[#008080] dark:border-zinc-700 dark:bg-zinc-800"
           style={{
-            left: isCollapsed ? 'calc(1.5rem + 90px - 0.75rem)' : 'calc(1.5rem + 288px - 0.75rem)',
-            top: '3.5rem',
+            left: isCollapsed ? 'calc(0.5rem + 72px - 0.5rem)' : 'calc(0.5rem + 288px - 0.75rem)',
+            top: '2.5rem',
             transform: `rotate(${isCollapsed ? 180 : 0}deg)`
           }}
         >
-          <ChevronLeft size={16} />
+          <ChevronLeft size={14} />
         </button>
 
         {/* 2. Content Wrapper */}
-        <div className={`relative z-10 flex flex-col h-full py-6 overflow-hidden ${isCollapsed ? 'px-2' : 'px-5'}`}>
+        <div className={`relative z-10 flex flex-col h-full py-4 sm:py-6 overflow-hidden ${isCollapsed ? 'px-1 sm:px-2' : 'px-3 sm:px-5'}`}>
 
           {/* Header: Logo & Toggle */}
           <div className="mb-8 px-2 flex items-center">
